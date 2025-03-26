@@ -58,30 +58,62 @@
 (defn text-result [^String s]
   (McpSchema$CallToolResult. [(McpSchema$TextContent. s)] false))
 
-(defn eval-tool-callback [exchange arguments]
-  (let [{:keys [out err result]} (eval-tool-helper (get arguments "expression"))]
-    (text-result result)))
+(defn eval-tool-callback 
+  "Asynchronous eval tool callback that takes a continuation function.
+   The continuation will be called with the result when ready."
+  [exchange arguments continuation]
+  ;; Run evaluation in a separate thread to not block
+  (future
+    (let [{:keys [out err result]} (eval-tool-helper (get arguments "expression"))]
+      (continuation (text-result result)))))
 
 (def eval-tool
   (McpServerFeatures$AsyncToolSpecification.
    (McpSchema$Tool. "clojure_eval" "Takes a Clojure Expression and evaluates it in the 'user namespace. For example: provide \"(+ 1 2)\" and this will evaluate that and return 3" eval-schema)
    (reify java.util.function.BiFunction
      (apply [this exchange arguments]
-       (Mono/just (eval-tool-callback exchange arguments))))))
+       ;; Create a Mono that will be completed when our callback completes
+       (let [mono-promise (Mono/create
+                           (reify java.util.function.Consumer
+                             (accept [this sink]
+                               (eval-tool-callback 
+                                exchange 
+                                arguments 
+                                (fn [result]
+                                  (.success sink result))))))]
+         mono-promise)))))
 
 #_(eval-tool-callback nil "hello")
 
 (def hello-schema (json/write-str {:type :object}))
 
-(defn hello-tool-callback [exchange arguments]
-  (McpSchema$CallToolResult. [(text-content "Hello world!") (text-content "Hello doors!") ] false))
+(defn hello-tool-callback 
+  "Asynchronous hello tool callback that takes a continuation function.
+   The continuation will be called with the result when ready."
+  [exchange arguments continuation]
+  ;; Simulate async work with a future
+  (future
+    (Thread/sleep 1000) ;; Simulate 1 second of work
+    (continuation (McpSchema$CallToolResult. 
+                   [(text-content "Hello world!") 
+                    (text-content "Hello doors!")] 
+                   false))))
 
 (def hello-tool
   (McpServerFeatures$AsyncToolSpecification.
    (McpSchema$Tool. "hello" "Returns hello" hello-schema)
    (reify java.util.function.BiFunction
      (apply [this exchange arguments]
-       (Mono/just (hello-tool-callback exchange arguments))))))
+       ;; Create a Mono that will be completed when our callback completes
+       (let [mono-promise (Mono/create
+                           (reify java.util.function.Consumer
+                             (accept [this sink]
+                               (hello-tool-callback 
+                                exchange 
+                                arguments 
+                                (fn [result]
+                                  (.success sink result))))))]
+         mono-promise)))))
 
 (defn mcp-server [& args]
   (let [transport-provider (StdioServerTransportProvider. (ObjectMapper.))
@@ -100,8 +132,9 @@
 
 (defn -main [& args]
   (let [server (mcp-server args)]
+    (println "MCP Async Server running on STDIO transport.")
     ;; Keep the process alive
-    #_(while true
+    (while true
       (Thread/sleep 1000))))
 
 (comment
