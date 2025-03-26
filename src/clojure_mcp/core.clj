@@ -95,13 +95,13 @@
         (.subscribe))
     (-> (.addTool server hello-tool)
         (.subscribe))
-    (println "MCP Async Server running on STDIO transport.")
+    #_(println "MCP Async Server running on STDIO transport.")
     server))
 
 (defn -main [& args]
   (let [server (mcp-server args)]
     ;; Keep the process alive
-    (while true
+    #_(while true
       (Thread/sleep 1000))))
 
 (comment
