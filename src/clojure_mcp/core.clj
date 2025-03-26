@@ -3,12 +3,13 @@
   #_(:gen-class)
   (:import [io.modelcontextprotocol.server.transport StdioServerTransportProvider]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
-            McpServerFeatures$SyncToolSpecification]
+            McpServerFeatures$AsyncToolSpecification]
            [io.modelcontextprotocol.spec
             McpSchema$ServerCapabilities
             McpSchema$Tool
             McpSchema$CallToolResult
-            McpSchema$TextContent ]
+            McpSchema$TextContent]
+           [reactor.core.publisher Mono]
            [com.fasterxml.jackson.databind ObjectMapper]))
 
 ;; {
@@ -62,11 +63,11 @@
     (text-result result)))
 
 (def eval-tool
-  (McpServerFeatures$SyncToolSpecification.
+  (McpServerFeatures$AsyncToolSpecification.
    (McpSchema$Tool. "clojure_eval" "Takes a Clojure Expression and evaluates it in the 'user namespace. For example: provide \"(+ 1 2)\" and this will evaluate that and return 3" eval-schema)
    (reify java.util.function.BiFunction
      (apply [this exchange arguments]
-       (eval-tool-callback exchange arguments)))))
+       (Mono/just (eval-tool-callback exchange arguments))))))
 
 #_(eval-tool-callback nil "hello")
 
@@ -75,22 +76,26 @@
 (defn hello-tool-callback [exchange arguments]
   (McpSchema$CallToolResult. [(text-content "Hello world!") (text-content "Hello doors!") ] false))
 
-(def sync-hello-tool
-  (McpServerFeatures$SyncToolSpecification.
+(def hello-tool
+  (McpServerFeatures$AsyncToolSpecification.
    (McpSchema$Tool. "hello" "Returns hello" hello-schema)
    (reify java.util.function.BiFunction
      (apply [this exchange arguments]
-       (hello-tool-callback exchange arguments)))))
+       (Mono/just (hello-tool-callback exchange arguments))))))
 
 (defn mcp-server [& args]
   (let [transport-provider (StdioServerTransportProvider. (ObjectMapper.))
-        server (-> (McpServer/sync transport-provider)
+        server (-> (McpServer/async transport-provider)
                    (.serverInfo "clojure-server" "0.1.0")
                    (.capabilities (-> (McpSchema$ServerCapabilities/builder)
                                       (.tools true)
                                       (.build)))
                    (.build))]
-    (.addTool server eval-tool)))
+    (-> (.addTool server eval-tool)
+        (.subscribe))
+    (-> (.addTool server hello-tool)
+        (.subscribe))
+    server))
 
 (comment
   ;; For REPL testing:
