@@ -1,22 +1,23 @@
 (ns clojure-mcp.core
   (:gen-class)
-  (:import [io.modelcontextprotocol.sdk.server.stdio StdioServerTransportProvider]
-           [io.modelcontextprotocol.sdk.server McpServer]
-           [io.modelcontextprotocol.sdk.server ServerCapabilities]
-           [com.fasterxml.jackson.databind ObjectMapper]
-           [io.modelcontextprotocol.sdk.server.McpServerFeatures$SyncToolSpecification]
-           [io.modelcontextprotocol.sdk.schema Tool]
-           [io.modelcontextprotocol.sdk.schema CallToolResult]))
+  (:import [io.modelcontextprotocol.server.transport StdioServerTransportProvider]
+           [io.modelcontextprotocol.server McpServer McpServerFeatures
+            McpServerFeatures$SyncToolSpecification]
+           [io.modelcontextprotocol.spec
+            McpSchema$ServerCapabilities
+            McpSchema$Tool
+            McpSchema$CallToolResult]
+           [com.fasterxml.jackson.databind ObjectMapper]))
 
 (def hello-schema "{\"type\": \"object\"}")
 
 (defn hello-tool-callback [exchange arguments]
-  (CallToolResult. "Hello, world!" false))
+  (McpSchema$CallToolResult. "Hello, world!" false))
 
 (def sync-hello-tool
   (McpServerFeatures$SyncToolSpecification.
-   (Tool. "hello" "Prints hello world" hello-schema)
-   (reify
+   (McpSchema$Tool. "hello" "Prints hello world" hello-schema)
+   (reify 
      (call [this exchange arguments]
        (hello-tool-callback exchange arguments)))))
 
