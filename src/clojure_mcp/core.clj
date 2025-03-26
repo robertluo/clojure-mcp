@@ -58,6 +58,23 @@
 (defn text-result [^String s]
   (McpSchema$CallToolResult. [(McpSchema$TextContent. s)] false))
 
+(defn create-mono-from-callback
+  "Creates a Mono from an async callback function.
+   The callback function should take three arguments:
+   - exchange: The MCP exchange object
+   - arguments: The tool arguments
+   - continuation: A function that will be called with the result"
+  [callback-fn]
+  (fn [exchange arguments]
+    (Mono/create
+     (reify java.util.function.Consumer
+       (accept [this sink]
+         (callback-fn
+          exchange
+          arguments
+          (fn [result]
+            (.success sink result))))))))
+
 (defn eval-tool-callback 
   "Asynchronous eval tool callback that takes a continuation function.
    The continuation will be called with the result when ready."
@@ -72,15 +89,7 @@
    (McpSchema$Tool. "clojure_eval" "Takes a Clojure Expression and evaluates it in the 'user namespace. For example: provide \"(+ 1 2)\" and this will evaluate that and return 3" eval-schema)
    (reify java.util.function.BiFunction
      (apply [this exchange arguments]
-       ;; Create a Mono that will be completed when our callback completes
-       (Mono/create
-        (reify java.util.function.Consumer
-          (accept [this sink]
-            (eval-tool-callback 
-             exchange 
-             arguments 
-             (fn [result]
-               (.success sink result))))))))))
+       ((create-mono-from-callback eval-tool-callback) exchange arguments)))))
 
 #_(eval-tool-callback nil "hello")
 
@@ -103,15 +112,7 @@
    (McpSchema$Tool. "hello" "Returns hello" hello-schema)
    (reify java.util.function.BiFunction
      (apply [this exchange arguments]
-       ;; Create a Mono that will be completed when our callback completes
-       (Mono/create
-        (reify java.util.function.Consumer
-          (accept [this sink]
-            (hello-tool-callback 
-             exchange 
-             arguments 
-             (fn [result]
-               (.success sink result))))))))))
+       ((create-mono-from-callback hello-tool-callback) exchange arguments)))))
 
 (defn mcp-server [& args]
   (let [transport-provider (StdioServerTransportProvider. (ObjectMapper.))
