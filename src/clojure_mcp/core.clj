@@ -1,6 +1,6 @@
 (ns clojure-mcp.core
   (:require [clojure.data.json :as json])
-  #_(:gen-class)
+  (:gen-class)
   (:import [io.modelcontextprotocol.server.transport StdioServerTransportProvider]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
             McpServerFeatures$AsyncToolSpecification]
@@ -95,11 +95,17 @@
         (.subscribe))
     (-> (.addTool server hello-tool)
         (.subscribe))
+    (println "MCP Async Server running on STDIO transport.")
     server))
+
+(defn -main [& args]
+  (let [server (mcp-server args)]
+    ;; Keep the process alive
+    (while true
+      (Thread/sleep 1000))))
 
 (comment
   ;; For REPL testing:
-  (-main)
-
+  (mcp-server)
   )
 
