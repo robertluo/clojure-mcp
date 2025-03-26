@@ -7,7 +7,8 @@
             McpSchema$ServerCapabilities
             McpSchema$Tool
             McpSchema$CallToolResult]
-           [com.fasterxml.jackson.databind ObjectMapper]))
+           [com.fasterxml.jackson.databind ObjectMapper]
+           [java.util.function BiFunction]))
 
 (def hello-schema "{\"type\": \"object\"}")
 
