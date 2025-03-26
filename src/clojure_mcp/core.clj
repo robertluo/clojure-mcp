@@ -17,8 +17,8 @@
 (def sync-hello-tool
   (McpServerFeatures$SyncToolSpecification.
    (McpSchema$Tool. "hello" "Prints hello world" hello-schema)
-   (reify 
-     (call [this exchange arguments]
+   (reify java.util.function.BiFunction
+     (apply [this exchange arguments]
        (hello-tool-callback exchange arguments)))))
 
 (defn -main [& args]
