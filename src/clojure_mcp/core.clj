@@ -75,6 +75,22 @@
           (fn [result]
             (.success sink result))))))))
 
+(defn create-async-tool
+  "Creates an AsyncToolSpecification with the given parameters.
+   
+   Parameters:
+   - name: The name of the tool
+   - description: A description of what the tool does
+   - schema: JSON schema for the tool's input parameters
+   - callback-fn: Function that implements the tool's logic
+     (takes exchange, arguments, and continuation function)"
+  [name description schema callback-fn]
+  (McpServerFeatures$AsyncToolSpecification.
+   (McpSchema$Tool. name description schema)
+   (reify java.util.function.BiFunction
+     (apply [this exchange arguments]
+       ((create-mono-from-callback callback-fn) exchange arguments)))))
+
 (defn eval-tool-callback 
   "Asynchronous eval tool callback that takes a continuation function.
    The continuation will be called with the result when ready."
@@ -85,11 +101,11 @@
       (continuation (text-result result)))))
 
 (def eval-tool
-  (McpServerFeatures$AsyncToolSpecification.
-   (McpSchema$Tool. "clojure_eval" "Takes a Clojure Expression and evaluates it in the 'user namespace. For example: provide \"(+ 1 2)\" and this will evaluate that and return 3" eval-schema)
-   (reify java.util.function.BiFunction
-     (apply [this exchange arguments]
-       ((create-mono-from-callback eval-tool-callback) exchange arguments)))))
+  (create-async-tool
+   "clojure_eval"
+   "Takes a Clojure Expression and evaluates it in the 'user namespace. For example: provide \"(+ 1 2)\" and this will evaluate that and return 3"
+   eval-schema
+   eval-tool-callback))
 
 #_(eval-tool-callback nil "hello")
 
@@ -108,11 +124,11 @@
                    false))))
 
 (def hello-tool
-  (McpServerFeatures$AsyncToolSpecification.
-   (McpSchema$Tool. "hello" "Returns hello" hello-schema)
-   (reify java.util.function.BiFunction
-     (apply [this exchange arguments]
-       ((create-mono-from-callback hello-tool-callback) exchange arguments)))))
+  (create-async-tool
+   "hello"
+   "Returns hello"
+   hello-schema
+   hello-tool-callback))
 
 (defn mcp-server [& args]
   (let [transport-provider (StdioServerTransportProvider. (ObjectMapper.))
