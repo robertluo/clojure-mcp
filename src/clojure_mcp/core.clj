@@ -25,7 +25,7 @@
   (let [transport-provider (StdioServerTransportProvider. (ObjectMapper.))
         server (-> (McpServer/sync transport-provider)
                    (.serverInfo "hello-server" "0.1.0")
-                   (.capabilities (-> (ServerCapabilities/builder)
+                   (.capabilities (-> (McpSchema$ServerCapabilities/builder)
                                       (.tools true)
                                       (.build)))
                    (.build))]
