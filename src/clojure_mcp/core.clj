@@ -73,15 +73,14 @@
    (reify java.util.function.BiFunction
      (apply [this exchange arguments]
        ;; Create a Mono that will be completed when our callback completes
-       (let [mono-promise (Mono/create
-                           (reify java.util.function.Consumer
-                             (accept [this sink]
-                               (eval-tool-callback 
-                                exchange 
-                                arguments 
-                                (fn [result]
-                                  (.success sink result))))))]
-         mono-promise)))))
+       (Mono/create
+        (reify java.util.function.Consumer
+          (accept [this sink]
+            (eval-tool-callback 
+             exchange 
+             arguments 
+             (fn [result]
+               (.success sink result))))))))))
 
 #_(eval-tool-callback nil "hello")
 
@@ -105,15 +104,14 @@
    (reify java.util.function.BiFunction
      (apply [this exchange arguments]
        ;; Create a Mono that will be completed when our callback completes
-       (let [mono-promise (Mono/create
-                           (reify java.util.function.Consumer
-                             (accept [this sink]
-                               (hello-tool-callback 
-                                exchange 
-                                arguments 
-                                (fn [result]
-                                  (.success sink result))))))]
-         mono-promise)))))
+       (Mono/create
+        (reify java.util.function.Consumer
+          (accept [this sink]
+            (hello-tool-callback 
+             exchange 
+             arguments 
+             (fn [result]
+               (.success sink result))))))))))
 
 (defn mcp-server [& args]
   (let [transport-provider (StdioServerTransportProvider. (ObjectMapper.))
