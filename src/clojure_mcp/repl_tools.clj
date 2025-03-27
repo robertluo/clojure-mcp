@@ -114,7 +114,7 @@ Example result:
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [res (nrepl/lookup service (get arg-map "symbol"))
                     doc (:doc res)]
-                (clj-result-k [(str doc)] (nil? doc)))})})
+                (clj-result-k [(str doc)] (nil? doc))))})
 
 
 
