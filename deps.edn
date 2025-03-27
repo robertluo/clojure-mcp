@@ -9,7 +9,8 @@
         com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.15.2"}}
  :aliases
  {:mcp
-  {:exec-fn clojure-mcp.core/mcp-server}
+  {:exec-fn clojure-mcp.core/nrepl-mcp-server
+   :exec-args {:port 54171}}
 
   :test
   {:extra-paths ["test"]

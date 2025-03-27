@@ -97,7 +97,7 @@
    (merge {:session (tool-session service)}
           msg)))
 
-(defn eval-code [{:keys [::state] :as service} code-str k]
+(defn eval-code-help [{:keys [::state] :as service} code-str k]
   (let [{:keys [id] :as message}
         (new-message service {:op "eval" :code code-str})
         prom (promise)
@@ -111,7 +111,10 @@
                     (on-key :ns #(swap! state assoc :current-ns %))
                     (done finish)
                     (error finish)))
-    @prom))
+    prom))
+
+(defn eval-code [service code-str k]
+  @(eval-code-help service code-str k))
 
 (defn interrupt [{:keys [::state] :as service}]
   ;; TODO having a timeout and then calling the
@@ -166,7 +169,6 @@
                                                         (str input "\n"))})
              identity))
 
-
 (defn stop-polling [{:keys [::state]}]
   (swap! state dissoc :response-poller))
 
@@ -180,19 +182,21 @@
             (try
               (when-let [{:keys [id out err value ns session] :as resp}
                          (nrepl.transport/recv conn 100)]
-                (tap> resp)
+                #_(tap> resp)
                 (dispatch-response! options resp))
               :success
               (catch java.io.IOException e
-                (println (class e))
-                (println (ex-message e))
+                ;; TODO we need logging here
+                #_(println (class e))
+                #_(println (ex-message e))
                 ;; this will stop the loop here and the
                 ;; main repl loop which queries polling?
                 (stop-polling options))
               (catch Throwable e
-                (println "Internal REPL Error: this shouldn't happen. :repl/*e for stacktrace")
+                ;; TODO we need logging here
+                #_(println "Internal REPL Error: this shouldn't happen. :repl/*e for stacktrace")
                 (some-> options :repl/error (reset! e))
-                (clojure.main/repl-caught e)
+                #_(clojure.main/repl-caught e)
                 :success))]
         (when (= :success continue)
           (recur))))))
@@ -204,4 +208,32 @@
       (.setName "Rebel Readline nREPL response poller")
       (.setDaemon true)
       (.start))))
+
+(defn create
+  ([] (create nil))
+  ([config]
+   (let [conn (nrepl/connect
+               (select-keys config [:port :host :tls-keys-file]))
+         client (nrepl/client conn Long/MAX_VALUE)
+         session (nrepl/new-session client)
+         tool-session (nrepl/new-session client)]
+     (assoc config
+            :rebel-readline.service/type ::service
+            :repl/error (atom nil)
+            ::state (atom {:conn conn
+                           :current-ns "user"
+                           :client client
+                           :session session
+                           :tool-session tool-session})))))
+
+
+(comment
+
+  (def serv (create {:port 54171}))
+  (start-polling serv)
+  (stop-polling serv)
+
+  (tool-eval-code serv "(+ 1 2)")
+
+  )
 
