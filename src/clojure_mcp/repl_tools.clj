@@ -77,7 +77,8 @@ This is not an exhaustive list, some completions may be missing."
                 (clj-result-k (mapv pr-str res) false)))})
 
 (defn symbol-metadata [service]
-  {:name "symbol_lookup"
+  {
+   :name "symbol_lookup"
    :description "Returns the complete metadata for the symbol.
 
 The most important data is likely to be the
