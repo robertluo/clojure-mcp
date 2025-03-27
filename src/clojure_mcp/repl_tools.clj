@@ -76,7 +76,7 @@ This is not an exhaustive list, some completions may be missing."
               (let [res (nrepl/completions service (get arg-map "prefix"))]
                 (clj-result-k (mapv pr-str res) false)))})
 
-(defn symbol-lookup [service]
+(defn symbol-metadata [service]
   {:name "symbol_lookup"
    :description "Returns the complete metadata for the symbol.
 
