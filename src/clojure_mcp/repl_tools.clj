@@ -78,7 +78,7 @@ This is not an exhaustive list, some completions may be missing."
 
 (defn symbol-metadata [service]
   {
-   :name "symbol_lookup"
+   :name "symbol_metadata"
    :description "Returns the complete metadata for the symbol.
 
 The most important data is likely to be the
