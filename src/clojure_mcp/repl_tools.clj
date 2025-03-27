@@ -107,7 +107,7 @@ Example result:
 
 (defn symbol-documentation [service]
   {:name "symbol_documentation"
-   :description "Returns the documentation for the symbol. Extracts the doc string from the symbol metadata."
+   :description "Returns the documentation for the symbol. Extracts the doc string and includes the function's arglists from the symbol metadata."
    :schema (json/write-str {:type :object
                             :properties {:symbol {:type :string}}
                             :required [:symbol]})
