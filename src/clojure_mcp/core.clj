@@ -119,7 +119,7 @@
         (.subscribe))
     (-> (.addTool mcp (create-async-tool (repl-tools/symbol-completions nrepl)))
         (.subscribe))
-    (-> (.addTool mcp (create-async-tool (repl-tools/symbol-lookup nrepl)))
+    (-> (.addTool mcp (create-async-tool (repl-tools/symbol-metadata nrepl)))
         (.subscribe))
     (-> (.addTool mcp (create-async-tool (repl-tools/symbol-documentation nrepl)))
         (.subscribe))
