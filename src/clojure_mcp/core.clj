@@ -85,11 +85,12 @@
    - callback-fn: Function that implements the tool's logic
      (takes exchange, arguments, and continuation function)"
   [name description schema callback-fn]
-  (McpServerFeatures$AsyncToolSpecification.
-   (McpSchema$Tool. name description schema)
-   (reify java.util.function.BiFunction
-     (apply [this exchange arguments]
-       ((create-mono-from-callback callback-fn) exchange arguments)))))
+  (let [mono-fn (create-mono-from-callback callback-fn)]
+    (McpServerFeatures$AsyncToolSpecification.
+     (McpSchema$Tool. name description schema)
+     (reify java.util.function.BiFunction
+       (apply [this exchange arguments]
+         (mono-fn exchange arguments))))))
 
 (defn eval-tool-callback 
   "Asynchronous eval tool callback that takes a continuation function.
