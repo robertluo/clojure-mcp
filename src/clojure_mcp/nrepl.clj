@@ -155,7 +155,7 @@
                     (value #(deliver prom %))))
     (deref prom 400 nil)))
 
-(defn ls-middleware [{:keys [state] :as service}]
+(defn ls-middleware [{:keys [::state] :as service}]
   (let [prom (promise)]
     (send-msg! service
                (new-tool-message service {:op "ls-middleware"})
@@ -218,7 +218,6 @@
          session (nrepl/new-session client)
          tool-session (nrepl/new-session client)]
      (assoc config
-            :rebel-readline.service/type ::service
             :repl/error (atom nil)
             ::state (atom {:conn conn
                            :current-ns "user"

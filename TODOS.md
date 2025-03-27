@@ -43,7 +43,6 @@ interrupt tool
 source resource/tool
 pprint-tool
 eval-pprint-composed tool
-current-ns/tool
 load-file/tool
 doc/tool
 clojure-docs/tool web docs tool
