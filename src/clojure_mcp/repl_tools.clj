@@ -76,5 +76,35 @@ This is not an exhaustive list, some completions may be missing."
               (let [res (nrepl/completions service (get arg-map "prefix"))]
                 (clj-result-k (mapv pr-str res) false)))})
 
+(defn symbol-lookup [service]
+  {:name "symbol_lookup"
+   :description "Returns the complete metadata for the symbol.
+
+The most important data is likely to be the
+ - :arglists that shows the shape of the arguments that the function takes
+ - :doc which holds the docstring for the function/var
+
+Example result:
+   {:added \"1.0\",
+ :ns \"clojure.core\",
+ :name \"map\",
+ :file
+ \"jar:file:/Users/bozhidar/.m2/repository/org/clojure/clojure/1.10.1/clojure-1.10.1.jar!/clojure/core.clj\",
+ :static true,
+ :column 1,
+ :line 2727,
+ :arglists \"([f] [f coll] [f c1 c2] [f c1 c2 c3] [f c1 c2 c3 & colls])\",
+ :doc
+ \"Returns a lazy sequence consisting of the result of applying f to\\n  the set of first items of each coll, followed by applying f to the\\n  set of second items in each coll, until any one of the colls is\\n  exhausted.  Any remaining items in other colls are ignored. Function\\n  f should accept number-of-colls arguments. Returns a transducer when\\n  no collection is provided.\"}"
+   :schema (json/write-str {:type :object
+                            :properties {:symbol {:type :string}}
+                            :required [:symbol]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [res (nrepl/lookup service (get arg-map "symbol"))]
+                (clj-result-k
+                 [(pr-str res)]
+                 false)))})
+
+
 
 

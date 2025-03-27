@@ -14,7 +14,7 @@
            [reactor.core.publisher Mono]
            [com.fasterxml.jackson.databind ObjectMapper]))
 
-(add-tap (fn [x]
+#_(add-tap (fn [x]
            (spit "mcp.log" (prn-str x) :append true)))
 
 (defn create-mono-from-callback
@@ -118,7 +118,9 @@
     (-> (.addTool mcp (create-async-tool (repl-tools/current-namespace nrepl)))
         (.subscribe))
     (-> (.addTool mcp (create-async-tool (repl-tools/symbol-completions nrepl)))
-        (.subscribe))    
+        (.subscribe))
+    (-> (.addTool mcp (create-async-tool (repl-tools/symbol-lookup nrepl)))
+        (.subscribe))
     server))
 
 
