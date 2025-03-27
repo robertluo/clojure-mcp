@@ -105,6 +105,17 @@ Example result:
                  [(pr-str res)]
                  false)))})
 
+(defn symbol-documentation [service]
+  {:name "symbol_documentation"
+   :description "Returns the documentation for the symbol. Extracts the doc string from the symbol metadata."
+   :schema (json/write-str {:type :object
+                            :properties {:symbol {:type :string}}
+                            :required [:symbol]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [res (nrepl/lookup service (get arg-map "symbol"))
+                    doc (:doc res)]
+                (clj-result-k [(str doc)] (nil? doc)))})})
+
 
 
 
