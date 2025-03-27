@@ -113,8 +113,10 @@ Example result:
                             :required [:symbol]})
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [res (nrepl/lookup service (get arg-map "symbol"))
-                    doc (:doc res)]
-                (clj-result-k [(str doc)] (nil? doc))))})
+                    arglists (:arglists res)
+                    doc (:doc res)
+                    combined (str arglists "\n" doc)]
+                (clj-result-k [combined] (nil? doc))))})
 
 
 
