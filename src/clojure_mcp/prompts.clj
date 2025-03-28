@@ -2,6 +2,14 @@
   "Prompt definitions for the MCP server"
   (:require [clojure.string :as str]))
 
+(defn simple-content-prompt-fn
+  "Returns a prompt-fn that ignores request arguments and returns
+   a fixed description and a single assistant message with the given content."
+  [description content]
+  (fn [_ _ clj-result-k]
+    (clj-result-k
+     {:description description
+      :messages [{:role :assistant :content content}]})))
 
 ;; This is an example prompt to help document how to create a prompt with arguments
 
