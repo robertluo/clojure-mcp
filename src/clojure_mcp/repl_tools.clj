@@ -138,4 +138,15 @@ The implementation calls `(clojure.repl/source-fn (symbol ~string))` as a hint f
                  (empty? result))))})
 
 
+(defn apropos-tool [service]
+  {:name "apropos"
+   :description "Returns a sequence of all public definitions whose names contain the given partial symbol string in all currently loaded namespaces using clojure.repl/apropos."
+   :schema (json/write-str {:type :object
+                            :properties {:partial {:type :string}}
+                            :required [:partial]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [partial (get arg-map "partial")
+                    result (with-out-str
+                             (clojure.repl/apropos partial))]
+                (clj-result-k [result] (empty? result))))})
 #_(clojure.repl/apropos )
