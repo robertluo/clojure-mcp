@@ -189,7 +189,9 @@
         (.subscribe))
 
     ;; Add Prompts
-    (-> (.addPrompt mcp (create-async-prompt prompts/greeting-prompt)) ;; <-- Register the prompt
+    (-> (.addPrompt mcp (create-async-prompt prompts/greeting-prompt))
+        (.subscribe))
+    (-> (.addPrompt mcp (create-async-prompt prompts/clojure-dev-prompt)) ;; <-- Register clojure_dev prompt
         (.subscribe))
 
     server))

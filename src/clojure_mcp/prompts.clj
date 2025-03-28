@@ -1,6 +1,7 @@
 (ns clojure-mcp.prompts
   "Prompt definitions for the MCP server"
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [clojure.java.io :as io]))
 
 (defn simple-content-prompt-fn
   "Returns a prompt-fn that ignores request arguments and returns
@@ -10,6 +11,15 @@
     (clj-result-k
      {:description description
       :messages [{:role :assistant :content content}]})))
+
+(defn- load-prompt-from-resource
+  "Loads prompt content from a classpath resource file."
+  [filename]
+  (if-let [resource (io/resource filename)]
+    (slurp resource)
+    (str "Error: Prompt file not found on classpath: " filename)))
+
+;; --- Prompt Definitions ---
 
 ;; This is an example prompt to help document how to create a prompt with arguments
 
@@ -31,3 +41,11 @@
                     :messages [{:role :user :content (str "Generate a " mood " greeting for " person-name)} ;; Example user message
 
                                {:role :assistant :content greeting}]})))})
+
+(def clojure-dev-prompt
+  {:name "clojure_dev"
+   :description "Provides instructions and guidelines for Clojure development, including style and best practices."
+   :arguments [] ;; No arguments needed for this prompt
+   :prompt-fn (simple-content-prompt-fn
+               "Clojure Development Guidelines"
+               (load-prompt-from-resource "prompts/clojure_dev.txt"))}) ;; Placeholder filename
