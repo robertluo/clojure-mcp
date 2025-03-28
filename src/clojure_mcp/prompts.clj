@@ -2,6 +2,9 @@
   "Prompt definitions for the MCP server"
   (:require [clojure.string :as str]))
 
+
+;; This is an example prompt to help document how to create a prompt with arguments
+
 (def greeting-prompt
   {:name "simple-greeting"
    :description "Generates a simple greeting message."
@@ -18,4 +21,5 @@
                   (clj-result-k
                    {:description (str "A " mood " greeting for " person-name ".")
                     :messages [{:role :user :content (str "Generate a " mood " greeting for " person-name)} ;; Example user message
+
                                {:role :assistant :content greeting}]})))})
