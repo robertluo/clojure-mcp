@@ -56,7 +56,22 @@
                "Clojure Development Guidelines"
                (str
                 (load-prompt-from-resource "prompts/CLOJURE.md")
-                (load-prompt-from-resource "prompts/clojure_dev.txt")))}) ;; Placeholder filename
+                (load-prompt-from-resource "prompts/clojure_dev.txt")))})
+
+(def clojure-repl-driven-prompt
+  {:name "clojure-repl-driven"
+   :description "Provides comprehensive instructions for REPL-driven development in Clojure, including style, best practices, and REPL usage guidelines."
+   :arguments [] ;; No arguments needed
+   :prompt-fn (simple-content-prompt-fn
+               "REPL-Driven Development Guide for Clojure"
+               (str
+                (load-prompt-from-resource "prompts/repl_driven.md")
+                "\n\n---\n\n" ;; Separator
+                (load-prompt-from-resource "prompts/clojure-repl-guide.md")
+                "\n\n---\n\n" ;; Separator
+                (load-prompt-from-resource "prompts/CLOJURE.md")
+                "\n\n---\n\n" ;; Separator
+                (load-prompt-from-resource "prompts/clojure_dev.txt")))})
 
 
 
