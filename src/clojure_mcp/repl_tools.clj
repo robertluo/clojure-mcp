@@ -107,7 +107,8 @@ Example result:
                  false)))})
 
 (defn symbol-documentation [service]
-  {:name "symbol_documentation"
+  {
+   :name "symbol_documentation"
    :description "Returns the documentation for the symbol. Extracts the doc string and includes the function's arglists from the symbol metadata."
    :schema (json/write-str {:type :object
                             :properties {:symbol {:type :string}}
@@ -117,7 +118,8 @@ Example result:
                     arglists (:arglists res)
                     doc (:doc res)
                     combined (str arglists "\n" doc)]
-                (clj-result-k [combined] (nil? doc))))})
+                (clj-result-k [combined] (nil? doc))))
+   })
 
 
 
