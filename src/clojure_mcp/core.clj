@@ -123,6 +123,8 @@
         (.subscribe))
     (-> (.addTool mcp (create-async-tool (repl-tools/symbol-documentation nrepl)))
         (.subscribe))
+    (-> (.addTool mcp (create-async-tool (repl-tools/source-code nrepl)))
+        (.subscribe))
     server))
 
 
