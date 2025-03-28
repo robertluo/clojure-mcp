@@ -15,7 +15,7 @@
             McpSchema$PromptArgument      ;; <-- Add this
             McpSchema$GetPromptRequest    ;; <-- Add this (for type hint)
             McpSchema$GetPromptResult     ;; <-- Add this
-            McpSchema$Message             ;; <-- Add this
+            McpSchema$PromptMessage             ;; <-- Add this
             McpSchema$Role]               ;; <-- Add this
            [io.modelcontextprotocol.server McpServer McpServerFeatures
             McpServerFeatures$AsyncToolSpecification
@@ -79,9 +79,9 @@
    Expects a map like {:description \"...\" :messages [{:role :user :content \"...\"}]}"
   [{:keys [description messages]}]
   (let [mcp-messages (mapv (fn [{:keys [role content]}]
-                             (McpSchema$Message.
+                             (McpSchema$PromptMessage.
                               (case role ;; Convert keyword role to McpSchema$Role enum
-                                :system McpSchema$Role/SYSTEM
+                                ;; :system McpSchema$Role/SYSTEM
                                 :user McpSchema$Role/USER
                                 :assistant McpSchema$Role/ASSISTANT
                                 ;; Add other roles if needed
@@ -156,7 +156,7 @@
                   (clj-result-k
                    {:description (str "A " mood " greeting for " person-name ".")
                     :messages [{:role :user :content (str "Generate a " mood " greeting for " person-name)} ;; Example user message
-                               {:role :assistant :content greeting}]})))})) ; The generated content
+                               {:role :assistant :content greeting}]})))}) ; The generated content
 
 (defn mcp-server
   "Creates an basic stdio mcp server"
