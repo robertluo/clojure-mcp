@@ -107,8 +107,7 @@ Example result:
                  false)))})
 
 (defn symbol-documentation [service]
-  {
-   :name "symbol_documentation"
+  {:name "symbol_documentation"
    :description "Returns the documentation for the symbol. Extracts the doc string and includes the function's arglists from the symbol metadata."
    :schema (json/write-str {:type :object
                             :properties {:symbol {:type :string}}
@@ -118,25 +117,25 @@ Example result:
                     arglists (:arglists res)
                     doc (:doc res)
                     combined (str arglists "\n" doc)]
-                (clj-result-k [combined] (nil? doc))))
-   })
+                (clj-result-k [combined] (nil? doc))))})
+
 (defn source-code [service]
   {:name "source_code"
    :description "Returns the source code for a given symbol using clojure.repl/source.
-Usage: Provide a string representing the symbol, e.g. \"clojure.core/map\".
-The implementation calls `(clojure.repl/source (symbol ~string))` as a hint for retrieving the source code."
+Usage: Provide a string representing the symbol, e.g. \"map\" or \"clojure.core/map\".
+The implementation calls `(clojure.repl/source-fn (symbol ~string))` as a hint for retrieving the source code."
    :schema (json/write-str {:type :object
                             :properties {:symbol {:type :string}}
                             :required [:symbol]})
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [sym-str (get arg-map "symbol")
-                    result (with-out-str
-                             (try
-                               (clojure.repl/source (symbol sym-str))
-                               (catch Exception e
-                                 (println "Source not found"))))]
-                (clj-result-k [result] (empty? result))))})
+                    result (nrepl/tool-eval-code
+                            service
+                            (pr-str `(clojure.repl/source-fn (symbol ~sym-str))))]
+                
+                (clj-result-k
+                 [result]
+                 (empty? result))))})
 
 
-
-
+#_(clojure.repl/apropos )
