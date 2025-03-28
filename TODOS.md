@@ -39,23 +39,24 @@ Should MCP allow a program to trigger a read?
 eval-history resource/tool
 - eval would record expressions
 
+nrepl-set-print depth
 interrupt tool
 source resource/tool
 pprint-tool
 eval-pprint-composed tool
 load-file/tool
-doc/tool
 clojure-docs/tool web docs tool
 context aware grep tool for clojure
 list-namespaces and list the vars in a namespace
 write-out-namespace-to-file?
 create-new-project then jack into it
+eval-history tool
 
 eval-tool todo:
   * create limited results by lazy-walking with a limit 
     - remember to use (into (empty [1 2 3]) %)
   * pprint option	
-  * timeout eval
+  * timeout eval then interrupt
 
 
 create clojure based tools that can be called from the repl
