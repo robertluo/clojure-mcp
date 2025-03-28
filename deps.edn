@@ -10,7 +10,7 @@
  :aliases
  {:mcp
   {:exec-fn clojure-mcp.core/nrepl-mcp-server
-   :exec-args {:port 54171}}
+   :exec-args {:port 7888}}
 
   :test
   {:extra-paths ["test"]

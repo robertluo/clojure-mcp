@@ -169,3 +169,24 @@ Usage: Provide a search-string which would be a substring of the found definitio
                  res
                  false)))})
 
+(comment
+  (def client (nrepl/create {:port 54171}))
+  (nrepl/start-polling client)
+  (nrepl/stop-polling client)
+  
+  (defn make-test-tool [{:keys [tool-fn] :as tool-map}]
+    (fn [arg-map]
+      (let [prom (promise)]
+        (tool-fn nil arg-map 
+                 (fn [res error]
+                   (deliver prom {:res res :error error})))
+        @prom)))
+
+
+  ;; Testing the eval-code tool
+  (def eval-tester (make-test-tool (eval-code client)))
+
+  (eval-tester {"expression" (pr-str '(+ 1 2))})
+
+  
+  )
