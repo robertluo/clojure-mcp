@@ -148,7 +148,7 @@
    :prompt-fn (fn [_ request-args clj-result-k]
                 (let [person-name (get request-args "personName")
                       mood (get request-args "mood" "neutral") ; Default mood
-                      greeting (case mood
+                      #_greeting #_(case mood
                                  "happy" (str "Hey " person-name "! Hope you're having a great day!")
                                  "formal" (str "Good day, " person-name ".")
                                  (str "Hello, " person-name "."))]
@@ -156,7 +156,7 @@
                   (clj-result-k
                    {:description (str "A " mood " greeting for " person-name ".")
                     :messages [{:role :user :content (str "Generate a " mood " greeting for " person-name)} ;; Example user message
-                               {:role :assistant :content greeting}]})))}) ; The generated content
+                               #_{:role :assistant :content greeting}]})))}) ; The generated content
 
 (defn mcp-server
   "Creates an basic stdio mcp server"
