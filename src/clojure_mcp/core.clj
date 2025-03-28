@@ -1,7 +1,8 @@
 (ns clojure-mcp.core
   (:require [clojure.data.json :as json]
             [clojure-mcp.nrepl :as nrepl]
-            [clojure-mcp.repl-tools :as repl-tools])
+            [clojure-mcp.repl-tools :as repl-tools]
+            [clojure-mcp.prompts :as prompts])
   (:gen-class)
   (:import [io.modelcontextprotocol.server.transport StdioServerTransportProvider]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
@@ -140,23 +141,6 @@
    :tool-fn (fn [_ args-map clj-result-k]
               (clj-result-k [(str "ECHO: " (pr-str args-map))] false))})
 
-(def greeting-prompt
-  {:name "simple-greeting"
-   :description "Generates a simple greeting message."
-   :arguments [{:name "personName" :description "The name of the person to greet." :required? true}
-               {:name "mood" :description "The desired mood of the greeting (e.g., 'happy', 'formal')." :required? false}]
-   :prompt-fn (fn [_ request-args clj-result-k]
-                (let [person-name (get request-args "personName")
-                      mood (get request-args "mood" "neutral") ; Default mood
-                      #_greeting #_(case mood
-                                 "happy" (str "Hey " person-name "! Hope you're having a great day!")
-                                 "formal" (str "Good day, " person-name ".")
-                                 (str "Hello, " person-name "."))]
-                  ;; Call the continuation with the result map
-                  (clj-result-k
-                   {:description (str "A " mood " greeting for " person-name ".")
-                    :messages [{:role :user :content (str "Generate a " mood " greeting for " person-name)} ;; Example user message
-                               #_{:role :assistant :content greeting}]})))}) ; The generated content
 
 (defn mcp-server
   "Creates an basic stdio mcp server"
@@ -205,7 +189,7 @@
         (.subscribe))
 
     ;; Add Prompts
-    (-> (.addPrompt mcp (create-async-prompt greeting-prompt)) ;; <-- Register the prompt
+    (-> (.addPrompt mcp (create-async-prompt prompts/greeting-prompt)) ;; <-- Register the prompt
         (.subscribe))
 
     server))
