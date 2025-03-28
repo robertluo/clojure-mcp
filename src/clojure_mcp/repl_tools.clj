@@ -1,7 +1,8 @@
 (ns clojure-mcp.repl-tools
   (:require
    [clojure-mcp.nrepl :as nrepl]
-   [clojure.data.json :as json]))
+   [clojure.data.json :as json]
+   [clojure.string :as string]))
 
 (defn eval-code [service]
   {:name "clojure_eval"
@@ -81,7 +82,7 @@ This is not an exhaustive list, some completions may be missing."
    :name "symbol_metadata"
    :description "Returns the complete metadata for the symbol.
 
-The most important data is likely to be the
+the most important data is likely to be the
  - :arglists that shows the shape of the arguments that the function takes
  - :doc which holds the docstring for the function/var
 
@@ -103,7 +104,9 @@ Example result:
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [res (nrepl/lookup service (get arg-map "symbol"))]
                 (clj-result-k
-                 [(pr-str res)]
+                 [(if res
+                    (with-out-str (clojure.pprint/pprint res))
+                    "nil")]
                  false)))})
 
 (defn symbol-documentation [service]
@@ -117,7 +120,11 @@ Example result:
                     arglists (:arglists res)
                     doc (:doc res)
                     combined (str arglists "\n" doc)]
-                (clj-result-k [combined] (nil? doc))))})
+                (clj-result-k
+                 (if res
+                   [combined]
+                   ["nil"])
+                 false)))})
 
 (defn source-code [service]
   {:name "source_code"
@@ -131,29 +138,34 @@ The implementation calls `(clojure.repl/source-fn (symbol ~string))` as a hint f
               (let [sym-str (get arg-map "symbol")
                     result (nrepl/tool-eval-code
                             service
-                            (pr-str `(clojure.repl/source-fn (symbol ~sym-str))))]
-                
+                            (pr-str `(clojure.repl/source-fn (symbol ~sym-str))))
+                    result-val (read-string result)]
                 (clj-result-k
-                 [result]
-                 (empty? result))))})
+                 [(if (nil? result-val)
+                    "nil"
+                    result-val)]
+                 false)))})
 
 (defn symbol-search [service]
   {:name "symbol-search"
-   :description "Returns a sequence of all public definitions whose names contain the given partial symbol string in all currently loaded namespaces using clojure.repl/apropos.
-Usage: Provide a string representing a partial symbol name."
+   :description "Returns a sequence of all public definitions whose names contain the given search string in all currently loaded namespaces using clojure.repl/apropos.
+Usage: Provide a search-string which would be a substring of the found definitions"
    :schema (json/write-str {:type :object
-                            :properties {:partial {:type :string}}
-                            :required [:partial]})
+                            :properties {:search-str {:type :string}}
+                            :required [:search-str]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [partial (get arg-map "partial")
-                    result (nrepl/tool-eval-code
-                            service
-                            `(clojure.repl/apropos ~partial))]
+              (let [partial (get arg-map "search-str")
+                    res (or
+                         (some->> (nrepl/tool-eval-code
+                                   service
+                                   (pr-str `(clojure.repl/apropos ~partial)))
+                                  read-string
+                                  (map str)
+                                  (remove #(string/starts-with? % "cider.nrepl"))
+                                  vec
+                                  not-empty)
+                         ["No Matches Found"])]
                 (clj-result-k
-                 (mapv pr-str result)
-                 (empty? result))))})
-
-
-
-
+                 res
+                 false)))})
 
