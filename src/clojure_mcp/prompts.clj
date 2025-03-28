@@ -26,8 +26,12 @@
 (def greeting-prompt
   {:name "simple-greeting"
    :description "Generates a simple greeting message."
-   :arguments [{:name "personName" :description "The name of the person to greet." :required? true}
-               {:name "mood" :description "The desired mood of the greeting (e.g., 'happy', 'formal')." :required? false}]
+   :arguments [{:name "personName"
+                :description "The name of the person to greet."
+                :required? true}
+               {:name "mood"
+                :description "The desired mood of the greeting (e.g., 'happy', 'formal')."
+                :required? false}]
    :prompt-fn (fn [_ request-args clj-result-k]
                 (let [person-name (get request-args "personName")
                       mood (get request-args "mood" "neutral") ; Default mood
@@ -42,10 +46,17 @@
 
                                {:role :assistant :content greeting}]})))})
 
+#_(io/resource "prompts/clojure_dev.txt")
+
 (def clojure-dev-prompt
   {:name "clojure_dev"
    :description "Provides instructions and guidelines for Clojure development, including style and best practices."
    :arguments [] ;; No arguments needed for this prompt
    :prompt-fn (simple-content-prompt-fn
                "Clojure Development Guidelines"
-               (load-prompt-from-resource "prompts/clojure_dev.txt"))}) ;; Placeholder filename
+               (str
+                (load-prompt-from-resource "prompts/CLOJURE.md")
+                (load-prompt-from-resource "prompts/clojure_dev.txt")))}) ;; Placeholder filename
+
+
+
