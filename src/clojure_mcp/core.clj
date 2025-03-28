@@ -111,8 +111,8 @@
         mcp-prompt (McpSchema$Prompt. name description mcp-args)
         mono-fn (create-mono-from-callback ;; Reuse the existing helper
                  (fn [_ request mono-fill-k]
-                   ;; The request object has a .getArguments method
-                   (let [request-args (.getArguments ^McpSchema$GetPromptRequest request)]
+                   ;; The request object has an .arguments() method
+                   (let [request-args (.arguments ^McpSchema$GetPromptRequest request)] ;; <-- Corrected method call
                      (prompt-fn _ request-args
                                 (fn [clj-result-map]
                                   (mono-fill-k (adapt-prompt-result clj-result-map)))))))]
