@@ -4,6 +4,9 @@
    [clojure.data.json :as json]
    [clojure.string :as string]))
 
+(defn eval-history-push [state-atom form-str]
+  (swap! state-atom update ::eval-history conj form-str))
+
 (defn eval-code [service-atom]
   {:name "clojure_eval"
    :description "Takes a Clojure Expression and evaluates it in the 'user namespace. 
@@ -28,6 +31,7 @@ For example: provide \"(+ 1 2)\" and this will evaluate that and return 3"
                                 (:out @data) (conj (str "OUT: " (:out @data)))
                                 (:err @data) (conj (str "ERR: " (:err @data))))
                               (:error @data)))]
+                (eval-history-push (::nrepl/state @service-atom) form-str)
                 (nrepl/eval-code-help @service-atom form-str ;; Dereference the atom
                                       (->> identity
                                            (nrepl/out-err
