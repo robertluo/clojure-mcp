@@ -7,6 +7,9 @@
 (defn eval-history-push [state-atom form-str]
   (swap! state-atom update ::eval-history conj form-str))
 
+(defn eval-history-reset [state-atom]
+  (swap! state-atom assoc ::eval-history nil))
+
 (defn eval-code [service-atom]
   {:name "clojure_eval"
    :description "Takes a Clojure Expression and evaluates it in the 'user namespace. 
@@ -238,7 +241,7 @@ Usage: Provide a search-string which would be a substring of the found definitio
                 (let [n-str (get arg-map "number-to-fetch")
                       n (Integer/parseInt n-str)
                       history (get @(::nrepl/state @service-atom) ::eval-history [])
-                      items-to-return (take-last n history)]
+                      items-to-return (take n history)]
                   (clj-result-k (vec items-to-return) false))
                 (catch NumberFormatException _
                   (clj-result-k ["Invalid 'number-to-fetch'. Please provide an integer."] true))
