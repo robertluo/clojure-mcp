@@ -15,6 +15,7 @@
         client (nrepl/create {:port port})
         client-atom (atom client)]
     (nrepl/start-polling client)
+    (nrepl/eval-code client "(require 'clojure.repl)" identity)
     (binding [*nrepl-server* server
               *nrepl-client-atom* client-atom]
       (try
