@@ -1,5 +1,6 @@
 {:paths ["src" "resources"]
- :deps {org.clojure/clojure {:mvn/version "1.11.1"}
+ :deps {clj-kondo/clj-kondo {:mvn/version "2024.03.13"} ;; Added clj-kondo
+        org.clojure/clojure {:mvn/version "1.11.1"}
         org.clojure/data.json {:mvn/version "2.5.1"}
         ;; add the MCP SDK dependency (version chosen via the BOM)
         io.modelcontextprotocol.sdk/mcp {:mvn/version "0.8.0"}
