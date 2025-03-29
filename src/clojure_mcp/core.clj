@@ -156,6 +156,15 @@
     ;; for development
     (-> (.addTool server (create-async-tool echo-tool))
         (.subscribe))
+
+    ;; Add Prompts
+    (-> (.addPrompt server (create-async-prompt prompts/greeting-prompt))
+        (.subscribe))
+    (-> (.addPrompt server (create-async-prompt prompts/clojure-dev-prompt))
+        (.subscribe))
+    (-> (.addPrompt server (create-async-prompt prompts/clojure-repl-driven-prompt))
+        (.subscribe))
+
     server))
 
 (defn create-and-start-nrepl-connection [config]
@@ -186,14 +195,6 @@
     (-> (.addTool mcp (create-async-tool (repl-tools/source-code nrepl)))
         (.subscribe))
     (-> (.addTool mcp (create-async-tool (repl-tools/symbol-search nrepl)))
-        (.subscribe))
-
-    ;; Add Prompts
-    (-> (.addPrompt mcp (create-async-prompt prompts/greeting-prompt))
-        (.subscribe))
-    (-> (.addPrompt mcp (create-async-prompt prompts/clojure-dev-prompt))
-        (.subscribe))
-    (-> (.addPrompt mcp (create-async-prompt prompts/clojure-repl-driven-prompt)) ;; <-- Register clojure-repl-driven prompt
         (.subscribe))
 
     server))
