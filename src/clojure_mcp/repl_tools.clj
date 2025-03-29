@@ -2,7 +2,27 @@
   (:require
    [clojure-mcp.nrepl :as nrepl]
    [clojure.data.json :as json]
+   [clj-kondo.core :as kondo]
    [clojure.string :as string]))
+
+
+(defn lint [form-str]
+  (let [res (with-in-str form-str
+              (kondo/run! {:lint "-"}))]
+    (when (not-empty (:findings res))
+      {:report (with-out-str
+                 (kondo/print! res))
+       :error? (some-> res :summary :error (> 0))})))
+
+
+(lint "(")
+(lint
+ (str  (pr-str '(cond
+            true 1
+            false 3))
+        (pr-str '(cond
+            true 1
+            false 3))))
 
 (defn eval-history-push [state-atom form-str]
   (swap! state-atom update ::eval-history conj form-str))
@@ -12,10 +32,13 @@
 
 (defn eval-code [service-atom]
   {:name "clojure_eval"
-   :description "Takes a Clojure Expression and evaluates it in the 'user' namespace. For example, providing \"(+ 1 2)\" will evaluate to 3. This tool is intended for the LLM agent (Yellow Lamb) to execute code when it needs to verify computations or resolve ambiguities in code."
+   :description "Takes a Clojure Expression and evaluates it in the 'user' namespace. For example, providing \"(+ 1 2)\" will evaluate to 3. This tool is intended to execute code when it needs to verify computations or resolve ambiguities in code."
    :schema (json/write-str {:type :object
                             :properties {:expression {:type :string}}
                             :required [:expression]})
+   ;; this is starting to look like we could make it a chain of calls
+   ;; to add features like linting
+   
    ;; The eval-code tool-fn takes an exchange and arg-map
    ;; Arguments 
    ;; * exchange - ignored
@@ -27,24 +50,30 @@
               (let [data (atom {:result []
                                 :error false})
                     form-str (get arg-map "expression")
+                    linted (lint form-str)
                     finish (fn [_]
                              (clj-result-k
                               (cond-> (:result @data)
                                 (:out @data) (conj (str "OUT: " (:out @data)))
-                                (:err @data) (conj (str "ERR: " (:err @data))))
-                              (:error @data)))]
-                (eval-history-push (::nrepl/state @service-atom) form-str)
-                (nrepl/eval-code-help @service-atom form-str ;; Dereference the atom
-                                      (->> identity
-                                           (nrepl/out-err
-                                            #(swap! data update :out (fn [x] (str % x)))
-                                            #(swap! data update :err (fn [x] (str % x))))
-                                           ;; TODO we need to limit the size here
-                                           (nrepl/value #(swap! data update :result conj %))
-                                           (nrepl/done finish)
-                                           (nrepl/error (fn [_]
-                                                          (swap! data assoc :error true)
-                                                          (finish _)))))))})
+                                (:err @data) (conj (str "ERR: " (:err @data)))
+                                linted (conj (str "LINTER: " (:report linted))))
+                              (or (:error? linted) (:error @data))))]
+                (if (:error? linted)
+                  (finish _)
+                  (do
+                    (eval-history-push (::nrepl/state @service-atom) form-str)
+                    (nrepl/eval-code-help @service-atom form-str ;; Dereference the atom
+                                          (->> identity
+                                               (nrepl/out-err
+                                                #(swap! data update :out (fn [x] (str % x)))
+                                                #(swap! data update :err (fn [x] (str % x))))
+                                               ;; TODO we need to limit the size here
+                                               (nrepl/value #(swap! data update :result conj %))
+                                               (nrepl/done finish)
+                                               (nrepl/error (fn [_]
+                                                              (swap! data assoc :error true)
+                                                              (finish _)))))))
+                ))})
 
 ;; ?? we could proboably set the ns here given an optional ns argument?
 (defn current-namespace [service-atom] ;; Correct parameter name in definition
@@ -221,7 +250,7 @@ Usage: Provide a search-string which would be a substring of the found definitio
 
 (defn eval-history [service-atom]
   {:name "clojure_eval_history"
-   :description "Returns the last N evaluated expressions from the REPL history."
+   :description "Returns the last N evaluated expressions from the REPL history. This is useful when you need to look at a previous evaluation."
    :schema (json/write-str {:type :object
                             :properties {:number-to-fetch {:type "integer"
                                                            :description "The number of history items to retrieve from the end."}}
@@ -239,8 +268,9 @@ Usage: Provide a search-string which would be a substring of the found definitio
                   (clj-result-k [(str "Error fetching history: " (ex-message e))] true))))})
 
 
+
 (comment
-  (def client-atom (atom (nrepl/create {:port 54171}))) ;; Use an atom here for consistency in testing
+  (def client-atom (atom (nrepl/create {:port 7888}))) ;; Use an atom here for consistency in testing
   (nrepl/start-polling @client-atom)
   (nrepl/stop-polling @client-atom)
    
