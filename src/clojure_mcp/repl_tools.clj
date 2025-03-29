@@ -74,8 +74,10 @@ This is not an exhaustive list, some completions may be missing."
                             :properties {:prefix {:type :string}}
                             :required [:prefix]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [res (nrepl/completions @service-atom (get arg-map "prefix"))] ;; Dereference atom
-                (clj-result-k (mapv pr-str res) false)))})
+              (let [completions-raw (nrepl/completions @service-atom (get arg-map "prefix")) ;; Dereference atom
+                    ;; Extract just the candidate name
+                    candidates (mapv (comp pr-str :candidate) completions-raw)]
+                (clj-result-k candidates false)))})
 
 (defn symbol-metadata [service-atom] ;; Changed parameter name
   {
