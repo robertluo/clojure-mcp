@@ -12,6 +12,8 @@
   {:exec-fn clojure-mcp.core/nrepl-mcp-server
    :exec-args {:port 7888}}
 
+  
+
   :test
   {:extra-paths ["test"]
    :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}

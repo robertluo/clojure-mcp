@@ -1,17 +1,10 @@
 # Today tasks
 
+Add think tool
+
 Eval tool output
 
-Need to figure out the Spec development prompt
-- problems, not using fdef and instrument enough
-  * should use instrument after every redefinition of the function
-  * should fdef after stubbing out a function
-
-Prompt used::
------
-Let's use the connected repl to model a problem with Clojure Spec
 The problem is the creation of a library for rendering Clojure data of the form [:h1 {:class "active"} children ...] into HTML.
-Let's start with spec and iteratively evaluating it in the REPL
 
 let's use s/fdef and perhaps create some empty clojure function stubs
 -----
@@ -20,6 +13,27 @@ Create a prompt to switch over to file saving mode and to sync up with a project
 
 Test driven prompt.
 
+# FOCUS
+
+1. Discovering workflows
+  * Must try working on an existing project in the REPL
+2. modify suggested code.
+
+
+
+
+
+
+
+# FLASH BANG DEMOS
+
+Hook up ClojureScript or javascript eval.
+
+Have slides created dynamically through the repl as you give the talk.
+
+Having different languages being used concurrently is interesting.
+
+Develop server and frontend through evaluation.
 
 
 

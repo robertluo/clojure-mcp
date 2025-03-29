@@ -164,12 +164,17 @@
         (.subscribe))
 
     ;; Add Prompts
-    (-> (.addPrompt server (create-async-prompt prompts/greeting-prompt))
-        (.subscribe))
     (-> (.addPrompt server (create-async-prompt prompts/clojure-dev-prompt))
         (.subscribe))
     (-> (.addPrompt server (create-async-prompt prompts/clojure-repl-driven-prompt))
         (.subscribe))
+    (-> (.addPrompt server (create-async-prompt prompts/clojure-spec-driven-modifier))
+        (.subscribe))
+    (-> (.addPrompt server (create-async-prompt prompts/clojure-test-driven-modifier))
+        (.subscribe))
+    (-> (.addPrompt server (create-async-prompt prompts/clojure-project-context-modifier))
+        (.subscribe))
+
 
     server))
 
@@ -186,6 +191,7 @@
   {:nrepl (create-and-start-nrepl-connection args)
    :mcp (mcp-server)})
 
+;; the args is a config map that must have :port and may have :host
 (defn nrepl-mcp-server [args]
   (let [{:keys [mcp nrepl] :as server} (create-nrepl-mcp-server args)]
     (add-tool mcp (repl-tools/eval-code nrepl))
@@ -206,9 +212,7 @@
 
   )
 
-
-
-(defn -main [& args]
+#_(defn -main [& args]
   (let [server (mcp-server args)]
     (println "MCP Async Server running on STDIO transport.")
     ;; Keep the process alive

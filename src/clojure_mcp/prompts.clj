@@ -21,33 +21,6 @@
 
 ;; --- Prompt Definitions ---
 
-;; This is an example prompt to help document how to create a prompt with arguments
-
-(def greeting-prompt
-  {:name "simple-greeting"
-   :description "Generates a simple greeting message."
-   :arguments [{:name "personName"
-                :description "The name of the person to greet."
-                :required? true}
-               {:name "mood"
-                :description "The desired mood of the greeting (e.g., 'happy', 'formal')."
-                :required? false}]
-   :prompt-fn (fn [_ request-args clj-result-k]
-                (let [person-name (get request-args "personName")
-                      mood (get request-args "mood" "neutral") ; Default mood
-                      greeting (case mood
-                                 "happy" (str "Hey " person-name "! Hope you're having a great day!")
-                                 "formal" (str "Good day, " person-name ".")
-                                 (str "Hello, " person-name "."))]
-                  ;; Call the continuation with the result map
-                  (clj-result-k
-                   {:description (str "A " mood " greeting for " person-name ".")
-                    :messages [{:role :user :content (str "Generate a " mood " greeting for " person-name)} ;; Example user message
-
-                               {:role :assistant :content greeting}]})))})
-
-#_(io/resource "prompts/clojure_dev.txt")
-
 (def clojure-dev-prompt
   {:name "clojure_dev"
    :description "Provides instructions and guidelines for Clojure development, including style and best practices."
@@ -74,5 +47,47 @@
                 "\n\n---\n\n" ;; Separator
                 (load-prompt-from-resource "prompts/repl_driven.md")))})
 
+(def clojure-spec-driven-modifier
+  {:name "clj-spec-driven-modifier"
+   :description "Spec first modifer for REPL-driven development"
+   :arguments [] ;; No arguments needed
+   :prompt-fn (simple-content-prompt-fn
+               "Spec-Driven-Development Modifier for Clojure"
+               (load-prompt-from-resource "prompts/spec_modifier.md"))})
+
+(def clojure-test-driven-modifier
+  {:name "clj-test-driven-modifier"
+   :description "Test driven modifer for REPL-driven development"
+   :arguments [] ;; No arguments needed
+   :prompt-fn (simple-content-prompt-fn
+               "Test-Driven-Development Modifier for Clojure"
+               (load-prompt-from-resource "prompts/test_modifier.md"))})
+
+(defn working-dir-prompt [dir]
+  (str
+   "The Clojure project assocated with the code we are developing is located at `"
+   dir
+   "`   
+When interacting with filesystem for this code it will be in this project.
+
+Filesystem writes, saves, edits and other interactions should use the `filesystem` tool rather than the Clojure REPL."
+   ;; If the filesystem tool can't acces this directory then fallback to the REPL for filesystem access
+   ))
+
+(def clojure-project-context-modifier
+  {:name "clj-set-project-dir"
+   :description "Set the project context of the code we are working on"
+   :arguments [{:name "project-working-directory"
+                :description "The root directory of your Clojure project"
+                :required? true}] ;; No arguments needed
+   :prompt-fn (fn [_ request-args clj-result-k]
+                (let [working-directory (get request-args "project-working-directory")]
+                  ;; Call the continuation with the result map
+                  (clj-result-k
+                   {:description "Set the working directory of a project"
+                    :messages [{:role :user
+                                :content (working-dir-prompt working-directory)}
+                               #_{:role :assistant
+                                  :content (str "Working directory set to " working-directory "\n all filesytem interactions will be focused here.")}]})))})
 
 
