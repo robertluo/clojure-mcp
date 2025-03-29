@@ -167,10 +167,16 @@
           result (list-vars-tool {"namespace" "clojure.string"})]
       (is (false? (:error? result)))
       (is (vector? (:res result)))
-      ;; Check for some known vars in clojure.string
-      (is (some #(= % "blank?") (:res result)))
-      (is (some #(= % "join") (:res result)))
-      (is (some #(= % "trim") (:res result)))))
+      ;; Check the structure for a known var ('trim')
+      (let [trim-var-info (->> (:res result)
+                               (map read-string) ;; Read strings back to maps
+                               (filter #(= 'trim (:name %)))
+                               first)]
+        (is (map? trim-var-info))
+        (is (= 'trim (:name trim-var-info)))
+        (is (= 'clojure.string (:ns trim-var-info)))
+        (is (string? (:doc trim-var-info)))
+        (is (list? (:arglists trim-var-info))))))) ;; Check arglists type
 
   (testing "List vars in a non-existent namespace"
     (let [list-vars-tool (make-test-tool (repl-tools/list-vars-in-namespace *nrepl-client-atom*))

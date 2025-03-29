@@ -209,13 +209,18 @@ Usage: Provide a search-string which would be a substring of the found definitio
                     result-val (try
                                  (when result-str (read-string result-str)) ;; Read the string back into Clojure data
                                  (catch Exception _ nil))] ;; Handle potential read-string errors
-                (clj-result-k
-                 (cond
-                   (nil? result-str) ["Error evaluating code to list vars."] ;; nrepl eval failed
-                   (nil? result-val) [(str "Namespace '" ns-str "' not found or has no public vars.")] ;; Namespace not found or empty, or read-string failed
-                   ;; The result should already be a vector from the evaluated code
-                   :else (map pr-str result-val)) ;; Convert each map to string for MCP result
-                 (or (nil? result-str) (nil? result-val)))))}) ;; Error if eval failed or ns not found/read failed
+                (cond
+                  ;; Case 1: nREPL evaluation failed entirely
+                  (nil? result-str)
+                  (clj-result-k ["Error evaluating code to list vars."] true)
+
+                  ;; Case 2: Namespace not found OR read-string failed
+                  (nil? result-val)
+                  (clj-result-k [(str "Namespace '" ns-str "' not found or failed to parse result.")] true)
+
+                  ;; Case 3: Success (namespace found, potentially empty list of vars)
+                  :else
+                  (clj-result-k (map pr-str result-val) false))))}) ;; error? is false
 
 
 (comment
