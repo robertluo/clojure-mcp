@@ -12,8 +12,7 @@
 
 (defn eval-code [service-atom]
   {:name "clojure_eval"
-   :description "Takes a Clojure Expression and evaluates it in the 'user namespace. 
-For example: provide \"(+ 1 2)\" and this will evaluate that and return 3"
+   :description "Takes a Clojure Expression and evaluates it in the 'user' namespace. For example, providing \"(+ 1 2)\" will evaluate to 3. This tool is intended for the LLM agent (Yellow Lamb) to execute code when it needs to verify computations or resolve ambiguities in code."
    :schema (json/write-str {:type :object
                             :properties {:expression {:type :string}}
                             :required [:expression]})
