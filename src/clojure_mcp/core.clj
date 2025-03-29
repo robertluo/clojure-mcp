@@ -181,20 +181,20 @@
 (defn create-and-start-nrepl-connection [config]
   (let [service (nrepl/create config)]
     (nrepl/start-polling service)
-    service))
+    (reset! nrepl-client-atom service))) ;; Set the top-level atom
 
 (defn close-servers [{:keys [nrepl mcp]}]
   (nrepl/stop-polling nrepl)
   (.closeGracefully mcp))
 
 (defn create-nrepl-mcp-server [args]
-  {:nrepl-client (create-and-start-nrepl-connection args)
-   :mcp (mcp-server)})
+  (create-and-start-nrepl-connection args) ;; Call the modified function
+  {:mcp (mcp-server)}) ;; Return only the mcp server map entry
 
 ;; the args is a config map that must have :port and may have :host
 (defn nrepl-mcp-server [args]
-  (let [{:keys [mcp nrepl-client] :as server} (create-nrepl-mcp-server args)
-        nrepl-client-atom (atom nrepl-client)] ;; Wrap the client in an atom
+  (let [{:keys [mcp] :as server} (create-nrepl-mcp-server args)] ;; Get only mcp server
+    ;; Use the top-level nrepl-client-atom directly
     (add-tool mcp (repl-tools/eval-code nrepl-client-atom))
     (add-tool mcp (repl-tools/current-namespace nrepl-client-atom))
     (add-tool mcp (repl-tools/symbol-completions nrepl-client-atom))
@@ -208,8 +208,8 @@
 
 
 (comment
-  (def servs (nrepl-mcp-server {:port 54171}))
-  (close-servers servs)
+  (def mcp-server-map (nrepl-mcp-server {:port 54171})) ;; Start server, sets atom
+  (close-servers mcp-server-map) ;; Pass the map containing the mcp server
 
   )
 
