@@ -49,16 +49,7 @@
 ;; ?? we could proboably set the ns here given an optional ns argument?
 (defn current-namespace [service-atom] ;; Correct parameter name in definition
   {:name "current_namespace"
-   :description "Returns the current namespace.
-
-This can be helpful to verify which namespace future evaluations are going to occur in.
-
-Whenever, you use Clojure eval the evaluation occurs in the current namespace.
-The inital namespace is 'user. 
- 
-When you alter the namespaces with (ns example.core) or (in-ns
-'example.utils) you change the state of the REPL. And further evaluations will
-now take place in that namespace."
+   :description "Returns the current namespace. This tool is intended for the LLM agent (Yellow Lamb) to check the current evaluation context. Use this tool when the agent is uncertain about which namespace is active and needs to verify the context before proceeding with further code evaluations."
    :schema (json/write-str {:type :object})
    :tool-fn (fn [_ _ clj-result-k]
               (let [res (some-> @service-atom :clojure-mcp.nrepl/state deref :current-ns)] ;; Dereference atom
