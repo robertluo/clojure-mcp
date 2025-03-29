@@ -188,6 +188,8 @@ Usage: Provide a search-string which would be a substring of the found definitio
                    ["Error retrieving namespaces"]) ;; Fallback message
                  (nil? result-val))))}) ;; Error if result is nil
 
+
+
 (comment
   (def client-atom (atom (nrepl/create {:port 54171}))) ;; Use an atom here for consistency in testing
   (nrepl/start-polling @client-atom)
