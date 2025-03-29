@@ -123,6 +123,12 @@
        (apply [this exchange request]
          (mono-fn exchange request))))))
 
+(defn add-tool
+  "Helper function to create an async tool from a map and add it to the server."
+  [mcp-server tool-map]
+  (-> (.addTool mcp-server (create-async-tool tool-map))
+      (.subscribe)))
+
 ;; helper tool to demonstrate how all this gets hooked together
 
 (def echo-tool
@@ -182,20 +188,13 @@
 
 (defn nrepl-mcp-server [args]
   (let [{:keys [mcp nrepl] :as server} (create-nrepl-mcp-server args)]
-    (-> (.addTool mcp (create-async-tool (repl-tools/eval-code nrepl)))
-        (.subscribe))
-    (-> (.addTool mcp (create-async-tool (repl-tools/current-namespace nrepl)))
-        (.subscribe))
-    (-> (.addTool mcp (create-async-tool (repl-tools/symbol-completions nrepl)))
-        (.subscribe))
-    (-> (.addTool mcp (create-async-tool (repl-tools/symbol-metadata nrepl)))
-        (.subscribe))
-    (-> (.addTool mcp (create-async-tool (repl-tools/symbol-documentation nrepl)))
-        (.subscribe))
-    (-> (.addTool mcp (create-async-tool (repl-tools/source-code nrepl)))
-        (.subscribe))
-    (-> (.addTool mcp (create-async-tool (repl-tools/symbol-search nrepl)))
-        (.subscribe))
+    (add-tool mcp (repl-tools/eval-code nrepl))
+    (add-tool mcp (repl-tools/current-namespace nrepl))
+    (add-tool mcp (repl-tools/symbol-completions nrepl))
+    (add-tool mcp (repl-tools/symbol-metadata nrepl))
+    (add-tool mcp (repl-tools/symbol-documentation nrepl))
+    (add-tool mcp (repl-tools/source-code nrepl))
+    (add-tool mcp (repl-tools/symbol-search nrepl))
 
     server))
 
