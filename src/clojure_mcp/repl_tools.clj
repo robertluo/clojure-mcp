@@ -55,7 +55,7 @@ When you alter the namespaces with (ns example.core) or (in-ns
 now take place in that namespace."
    :schema (json/write-str {:type :object})
    :tool-fn (fn [_ _ clj-result-k]
-              (let [res (some-> service :clojure-mcp.nrepl/state deref :current-ns)]
+              (let [res (some-> @service-atom :clojure-mcp.nrepl/state deref :current-ns)] ;; Dereference atom
                 (clj-result-k
                  (if res [res] [])
                  (if res false true))))})
