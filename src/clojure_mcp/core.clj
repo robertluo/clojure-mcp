@@ -206,6 +206,7 @@
     (add-tool mcp (repl-tools/symbol-documentation nrepl-client-atom))
     (add-tool mcp (repl-tools/source-code nrepl-client-atom))
     (add-tool mcp (repl-tools/symbol-search nrepl-client-atom))
+    (add-tool mcp (repl-tools/list-namespaces nrepl-client-atom)) ;; Add the new tool
 
     mcp))
 

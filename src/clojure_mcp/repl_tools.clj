@@ -174,6 +174,20 @@ Usage: Provide a search-string which would be a substring of the found definitio
                  res
                  false)))})
 
+(defn list-namespaces [service-atom]
+  {:name "clojure_list_namespaces"
+   :description "Returns a list of all currently loaded namespaces as strings."
+   :schema (json/write-str {:type :object}) ;; No arguments needed
+   :tool-fn (fn [_ _ clj-result-k]
+              (let [code "(map str (sort (map ns-name (all-ns))))"
+                    result-str (nrepl/tool-eval-code @service-atom code)
+                    result-val (when result-str (read-string result-str))]
+                (clj-result-k
+                 (if result-val
+                   result-val
+                   ["Error retrieving namespaces"]) ;; Fallback message
+                 (nil? result-val))))}) ;; Error if result is nil
+
 (comment
   (def client-atom (atom (nrepl/create {:port 54171}))) ;; Use an atom here for consistency in testing
   (nrepl/start-polling @client-atom)
