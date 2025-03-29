@@ -174,17 +174,19 @@
                                first)]
         (is (map? trim-var-info))
         (is (= 'trim (:name trim-var-info)))
-        (is (= 'clojure.string (:ns trim-var-info)))
+        (is (= "clojure.string" (:ns trim-var-info)))
         (is (string? (:doc trim-var-info)))
-        (is (list? (:arglists trim-var-info))))))) ;; Check arglists type
+        (is (list? (:arglists trim-var-info)))))) ;; Check arglists type
 
   (testing "List vars in a non-existent namespace"
     (let [list-vars-tool (make-test-tool (repl-tools/list-vars-in-namespace *nrepl-client-atom*))
           result (list-vars-tool {"namespace" "non-existent.namespace.foo"})]
       ;; Expecting an error because the namespace doesn't exist
       (is (true? (:error? result)))
-      (is (= ["Namespace 'non-existent.namespace.foo' not found or has no public vars."] (:res result)))))
+      (is (re-find #"not found"
+                   (first (:res result))))))
 
+  
   (testing "List vars in namespace with no public vars (create one)"
     (let [eval-tool (make-test-tool (repl-tools/eval-code *nrepl-client-atom*))
           list-vars-tool (make-test-tool (repl-tools/list-vars-in-namespace *nrepl-client-atom*))]

@@ -193,16 +193,16 @@ Usage: Provide a search-string which would be a substring of the found definitio
    :description "Returns a list of maps, each containing metadata (:arglists, :doc, :name, :ns) for public vars defined in a given namespace."
    :schema (json/write-str {:type :object
                             :properties {:namespace {:type :string
-                                                     :description "The fully qualified name of the namespace (e.g., 'clojure.string')."}}
+                                                     :description "The fully qualified name of the namespace (e.g. clojure.string)."}}
                             :required [:namespace]})
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [ns-str (some-> (get arg-map "namespace") string/trim)
-                    ;; Code to get public vars, get their meta, select keys, and pr-str the result
                     code (pr-str `(when-let [ns-obj# (find-ns (symbol ~ns-str))]
                                     (->> (ns-publics ns-obj#)
                                          vals ;; Get the var objects
                                          (map meta) ;; Get metadata for each var
                                          (map #(select-keys % [:arglists :doc :name :ns])) ;; Select desired keys
+                                         (map #(update % :ns str))
                                          (sort-by :name) ;; Sort by name for consistent order
                                          vec))) ;; Convert to vector
                     result-str (nrepl/tool-eval-code @service-atom code)
@@ -220,7 +220,7 @@ Usage: Provide a search-string which would be a substring of the found definitio
 
                   ;; Case 3: Success (namespace found, potentially empty list of vars)
                   :else
-                  (clj-result-k (map pr-str result-val) false))))}) ;; error? is false
+                  (clj-result-k (mapv pr-str result-val) false))))}) ;; error? is false
 
 
 (comment
