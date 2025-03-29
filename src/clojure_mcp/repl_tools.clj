@@ -74,7 +74,8 @@ This is not an exhaustive list, some completions may be missing."
                             :properties {:prefix {:type :string}}
                             :required [:prefix]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [completions-raw (nrepl/completions @service-atom (get arg-map "prefix")) ;; Dereference atom
+              (let [prefix (some-> (get arg-map "prefix") string/trim) ;; Trim input
+                    completions-raw (nrepl/completions @service-atom prefix) ;; Dereference atom
                     ;; Extract just the candidate name
                     candidates (mapv :candidate completions-raw)] ;; Remove pr-str
                 (clj-result-k candidates false)))})
@@ -104,7 +105,8 @@ Example result:
                             :properties {:symbol {:type :string}}
                             :required [:symbol]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [res (nrepl/lookup @service-atom (get arg-map "symbol"))] ;; Dereference atom
+              (let [sym (some-> (get arg-map "symbol") string/trim) ;; Trim input
+                    res (nrepl/lookup @service-atom sym)] ;; Dereference atom
                 (clj-result-k
                  [(if res
                     (with-out-str (clojure.pprint/pprint res))
@@ -118,7 +120,8 @@ Example result:
                             :properties {:symbol {:type :string}}
                             :required [:symbol]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [res (nrepl/lookup @service-atom (get arg-map "symbol")) ;; Dereference atom
+              (let [sym (some-> (get arg-map "symbol") string/trim) ;; Trim input
+                    res (nrepl/lookup @service-atom sym) ;; Dereference atom
                     arglists (:arglists res)
                     doc (:doc res)
                     combined (str arglists "\n" doc)]
@@ -137,7 +140,7 @@ The implementation calls `(clojure.repl/source-fn (symbol ~string))` as a hint f
                             :properties {:symbol {:type :string}}
                             :required [:symbol]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [sym-str (get arg-map "symbol")
+              (let [sym-str (some-> (get arg-map "symbol") string/trim) ;; Trim input
                     result (nrepl/tool-eval-code
                             @service-atom ;; Dereference atom
                             (pr-str `(clojure.repl/source-fn (symbol ~sym-str))))
@@ -156,7 +159,7 @@ Usage: Provide a search-string which would be a substring of the found definitio
                             :properties {:search-str {:type :string}}
                             :required [:search-str]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [partial (get arg-map "search-str")
+              (let [partial (some-> (get arg-map "search-str") string/trim) ;; Trim input
                     res (or
                          (some->> (nrepl/tool-eval-code
                                    @service-atom ;; Dereference atom
