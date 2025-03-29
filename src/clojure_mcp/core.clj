@@ -126,6 +126,7 @@
 (defn add-tool
   "Helper function to create an async tool from a map and add it to the server."
   [mcp-server tool-map]
+  (.removeTool mcp-server (:name tool-map))
   (-> (.addTool mcp-server (create-async-tool tool-map))
       (.subscribe)))
 
