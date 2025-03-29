@@ -226,6 +226,25 @@ Usage: Provide a search-string which would be a substring of the found definitio
                   :else
                   (clj-result-k (mapv pr-str result-val) false))))}) ;; error? is false
 
+(defn eval-history [service-atom]
+  {:name "clojure_eval_history"
+   :description "Returns the last N evaluated expressions from the REPL history."
+   :schema (json/write-str {:type :object
+                            :properties {:number-to-fetch {:type "integer"
+                                                           :description "The number of history items to retrieve from the end."}}
+                            :required [:number-to-fetch]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (try
+                (let [n-str (get arg-map "number-to-fetch")
+                      n (Integer/parseInt n-str)
+                      history (get @(::nrepl/state @service-atom) ::eval-history [])
+                      items-to-return (take-last n history)]
+                  (clj-result-k (vec items-to-return) false))
+                (catch NumberFormatException _
+                  (clj-result-k ["Invalid 'number-to-fetch'. Please provide an integer."] true))
+                (catch Exception e
+                  (clj-result-k [(str "Error fetching history: " (ex-message e))] true))))})
+
 
 (comment
   (def client-atom (atom (nrepl/create {:port 54171}))) ;; Use an atom here for consistency in testing

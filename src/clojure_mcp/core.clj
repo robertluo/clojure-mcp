@@ -207,7 +207,8 @@
     (add-tool mcp (repl-tools/source-code nrepl-client-atom))
     (add-tool mcp (repl-tools/symbol-search nrepl-client-atom))
     (add-tool mcp (repl-tools/list-namespaces nrepl-client-atom))
-    (add-tool mcp (repl-tools/list-vars-in-namespace nrepl-client-atom)) ;; Add the list-vars tool
+    (add-tool mcp (repl-tools/list-vars-in-namespace nrepl-client-atom))
+    (add-tool mcp (repl-tools/eval-history nrepl-client-atom)) ;; Add the eval-history tool
 
     mcp))
 
