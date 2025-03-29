@@ -190,25 +190,32 @@ Usage: Provide a search-string which would be a substring of the found definitio
 
 (defn list-vars-in-namespace [service-atom]
   {:name "clojure_list_vars_in_namespace"
-   :description "Returns a list of public vars defined in a given namespace."
+   :description "Returns a list of maps, each containing metadata (:arglists, :doc, :name, :ns) for public vars defined in a given namespace."
    :schema (json/write-str {:type :object
                             :properties {:namespace {:type :string
                                                      :description "The fully qualified name of the namespace (e.g., 'clojure.string')."}}
                             :required [:namespace]})
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [ns-str (some-> (get arg-map "namespace") string/trim)
+                    ;; Code to get public vars, get their meta, select keys, and pr-str the result
                     code (pr-str `(when-let [ns-obj# (find-ns (symbol ~ns-str))]
-                                    (map str (sort (keys (ns-publics ns-obj#))))))
+                                    (->> (ns-publics ns-obj#)
+                                         vals ;; Get the var objects
+                                         (map meta) ;; Get metadata for each var
+                                         (map #(select-keys % [:arglists :doc :name :ns])) ;; Select desired keys
+                                         (sort-by :name) ;; Sort by name for consistent order
+                                         vec))) ;; Convert to vector
                     result-str (nrepl/tool-eval-code @service-atom code)
                     result-val (try
-                                 (when result-str (read-string result-str))
+                                 (when result-str (read-string result-str)) ;; Read the string back into Clojure data
                                  (catch Exception _ nil))] ;; Handle potential read-string errors
                 (clj-result-k
                  (cond
                    (nil? result-str) ["Error evaluating code to list vars."] ;; nrepl eval failed
-                   (nil? result-val) [(str "Namespace '" ns-str "' not found or has no public vars.")] ;; Namespace not found or empty
-                   :else (vec result-val)) ;; Ensure result is a vector
-                 (or (nil? result-str) (nil? result-val)))))}) ;; Error if eval failed or ns not found
+                   (nil? result-val) [(str "Namespace '" ns-str "' not found or has no public vars.")] ;; Namespace not found or empty, or read-string failed
+                   ;; The result should already be a vector from the evaluated code
+                   :else (map pr-str result-val)) ;; Convert each map to string for MCP result
+                 (or (nil? result-str) (nil? result-val)))))}) ;; Error if eval failed or ns not found/read failed
 
 
 (comment
