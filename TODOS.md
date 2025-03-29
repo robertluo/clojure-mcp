@@ -1,10 +1,28 @@
 # Today tasks
 
-
-Use tool to develop things and tweak the dev style
-Create prompt source
-Use gemini 2.5 pro
 Eval tool output
+
+Need to figure out the Spec development prompt
+- problems, not using fdef and instrument enough
+  * should use instrument after every redefinition of the function
+  * should fdef after stubbing out a function
+
+Prompt used::
+-----
+Let's use the connected repl to model a problem with Clojure Spec
+The problem is the creation of a library for rendering Clojure data of the form [:h1 {:class "active"} children ...] into HTML.
+Let's start with spec and iteratively evaluating it in the REPL
+
+let's use s/fdef and perhaps create some empty clojure function stubs
+-----
+
+Create a prompt to switch over to file saving mode and to sync up with a project.
+
+Test driven prompt.
+
+
+
+
 
 # Future tasks
 
@@ -59,17 +77,30 @@ eval-history resource/tool
 - eval would record expressions
 
 nrepl-set-print depth
-interrupt tool
-source resource/tool
 pprint-tool
 eval-pprint-composed tool
-load-file/tool
-clojure-docs/tool web docs tool
-context aware grep tool for clojure
 list-namespaces and list the vars in a namespace
-write-out-namespace-to-file?
-create-new-project then jack into it
 eval-history tool
+context aware grep tool for clojure
+
+long-running-eval-tool
+interrupt tool
+
+
+
+
+
+
+
+create-new-project then jack into it
+
+
+write-out-namespace-to-file?
+replace-function/tool
+create-function/tool 
+dynamic-dependencies addition
+
+
 
 eval-tool todo:
   * create limited results by lazy-walking with a limit 
