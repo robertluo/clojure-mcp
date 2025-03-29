@@ -147,3 +147,16 @@
     (let [search-tool (make-test-tool (repl-tools/symbol-search *nrepl-client-atom*))
           result (search-tool {"search-str" "xyz-non-existent-string-pattern"})]
       (is (= {:res ["No Matches Found"] :error? false} result)))))
+
+(deftest list-namespaces-test
+  (testing "List currently loaded namespaces"
+    (let [list-ns-tool (make-test-tool (repl-tools/list-namespaces *nrepl-client-atom*))
+          result (list-ns-tool {})]
+      (is (false? (:error? result)))
+      (is (vector? (:res result)))
+      ;; Check for essential namespaces that should always be loaded
+      (is (some #(= % "clojure.core") (:res result)))
+      (is (some #(= % "clojure.repl") (:res result))) ; Required by our setup
+      (is (some #(= % "user") (:res result)))
+      ;; Check that test namespace is loaded
+      (is (some #(= % "clojure-mcp.repl-tools-test") (:res result))))))
