@@ -193,14 +193,15 @@
 
 ;; the args is a config map that must have :port and may have :host
 (defn nrepl-mcp-server [args]
-  (let [{:keys [mcp nrepl-client] :as server} (create-nrepl-mcp-server args)]
-    (add-tool mcp (repl-tools/eval-code nrepl-client))
-    (add-tool mcp (repl-tools/current-namespace nrepl-client))
-    (add-tool mcp (repl-tools/symbol-completions nrepl-client))
-    (add-tool mcp (repl-tools/symbol-metadata nrepl-client))
-    (add-tool mcp (repl-tools/symbol-documentation nrepl-client))
-    (add-tool mcp (repl-tools/source-code nrepl-client))
-    (add-tool mcp (repl-tools/symbol-search nrepl-client))
+  (let [{:keys [mcp nrepl-client] :as server} (create-nrepl-mcp-server args)
+        nrepl-client-atom (atom nrepl-client)] ;; Wrap the client in an atom
+    (add-tool mcp (repl-tools/eval-code nrepl-client-atom))
+    (add-tool mcp (repl-tools/current-namespace nrepl-client-atom))
+    (add-tool mcp (repl-tools/symbol-completions nrepl-client-atom))
+    (add-tool mcp (repl-tools/symbol-metadata nrepl-client-atom))
+    (add-tool mcp (repl-tools/symbol-documentation nrepl-client-atom))
+    (add-tool mcp (repl-tools/source-code nrepl-client-atom))
+    (add-tool mcp (repl-tools/symbol-search nrepl-client-atom))
 
     server))
 

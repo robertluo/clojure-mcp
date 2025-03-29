@@ -4,7 +4,7 @@
    [clojure.data.json :as json]
    [clojure.string :as string]))
 
-(defn eval-code [service]
+(defn eval-code [service-atom]
   {:name "clojure_eval"
    :description "Takes a Clojure Expression and evaluates it in the 'user namespace. 
 For example: provide \"(+ 1 2)\" and this will evaluate that and return 3"
@@ -62,7 +62,7 @@ now take place in that namespace."
 
 ;; ?? we could take an ns argument to scope the completions somewhere else
 ;; ?? we could return the arglist and doc specs along with this
-(defn symbol-completions [service]
+(defn symbol-completions [service-atom]
   {:name "symbol_completions"
    :description "Provides a list of completion candidates for the current namespace.
 
@@ -109,7 +109,7 @@ Example result:
                     "nil")]
                  false)))})
 
-(defn symbol-documentation [service]
+(defn symbol-documentation [service-atom]
   {:name "symbol_documentation"
    :description "Returns the documentation for the symbol. Extracts the doc string and includes the function's arglists from the symbol metadata."
    :schema (json/write-str {:type :object
@@ -126,7 +126,7 @@ Example result:
                    ["nil"])
                  false)))})
 
-(defn source-code [service]
+(defn source-code [service-atom]
   {:name "source_code"
    :description "Returns the source code for a given symbol using clojure.repl/source.
 Usage: Provide a string representing the symbol, e.g. \"map\" or \"clojure.core/map\".
@@ -146,7 +146,7 @@ The implementation calls `(clojure.repl/source-fn (symbol ~string))` as a hint f
                     result-val)]
                  false)))})
 
-(defn symbol-search [service]
+(defn symbol-search [service-atom]
   {:name "symbol-search"
    :description "Returns a sequence of all public definitions whose names contain the given search string in all currently loaded namespaces using clojure.repl/apropos.
 Usage: Provide a search-string which would be a substring of the found definitions"
@@ -170,10 +170,10 @@ Usage: Provide a search-string which would be a substring of the found definitio
                  false)))})
 
 (comment
-  (def client (nrepl/create {:port 54171}))
-  (nrepl/start-polling client)
-  (nrepl/stop-polling client)
-  
+  (def client-atom (atom (nrepl/create {:port 54171}))) ;; Use an atom here for consistency in testing
+  (nrepl/start-polling @client-atom)
+  (nrepl/stop-polling @client-atom)
+   
   (defn make-test-tool [{:keys [tool-fn] :as tool-map}]
     (fn [arg-map]
       (let [prom (promise)]
@@ -184,9 +184,9 @@ Usage: Provide a search-string which would be a substring of the found definitio
 
 
   ;; Testing the eval-code tool
-  (def eval-tester (make-test-tool (eval-code client)))
+  (def eval-tester (make-test-tool (eval-code client-atom))) ;; Pass the atom
 
   (eval-tester {"expression" (pr-str '(+ 1 2))})
 
-  
+   
   )
