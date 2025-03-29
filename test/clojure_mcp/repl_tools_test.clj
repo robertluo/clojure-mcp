@@ -160,3 +160,31 @@
       (is (some #(= % "user") (:res result)))
       ;; Check that test namespace is loaded
       (is (some #(= % "clojure-mcp.repl-tools-test") (:res result))))))
+
+(deftest list-vars-in-namespace-test
+  (testing "List vars in a known namespace (clojure.string)"
+    (let [list-vars-tool (make-test-tool (repl-tools/list-vars-in-namespace *nrepl-client-atom*))
+          result (list-vars-tool {"namespace" "clojure.string"})]
+      (is (false? (:error? result)))
+      (is (vector? (:res result)))
+      ;; Check for some known vars in clojure.string
+      (is (some #(= % "blank?") (:res result)))
+      (is (some #(= % "join") (:res result)))
+      (is (some #(= % "trim") (:res result)))))
+
+  (testing "List vars in a non-existent namespace"
+    (let [list-vars-tool (make-test-tool (repl-tools/list-vars-in-namespace *nrepl-client-atom*))
+          result (list-vars-tool {"namespace" "non-existent.namespace.foo"})]
+      ;; Expecting an error because the namespace doesn't exist
+      (is (true? (:error? result)))
+      (is (= ["Namespace 'non-existent.namespace.foo' not found or has no public vars."] (:res result)))))
+
+  (testing "List vars in namespace with no public vars (create one)"
+    (let [eval-tool (make-test-tool (repl-tools/eval-code *nrepl-client-atom*))
+          list-vars-tool (make-test-tool (repl-tools/list-vars-in-namespace *nrepl-client-atom*))]
+      ;; Create an empty namespace
+      (eval-tool {"expression" "(create-ns 'empty.test.ns)"})
+      ;; List its vars
+      (let [result (list-vars-tool {"namespace" "empty.test.ns"})]
+        (is (false? (:error? result))) ;; Should not be an error, just empty
+        (is (= [] (:res result))))))) ;; Expect an empty vector

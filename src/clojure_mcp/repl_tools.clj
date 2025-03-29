@@ -188,6 +188,27 @@ Usage: Provide a search-string which would be a substring of the found definitio
                    ["Error retrieving namespaces"]) ;; Fallback message
                  (nil? result-val))))}) ;; Error if result is nil
 
+(defn list-vars-in-namespace [service-atom]
+  {:name "clojure_list_vars_in_namespace"
+   :description "Returns a list of public vars defined in a given namespace."
+   :schema (json/write-str {:type :object
+                            :properties {:namespace {:type :string
+                                                     :description "The fully qualified name of the namespace (e.g., 'clojure.string')."}}
+                            :required [:namespace]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [ns-str (some-> (get arg-map "namespace") string/trim)
+                    code (pr-str `(when-let [ns-obj# (find-ns (symbol ~ns-str))]
+                                    (map str (sort (keys (ns-publics ns-obj#))))))
+                    result-str (nrepl/tool-eval-code @service-atom code)
+                    result-val (try
+                                 (when result-str (read-string result-str))
+                                 (catch Exception _ nil))] ;; Handle potential read-string errors
+                (clj-result-k
+                 (cond
+                   (nil? result-str) ["Error evaluating code to list vars."] ;; nrepl eval failed
+                   (nil? result-val) [(str "Namespace '" ns-str "' not found or has no public vars.")] ;; Namespace not found or empty
+                   :else (vec result-val)) ;; Ensure result is a vector
+                 (or (nil? result-str) (nil? result-val)))))}) ;; Error if eval failed or ns not found
 
 
 (comment
