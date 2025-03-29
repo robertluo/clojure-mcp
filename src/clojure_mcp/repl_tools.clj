@@ -173,7 +173,7 @@ Usage: Provide a search-string which would be a substring of the found definitio
 
 (defn list-namespaces [service-atom]
   {:name "clojure_list_namespaces"
-   :description "Returns a list of all currently loaded namespaces as strings."
+   :description "Returns a list of all currently loaded namespaces as strings. Use this to see what libraries are loaded and search their capabilities."
    :schema (json/write-str {:type :object}) ;; No arguments needed
    :tool-fn (fn [_ _ clj-result-k]
               (let [code "(map str (sort (map ns-name (all-ns))))"
@@ -187,7 +187,7 @@ Usage: Provide a search-string which would be a substring of the found definitio
 
 (defn list-vars-in-namespace [service-atom]
   {:name "clojure_list_vars_in_namespace"
-   :description "Returns a list of maps, each containing metadata (:arglists, :doc, :name, :ns) for public vars defined in a given namespace."
+   :description "Returns a list of maps, each containing metadata (:arglists, :doc, :name, :ns) for public vars defined in a given namespace. This can give you an overview of the functions that a namespace providesand how ot use them."
    :schema (json/write-str {:type :object
                             :properties {:namespace {:type :string
                                                      :description "The fully qualified name of the namespace (e.g. clojure.string)."}}
