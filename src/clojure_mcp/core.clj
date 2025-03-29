@@ -183,8 +183,9 @@
     (nrepl/start-polling service)
     (reset! nrepl-client-atom service))) ;; Set the top-level atom
 
-(defn close-servers [{:keys [nrepl mcp]}]
-  (nrepl/stop-polling nrepl)
+(defn close-servers [{:keys [mcp]}] ;; Remove :nrepl from destructuring
+  (when-let [client @nrepl-client-atom] ;; Get client from atom
+    (nrepl/stop-polling client))
   (.closeGracefully mcp))
 
 (defn create-nrepl-mcp-server [args]
