@@ -139,7 +139,7 @@ The implementation calls `(clojure.repl/source-fn (symbol ~string))` as a hint f
                     result (nrepl/tool-eval-code
                             @service-atom ;; Dereference atom
                             (pr-str `(clojure.repl/source-fn (symbol ~sym-str))))
-                    result-val (read-string result)]
+                    result-val (when result (read-string result))] ;; Handle nil result
                 (clj-result-k
                  [(if (nil? result-val)
                     "nil"
