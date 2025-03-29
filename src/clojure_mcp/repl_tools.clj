@@ -28,7 +28,7 @@ For example: provide \"(+ 1 2)\" and this will evaluate that and return 3"
                                 (:out @data) (conj (str "OUT: " (:out @data)))
                                 (:err @data) (conj (str "ERR: " (:err @data))))
                               (:error @data)))]
-                (nrepl/eval-code-help service form-str
+                (nrepl/eval-code-help @service-atom form-str ;; Dereference the atom
                                       (->> identity
                                            (nrepl/out-err
                                             #(swap! data update :out (fn [x] (str % x)))
