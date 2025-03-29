@@ -188,19 +188,19 @@
   (.closeGracefully mcp))
 
 (defn create-nrepl-mcp-server [args]
-  {:nrepl (create-and-start-nrepl-connection args)
+  {:nrepl-client (create-and-start-nrepl-connection args)
    :mcp (mcp-server)})
 
 ;; the args is a config map that must have :port and may have :host
 (defn nrepl-mcp-server [args]
-  (let [{:keys [mcp nrepl] :as server} (create-nrepl-mcp-server args)]
-    (add-tool mcp (repl-tools/eval-code nrepl))
-    (add-tool mcp (repl-tools/current-namespace nrepl))
-    (add-tool mcp (repl-tools/symbol-completions nrepl))
-    (add-tool mcp (repl-tools/symbol-metadata nrepl))
-    (add-tool mcp (repl-tools/symbol-documentation nrepl))
-    (add-tool mcp (repl-tools/source-code nrepl))
-    (add-tool mcp (repl-tools/symbol-search nrepl))
+  (let [{:keys [mcp nrepl-client] :as server} (create-nrepl-mcp-server args)]
+    (add-tool mcp (repl-tools/eval-code nrepl-client))
+    (add-tool mcp (repl-tools/current-namespace nrepl-client))
+    (add-tool mcp (repl-tools/symbol-completions nrepl-client))
+    (add-tool mcp (repl-tools/symbol-metadata nrepl-client))
+    (add-tool mcp (repl-tools/symbol-documentation nrepl-client))
+    (add-tool mcp (repl-tools/source-code nrepl-client))
+    (add-tool mcp (repl-tools/symbol-search nrepl-client))
 
     server))
 
