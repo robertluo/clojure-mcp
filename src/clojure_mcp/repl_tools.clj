@@ -184,7 +184,7 @@ Usage: Provide a search-string which would be a substring of the found definitio
                     result-val (when result-str (read-string result-str))]
                 (clj-result-k
                  (if result-val
-                   result-val
+                   (vec result-val) ;; Ensure result is a vector
                    ["Error retrieving namespaces"]) ;; Fallback message
                  (nil? result-val))))}) ;; Error if result is nil
 
