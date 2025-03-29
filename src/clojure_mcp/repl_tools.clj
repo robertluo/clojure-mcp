@@ -74,10 +74,10 @@ This is not an exhaustive list, some completions may be missing."
                             :properties {:prefix {:type :string}}
                             :required [:prefix]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [res (nrepl/completions service (get arg-map "prefix"))]
+              (let [res (nrepl/completions @service-atom (get arg-map "prefix"))] ;; Dereference atom
                 (clj-result-k (mapv pr-str res) false)))})
 
-(defn symbol-metadata [service]
+(defn symbol-metadata [service-atom] ;; Changed parameter name
   {
    :name "symbol_metadata"
    :description "Returns the complete metadata for the symbol.
@@ -102,7 +102,7 @@ Example result:
                             :properties {:symbol {:type :string}}
                             :required [:symbol]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [res (nrepl/lookup service (get arg-map "symbol"))]
+              (let [res (nrepl/lookup @service-atom (get arg-map "symbol"))] ;; Dereference atom
                 (clj-result-k
                  [(if res
                     (with-out-str (clojure.pprint/pprint res))
@@ -116,7 +116,7 @@ Example result:
                             :properties {:symbol {:type :string}}
                             :required [:symbol]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [res (nrepl/lookup service (get arg-map "symbol"))
+              (let [res (nrepl/lookup @service-atom (get arg-map "symbol")) ;; Dereference atom
                     arglists (:arglists res)
                     doc (:doc res)
                     combined (str arglists "\n" doc)]
@@ -137,7 +137,7 @@ The implementation calls `(clojure.repl/source-fn (symbol ~string))` as a hint f
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [sym-str (get arg-map "symbol")
                     result (nrepl/tool-eval-code
-                            service
+                            @service-atom ;; Dereference atom
                             (pr-str `(clojure.repl/source-fn (symbol ~sym-str))))
                     result-val (read-string result)]
                 (clj-result-k
