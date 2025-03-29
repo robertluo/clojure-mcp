@@ -157,7 +157,7 @@ Usage: Provide a search-string which would be a substring of the found definitio
               (let [partial (get arg-map "search-str")
                     res (or
                          (some->> (nrepl/tool-eval-code
-                                   service
+                                   @service-atom ;; Dereference atom
                                    (pr-str `(clojure.repl/apropos ~partial)))
                                   read-string
                                   (map str)
