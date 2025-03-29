@@ -41,7 +41,7 @@ For example: provide \"(+ 1 2)\" and this will evaluate that and return 3"
                                                           (finish _)))))))})
 
 ;; ?? we could proboably set the ns here given an optional ns argument?
-(defn current-namespace [service]
+(defn current-namespace [service-atom] ;; Correct parameter name in definition
   {:name "current_namespace"
    :description "Returns the current namespace.
 
