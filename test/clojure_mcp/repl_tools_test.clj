@@ -77,9 +77,9 @@
       (is (false? (:error? result)))
       (is (vector? (:res result)))
       ;; Check if common completions are present (represented as strings)
-      (is (some #(= % "\"map\"") (:res result)))
-      (is (some #(= % "\"mapcat\"") (:res result)))
-      (is (some #(= % "\"max\"") (:res result))))))
+      (is (some #(= % "map") (:res result)))
+      (is (some #(= % "mapcat") (:res result)))
+      (is (some #(= % "max") (:res result))))))
 
 (deftest symbol-metadata-test
   (testing "Get metadata for a core symbol"
