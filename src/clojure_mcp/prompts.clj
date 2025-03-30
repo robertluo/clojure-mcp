@@ -70,6 +70,9 @@
    "`   
 When interacting with filesystem for this code it will be in this project.
 
+The source code is in the \"src\" dir of this project directory.
+The test code is in the \"test\" dir of this project directory.
+
 Filesystem writes, saves, edits and other interactions should use the `filesystem` tool rather than the Clojure REPL."
    ;; If the filesystem tool can't acces this directory then fallback to the REPL for filesystem access
    ))

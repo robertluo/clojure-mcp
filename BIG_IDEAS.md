@@ -1,6 +1,6 @@
 # Gen AI dev overaching ideas
 
-## Naieve Hypothesises
+## Naive Hypothesises
 
 > If it's hard for humans, it's hard for AI
 
@@ -98,6 +98,7 @@ of programs that can be reasoned about
 
 This is a much more humane workflow.
 
+
 > The lack of experience in REPL driven development has led to a lack
 > of insight into these possibilities.
 
@@ -106,3 +107,5 @@ This is a much more humane workflow.
 
 The next AI PL may be a lisp with Idris or TLA+ qualities. The simple
 syntax combined with enforced correctness and high degree of feedback.
+
+

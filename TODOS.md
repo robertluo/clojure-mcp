@@ -1,6 +1,5 @@
 # Today tasks
 
-Add think tool
 
 Eval tool output
 
@@ -41,6 +40,7 @@ Develop server and frontend through evaluation.
 # Future tasks
 
 look at using ciders tools
+add think tool
 
 
 # Notes to guid development of my Clojure MCP server
@@ -90,28 +90,21 @@ Should MCP allow a program to trigger a read?
 eval-history resource/tool
 - eval would record expressions
 
+linting
 nrepl-set-print depth
 pprint-tool
 eval-pprint-composed tool
-list-namespaces and list the vars in a namespace
-eval-history tool
 context aware grep tool for clojure
 
 long-running-eval-tool
 interrupt tool
 
-
-
-
-
-
-
 create-new-project then jack into it
-
 
 write-out-namespace-to-file?
 replace-function/tool
 create-function/tool 
+
 dynamic-dependencies addition
 
 
@@ -138,6 +131,8 @@ Thinking tool??  https://www.anthropic.com/engineering/claude-think-tool
 Sequential Thinking tool?? 
 
 
-
+## Notes 
  
- 
+fast.ai -- tool
+how to solve it -- book used
+https://github.com/phronmophobic/dewey 
