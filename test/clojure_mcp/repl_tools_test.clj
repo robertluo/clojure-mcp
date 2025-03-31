@@ -86,7 +86,8 @@
       ;; The tool now returns error? true if the linter finds an error
       (is (true? (:error? result)))
       (is (some #(str/starts-with? % "LINTER: ") res)) ;; Check for linter output
-      (is (some #(str/includes? % "Expected symbol, found") res)) ;; Check content of lint error
+      ;; Check for the actual clj-kondo parsing error message
+      (is (some #(str/includes? % "Can't parse <stdin>") res))
       ;; Evaluation should not proceed if linter finds an error
       (is (not-any? #(str/starts-with? % "=> ") res)))))
 
