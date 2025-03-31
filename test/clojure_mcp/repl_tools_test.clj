@@ -48,19 +48,18 @@
           result (eval-tool {"expression" "(println \"hello\")"})
           res (:res result)]
       (is (false? (:error? result)))
-      ;; Check for specific prefixed outputs
-      (is (some #(str/starts-with? % "OUT: hello") res)) ;; Check stdout
-      (is (some #(= % "=> nil") res)))) ;; Check return value
+      ;; Check for the combined output and value string
+      (is (= ["hello\n=> nil"] res))))
 
   (testing "Evaluation with error"
     (let [eval-tool (make-test-tool (repl-tools/eval-code *nrepl-client-atom*))
           result (eval-tool {"expression" "(throw (Exception. \"test error\"))"})
           res (:res result)]
       (is (true? (:error? result)))
-      ;; Check for ERR prefix and the error marker added by the tool
-      (is (some #(str/starts-with? % "ERR: ") res))
-      (is (some #(str/includes? % "test error") res))
-      (is (some #(= % "ERROR: Evaluation failed") res))))
+      ;; Check the single result string for error content and the marker
+      (is (= 1 (count res))) ;; Should be one string
+      (is (str/includes? (first res) "test error"))
+      (is (str/includes? (first res) "Evaluation failed"))))
 
   (testing "Evaluation resulting in nil"
     (let [eval-tool (make-test-tool (repl-tools/eval-code *nrepl-client-atom*))
@@ -74,9 +73,10 @@
           result (eval-tool {"expression" "(let [unused 1] (+ 2 3))"})
           res (:res result)]
       (is (false? (:error? result))) ;; Linter warning is not a tool error
-      (is (some #(str/starts-with? % "LINTER: ") res)) ;; Check for linter output
-      (is (some #(str/includes? % "unused binding") res)) ;; Check content of lint
-      (is (some #(= % "=> 5") res)))) ;; Check for correct value
+      ;; Check the single result string for linter warning and value
+      (is (= 1 (count res))) ;; Should be one string
+      (is (str/includes? (first res) "unused binding")) ;; Check content of lint
+      (is (str/includes? (first res) "=> 5")))) ;; Check for correct value
 
   (testing "Evaluation with linter error"
     (let [eval-tool (make-test-tool (repl-tools/eval-code *nrepl-client-atom*))
@@ -85,9 +85,9 @@
           res (:res result)]
       ;; The tool now returns error? true if the linter finds an error
       (is (true? (:error? result)))
-      (is (some #(str/starts-with? % "LINTER: ") res)) ;; Check for linter output
+      (is (= 1 (count res))) ;; Should be one string containing only linter output
       ;; Check for the actual clj-kondo parsing error message
-      (is (some #(str/includes? % "Can't parse <stdin>") res))
+      (is (str/includes? (first res) "Can't parse <stdin>"))
       ;; Evaluation should not proceed if linter finds an error
       (is (not-any? #(str/starts-with? % "=> ") res)))))
 
