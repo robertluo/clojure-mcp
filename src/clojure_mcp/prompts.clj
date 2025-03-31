@@ -95,6 +95,19 @@ Filesystem writes, saves, edits and other interactions should use the `filesyste
                                #_{:role :assistant
                                   :content (str "Working directory set to " working-directory "\n all filesytem interactions will be focused here.")}]})))})
 
+(def clj-sync-namespace
+  {:name "clj-sync-namespace"
+   :description "Generates a prompt instructing the assistant to synchronize the REPL with a specific namespace (require :reload, in-ns)."
+   :arguments [{:name "namespace"
+                :description "The fully qualified name of the Clojure namespace to sync."
+                :required? true}]
+   :prompt-fn (fn [_ request-args clj-result-k]
+                (let [namespace-arg (get request-args "namespace")]
+                  (clj-result-k
+                   {:description (str "Sync REPL with namespace: " namespace-arg)
+                    :messages [{:role :user
+                                :content (sync-namespace-workflow-prompt namespace-arg)}]})))})
+
 
 (defn sync-namespace-workflow-prompt [namesp]
  (format "I'm currently working on a Clojure namespace `%s`  

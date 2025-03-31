@@ -175,6 +175,8 @@
         (.subscribe))
     (-> (.addPrompt server (create-async-prompt prompts/clojure-project-context-modifier))
         (.subscribe))
+    (-> (.addPrompt server (create-async-prompt prompts/clj-sync-namespace)) ;; <-- Add sync namespace prompt
+        (.subscribe))
 
 
     server))
