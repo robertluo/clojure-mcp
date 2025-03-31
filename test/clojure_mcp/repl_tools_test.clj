@@ -5,6 +5,7 @@
    [clojure-mcp.repl-tools :as repl-tools]
    [nrepl.server :as nrepl-server]
    [clojure.string :as str]))
+) ;; <- Added closing parenthesis
 
 (defonce ^:dynamic *nrepl-server* nil)
 (defonce ^:dynamic *nrepl-client-atom* nil)
