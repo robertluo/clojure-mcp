@@ -73,6 +73,8 @@ When interacting with filesystem for this code it will be in this project.
 The source code is in the \"src\" dir of this project directory.
 The test code is in the \"test\" dir of this project directory.
 
+When the user changes a file that is being worked on, you must require reload the file in order for the repl to pick them up.
+
 Filesystem writes, saves, edits and other interactions should use the `filesystem` tool rather than the Clojure REPL."
    ;; If the filesystem tool can't acces this directory then fallback to the REPL for filesystem access
    ))
@@ -92,5 +94,20 @@ Filesystem writes, saves, edits and other interactions should use the `filesyste
                                 :content (working-dir-prompt working-directory)}
                                #_{:role :assistant
                                   :content (str "Working directory set to " working-directory "\n all filesytem interactions will be focused here.")}]})))})
+
+
+(defn sync-namespace-workflow-prompt [namesp]
+ (format "I'm currently working on a Clojure namespace `%s`  
+
+Can you:
+
+1. find it 
+2. `require` `:reload` it into the REPL environment 
+3. change into the `%s` with `in-ns` 
+4. and make an artifact for it
+
+If the file get's *edited* outside and must be read to see the changes, you should `require` :reload the file into the REPL enviromnent."
+  namesp
+  namesp))
 
 
