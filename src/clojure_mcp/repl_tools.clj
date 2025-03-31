@@ -70,31 +70,37 @@
    ;;                  that represents wether an error occured during evaluation
    :tool-fn (fn tool-fn
               [_ arg-map clj-result-k]
-              (let [data (atom {:result []
-                                :error false})
+              (let [outputs (atom []) ;; Atom to store prefixed output strings
+                    error-occurred (atom false) ;; Atom to track if any error happened
                     form-str (get arg-map "expression")
                     linted (lint form-str)
+                    add-output! (fn [prefix value] (swap! outputs conj (str prefix value)))
                     finish (fn [_]
-                             (clj-result-k
-                              (cond-> (:result @data)
-                                (:out @data) (conj (str "OUT: " (:out @data)))
-                                (:err @data) (conj (str "ERR: " (:err @data)))
-                                linted (conj (str "LINTER: " (:report linted))))
-                              (or (:error? linted) (:error @data))))]
-                (if (:error? linted)
-                  (finish _)
+                             (clj-result-k @outputs @error-occurred))]
+
+                ;; Add linter output first if present
+                (when linted
+                  (add-output! "LINTER: " (:report linted))
+                  (when (:error? linted)
+                    (reset! error-occurred true)))
+
+                ;; If linter found critical errors, finish early
+                (if @error-occurred
+                  (finish nil)
                   (do
                     (eval-history-push (::nrepl/state @service-atom) form-str)
                     (nrepl/eval-code-help @service-atom form-str ;; Dereference the atom
                                           (->> identity
                                                (nrepl/out-err
-                                                #(swap! data update :out (fn [x] (str % x)))
-                                                #(swap! data update :err (fn [x] (str % x))))
+                                                #(add-output! "OUT: " %)
+                                                #(add-output! "ERR: " %))
                                                ;; TODO we need to limit the size here
-                                               (nrepl/value #(swap! data update :result conj %))
+                                               (nrepl/value #(add-output! "VALUE: " %))
                                                (nrepl/done finish)
                                                (nrepl/error (fn [_]
-                                                              (swap! data assoc :error true)
+                                                              (reset! error-occurred true)
+                                                              ;; Optionally add an error marker to output
+                                                              (add-output! "ERROR: " "Evaluation failed")
                                                               (finish _)))))))
                 ))})
 
