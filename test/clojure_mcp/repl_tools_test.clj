@@ -39,28 +39,55 @@
   (testing "Basic evaluation"
     (let [eval-tool (make-test-tool (repl-tools/eval-code *nrepl-client-atom*))
           result (eval-tool {"expression" "(+ 1 2)"})]
-      (is (= {:res ["3"] :error? false} result))))
+      (is (false? (:error? result)))
+      (is (= ["=> 3"] (:res result))))) ;; Check for prefixed value
 
   (testing "Evaluation with output"
     (let [eval-tool (make-test-tool (repl-tools/eval-code *nrepl-client-atom*))
-          result (eval-tool {"expression" "(println \"hello\")"})]
-      ;; Output might vary slightly (e.g., newline), check contains
+          result (eval-tool {"expression" "(println \"hello\")"})
+          res (:res result)]
       (is (false? (:error? result)))
-      (is (= ["nil"] (->> result :res (filter #(not (str/starts-with? % "OUT:"))) vec)))
-      (is (some #(str/includes? % "OUT: hello") (:res result)))))
+      ;; Check for specific prefixed outputs
+      (is (some #(str/starts-with? % "OUT: hello") res)) ;; Check stdout
+      (is (some #(= % "=> nil") res)))) ;; Check return value
 
   (testing "Evaluation with error"
     (let [eval-tool (make-test-tool (repl-tools/eval-code *nrepl-client-atom*))
-          result (eval-tool {"expression" "(throw (Exception. \"test error\"))"})]
+          result (eval-tool {"expression" "(throw (Exception. \"test error\"))"})
+          res (:res result)]
       (is (true? (:error? result)))
-      ;; Error message might be complex, just check it contains the core message
-      (is (some #(str/includes? % "ERR: ") (:res result)))
-      (is (some #(str/includes? % "test error") (:res result)))))
+      ;; Check for ERR prefix and the error marker added by the tool
+      (is (some #(str/starts-with? % "ERR: ") res))
+      (is (some #(str/includes? % "test error") res))
+      (is (some #(= % "ERROR: Evaluation failed") res))))
 
   (testing "Evaluation resulting in nil"
     (let [eval-tool (make-test-tool (repl-tools/eval-code *nrepl-client-atom*))
           result (eval-tool {"expression" "(identity nil)"})]
-      (is (= {:res ["nil"] :error? false} result)))))
+      (is (false? (:error? result)))
+      (is (= ["=> nil"] (:res result))))) ;; Check for prefixed value
+
+  (testing "Evaluation with linter warning"
+    (let [eval-tool (make-test-tool (repl-tools/eval-code *nrepl-client-atom*))
+          ;; Use let with unused binding to trigger linter
+          result (eval-tool {"expression" "(let [unused 1] (+ 2 3))"})
+          res (:res result)]
+      (is (false? (:error? result))) ;; Linter warning is not a tool error
+      (is (some #(str/starts-with? % "LINTER: ") res)) ;; Check for linter output
+      (is (some #(str/includes? % "unused binding") res)) ;; Check content of lint
+      (is (some #(= % "=> 5") res)))) ;; Check for correct value
+
+  (testing "Evaluation with linter error"
+    (let [eval-tool (make-test-tool (repl-tools/eval-code *nrepl-client-atom*))
+          ;; Use an invalid form to trigger linter error
+          result (eval-tool {"expression" "(def ^:dynamic 1)"})
+          res (:res result)]
+      ;; The tool now returns error? true if the linter finds an error
+      (is (true? (:error? result)))
+      (is (some #(str/starts-with? % "LINTER: ") res)) ;; Check for linter output
+      (is (some #(str/includes? % "Expected symbol, found") res)) ;; Check content of lint error
+      ;; Evaluation should not proceed if linter finds an error
+      (is (not-any? #(str/starts-with? % "=> ") res))))
 
 (deftest current-namespace-test
   (testing "Get current namespace"
