@@ -1,6 +1,56 @@
 # Today tasks
 
 
+Experiments 
+
+* switching to propose and ideate solutions before evaluating
+  FINDINGS
+  - this works well, switching between repl iteration and improving the code
+  
+* always allow once on saving files and doing commits 
+  FINDINGS
+  - this is needed to interject into the 
+  - very hard to remember to do this
+
+* https://github.com/yamadashy/repomix
+
+
+* starting without the repl driven prompt to see behavior
+  FINDINGS
+  - if you provide a directory it will ignore the REPL and artifacts and just start 
+    creating complete files
+  - even if you politely ask to do REPL driven development it starts baning away at files
+    if you provide a directory.	
+  - This minimal prompt was working a bit.	
+```
+  let's start working on Clojure library to render Clojure data like [:h1 {:class "active"} child ...] to an HTML AST 
+let's explore things first via Clojure REPL driven development
+
+First let's make an artifact to track our work
+change into that namespace in the REPL
+
+This is the plan:
+* draft a simple small example function
+* Present the function in a code block
+* I will offer feedback 
+* update the function with suggested changes
+
+
+Before you evaluate code, present it in a code block 
+```
+
+
+* starting with Claude Project 
+  - check on harmonizing artifacts with local filesystem
+
+* work on an existing complicated code base
+
+3. Clojure Project management tool
+  - manages data about project
+  - allows var definition replacement in files
+  
+
+
 Eval tool output
 
 The problem is the creation of a library for rendering Clojure data of the form [:h1 {:class "active"} children ...] into HTML.

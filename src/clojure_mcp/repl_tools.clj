@@ -95,7 +95,7 @@
                                                 #(add-output! "OUT: " %)
                                                 #(add-output! "ERR: " %))
                                                ;; TODO we need to limit the size here
-                                               (nrepl/value #(add-output! "VALUE: " %))
+                                               (nrepl/value #(add-output! "=> " %))
                                                (nrepl/done finish)
                                                (nrepl/error (fn [_]
                                                               (reset! error-occurred true)

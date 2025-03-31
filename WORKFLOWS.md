@@ -48,3 +48,21 @@ appends eval history and results to chat
 ## Javascript eval
 
 
+## Workflow learnings
+
+
+The repl driven prompt currently encourages an over eager code first approach - much like humans. 
+
+Currently excellent as an automated repl.
+
+It's great bc it automatically exercises all the code it writes.
+
+It reads a file loads the namespace and exercises the functions with data.
+
+Still wonky as primary developer first interface. 
+ * Syncing up with project a little slow.
+ * Making commits and saving files without asking. (Always allow once on commits and saving files)
+ 
+
+Need to explore/discover minimally viable prompts
+
