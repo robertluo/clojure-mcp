@@ -88,7 +88,7 @@
       (is (some #(str/starts-with? % "LINTER: ") res)) ;; Check for linter output
       (is (some #(str/includes? % "Expected symbol, found") res)) ;; Check content of lint error
       ;; Evaluation should not proceed if linter finds an error
-      (is (not-any? #(str/starts-with? % "=> ") res))))
+      (is (not-any? #(str/starts-with? % "=> ") res)))))
 
 (deftest current-namespace-test
   (testing "Get current namespace"
