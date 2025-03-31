@@ -95,6 +95,20 @@ Filesystem writes, saves, edits and other interactions should use the `filesyste
                                #_{:role :assistant
                                   :content (str "Working directory set to " working-directory "\n all filesytem interactions will be focused here.")}]})))})
 
+(defn sync-namespace-workflow-prompt [namesp]
+ (format "I'm currently working on a Clojure namespace `%s`  
+
+Can you:
+
+1. find it 
+2. `require` `:reload` it into the REPL environment 
+3. change into the `%s` with `in-ns` 
+4. and make an artifact for it
+
+If the file get's *edited* outside and must be read to see the changes, you should `require` :reload the file into the REPL enviromnent."
+  namesp
+  namesp))
+
 (def clj-sync-namespace
   {:name "clj-sync-namespace"
    :description "Generates a prompt instructing the assistant to synchronize the REPL with a specific namespace (require :reload, in-ns)."
@@ -109,18 +123,6 @@ Filesystem writes, saves, edits and other interactions should use the `filesyste
                                 :content (sync-namespace-workflow-prompt namespace-arg)}]})))})
 
 
-(defn sync-namespace-workflow-prompt [namesp]
- (format "I'm currently working on a Clojure namespace `%s`  
 
-Can you:
-
-1. find it 
-2. `require` `:reload` it into the REPL environment 
-3. change into the `%s` with `in-ns` 
-4. and make an artifact for it
-
-If the file get's *edited* outside and must be read to see the changes, you should `require` :reload the file into the REPL enviromnent."
-  namesp
-  namesp))
 
 
