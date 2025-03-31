@@ -33,7 +33,7 @@
                                              :schema-misplaced-return
                                              :java-static-field-call
                                              :unused-alias
-                                             :unused-binding
+                                             ;; :unused-binding ;; <-- Removed this line to enable the warning
                                              :unused-import
                                              :unresolved-namespace
                                              :unresolved-symbol
