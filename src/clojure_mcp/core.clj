@@ -187,8 +187,13 @@
   (let [nrepl-client (nrepl/create config)]
     (nrepl/start-polling nrepl-client)
     ;; Ensure clojure.repl is loaded for apropos/source-fn used in tools
-    (nrepl/eval-code nrepl-client "(require 'clojure.repl)" identity)
+    (nrepl/eval-code nrepl-client
+                     (str
+                      "(require 'clojure.repl)"
+                      "(require 'nrepl.util.print)")
+                     identity)
     nrepl-client))
+
 
 (defn close-servers [mcp] ;; Remove :nrepl from destructuring
   (when-let [client @nrepl-client-atom] ;; Get client from atom

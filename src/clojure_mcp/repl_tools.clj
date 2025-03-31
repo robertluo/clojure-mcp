@@ -5,7 +5,6 @@
    [clj-kondo.core :as kondo]
    [clojure.string :as string]))
 
-
 (defn lint [form-str]
   (let [res (with-in-str form-str
               (kondo/run! {:lint "-" 
@@ -53,9 +52,60 @@
 (defn eval-history-reset [state-atom]
   (swap! state-atom assoc ::eval-history nil))
 
+
+;; Eval results formatting
+;; The goal is to make it clear for the LLM to understand
+
+;; EXAMPLE OUTPUT
+
+;;
+;; Testing mixed content types:
+;; => nil
+;; *===============================================*
+;; => {:tag :div,
+;;  :attrs {},
+;;  :content
+;;  ["Some text"
+;;   {:tag :br, :attrs {}, :content []}
+;;   123
+;;   {:tag :span, :attrs {}, :content ["More text"]}]}
+;; *===============================================*
+;; => nil
+;;
+
+(defn partition-outputs [outputs]
+  (when (not-empty outputs)
+    (let [[non-val-parts [val & xs]] (split-with #(not= :value (first %)) outputs)]
+      (cons (cond-> (vec non-val-parts)
+              val (conj val))
+            (partition-outputs xs)))))
+
+(defn format-value [[k v]]
+  (string/trim-newline
+   (if (= k :value)
+     (str "=> " v (if (<= nrepl/truncation-length (count v))
+                    " ... RESULT TRUNCATED"
+                    ""))
+     v)))
+
+(defn format-eval-outputs [outputs]
+  (->> outputs
+       (map format-value)
+       (string/join "\n")))
+
+(defn partition-and-format-outputs [outputs]
+  (interpose "*===============================================*"
+             (mapv format-eval-outputs (partition-outputs outputs))))
+
 (defn eval-code [service-atom]
   {:name "clojure_eval"
-   :description "Takes a Clojure Expression and evaluates it in the 'user' namespace. For example, providing \"(+ 1 2)\" will evaluate to 3. This tool is intended to execute code when it needs to verify computations or resolve ambiguities in code."
+   :description "Takes a Clojure Expression and evaluates it in the current namespace. For example, providing \"(+ 1 2)\" will evaluate to 3. 
+
+This tool is intended to execute Clojure code. This is very helpful for verifying that code is working as expected. It's also helpful for REPL driven development.
+
+If you send multiple expressions they will all be evaluated individually and their output will be clearly partitioned.
+
+If the value that is returned is too long it will be truncated."
    :schema (json/write-str {:type :object
                             :properties {:expression {:type :string}}
                             :required [:expression]})
@@ -74,13 +124,15 @@
                     error-occurred (atom false) ;; Atom to track if any error happened
                     form-str (get arg-map "expression")
                     linted (lint form-str)
-                    add-output! (fn [prefix value] (swap! outputs conj (str prefix value)))
+                    add-output! (fn [prefix value] (swap! outputs conj [prefix value]))
                     finish (fn [_]
-                             (clj-result-k @outputs @error-occurred))]
+                             (clj-result-k
+                              (partition-and-format-outputs @outputs)
+                              @error-occurred))]
 
                 ;; Add linter output first if present
                 (when linted
-                  (add-output! "LINTER: " (:report linted))
+                  (add-output! :lint (:report linted))
                   (when (:error? linted)
                     (reset! error-occurred true)))
 
@@ -92,10 +144,10 @@
                     (nrepl/eval-code-help @service-atom form-str ;; Dereference the atom
                                           (->> identity
                                                (nrepl/out-err
-                                                #(add-output! "OUT: " %)
-                                                #(add-output! "ERR: " %))
+                                                #(add-output! :out %)
+                                                #(add-output! :err %))
                                                ;; TODO we need to limit the size here
-                                               (nrepl/value #(add-output! "=> " %))
+                                               (nrepl/value #(add-output! :value %))
                                                (nrepl/done finish)
                                                (nrepl/error (fn [_]
                                                               (reset! error-occurred true)
@@ -297,9 +349,8 @@ Usage: Provide a search-string which would be a substring of the found definitio
                   (clj-result-k [(str "Error fetching history: " (ex-message e))] true))))})
 
 
-
 (comment
-  (def client-atom (atom (nrepl/create {:port 7888}))) ;; Use an atom here for consistency in testing
+  (def client-atom (atom (nrepl/create {:port 7888})))
   (nrepl/start-polling @client-atom)
   (nrepl/stop-polling @client-atom)
    
@@ -315,7 +366,13 @@ Usage: Provide a search-string which would be a substring of the found definitio
   ;; Testing the eval-code tool
   (def eval-tester (make-test-tool (eval-code client-atom))) ;; Pass the atom
 
-  (eval-tester {"expression" (pr-str '(+ 1 2))})
+  (eval-tester {"expression" (pr-str '(do
+                                        (require 'nrepl.util.print)
+                                        #_(set! nrepl.middleware.print/*print-fn* nrepl.util.print/pprint)))})
+  (eval-tester {"expression" (str
+                              (pr-str  '(map #(range %) (range 50)))
+                              (pr-str '(println 55))
+                              (pr-str '(+ 1 2))(pr-str '(+ 1 2))(pr-str '(+ 1 2)))})
 
    
   )

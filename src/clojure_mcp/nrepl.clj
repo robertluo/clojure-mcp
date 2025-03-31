@@ -97,9 +97,15 @@
    (merge {:session (tool-session service)}
           msg)))
 
+(def truncation-length 5000)
+
 (defn eval-code-help [{:keys [::state] :as service} code-str k]
   (let [{:keys [id] :as message}
-        (new-message service {:op "eval" :code code-str})
+        (new-message service {:op "eval"
+                              :code code-str
+                              :nrepl.middleware.print/print "nrepl.util.print/pprint"
+                              ;; need to be able to set this magic number
+                              :nrepl.middleware.print/quota truncation-length})
         prom (promise)
         finish (fn [_]
                  (deliver prom ::done)
