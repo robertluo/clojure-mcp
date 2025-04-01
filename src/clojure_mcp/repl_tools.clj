@@ -1,56 +1,34 @@
 (ns clojure-mcp.repl-tools
   (:require
    [clojure-mcp.nrepl :as nrepl]
+   [clojure-mcp.linting :as linting]
    [clojure.data.json :as json]
-   [clj-kondo.core :as kondo]
    [clojure.string :as string]))
 
-(defn lint [form-str]
-  (let [res (with-in-str form-str
-              (kondo/run! {:lint "-" 
-                           :config {:ignore [:unresolved-symbol
-                                             :clj-kondo-config
-                                             :deprecated-var
-                                             :deprecated-namespace
-                                             :deps.edn
-                                             :bb.edn-undefined-task
-                                             :bb.edn-cyclic-task-dependency
-                                             :bb.edn-unexpected-key
-                                             :bb.edn-task-missing-docstring
-                                             :docstring-blank
-                                             :docstring-no-summary
-                                             :docstring-leading-trailing-whitespace
-                                             :file
-                                             #_:reduce-without-init
-                                             :line-length
-                                             :missing-docstring
-                                             :namespace-name-mismatch
-                                             :non-arg-vec-return-type-hint
-                                             :private-call
-                                             :redefined-var
-                                             :redundant-ignore
-                                             :schema-misplaced-return
-                                             :java-static-field-call
-                                             :unused-alias
-                                             ;; :unused-binding ;; <-- Removed this line to enable the warning
-                                             :unused-import
-                                             :unresolved-namespace
-                                             :unresolved-symbol
-                                             :unresolved-var
-                                             :unused-namespace
-                                             :unused-private-var
-                                             :unused-referred-var
-                                             :use]}}))]
-    (when (not-empty (:findings res))
-      {:report (with-out-str
-                 (kondo/print! res))
-       :error? (some-> res :summary :error (> 0))})))
+(defn ensure-service-atom 
+  "Ensures the service-atom is not nil and returns a tuple of [valid? error-message]
+   where valid? is true if the atom exists and error-message is nil in that case.
+   If the atom is nil, valid? is false and error-message contains an error description."
+  [service-atom]
+  (if (nil? service-atom)
+    [false "REPL service connection is not available"]
+    (if (nil? @service-atom)
+      [false "REPL client not initialized"]
+      [true nil])))
 
-(defn eval-history-push [state-atom form-str]
-  (swap! state-atom update ::eval-history conj form-str))
+(defn eval-history-push 
+  "Pushes a form string to the evaluation history.
+   Safely handles nil state-atom."
+  [state-atom form-str]
+  (when state-atom
+    (swap! state-atom update ::eval-history conj form-str)))
 
-(defn eval-history-reset [state-atom]
-  (swap! state-atom assoc ::eval-history nil))
+(defn eval-history-reset 
+  "Resets the evaluation history.
+   Safely handles nil state-atom."
+  [state-atom]
+  (when state-atom
+    (swap! state-atom assoc ::eval-history nil)))
 
 
 ;; Eval results formatting
@@ -123,20 +101,28 @@ If the value that is returned is too long it will be truncated."
               (let [outputs (atom []) ;; Atom to store prefixed output strings
                     error-occurred (atom false) ;; Atom to track if any error happened
                     form-str (get arg-map "expression")
-                    linted (lint form-str)
+                    [service-valid? service-error] (ensure-service-atom service-atom)
+                    linted (linting/lint form-str)
                     add-output! (fn [prefix value] (swap! outputs conj [prefix value]))
                     finish (fn [_]
                              (clj-result-k
                               (partition-and-format-outputs @outputs)
                               @error-occurred))]
 
-                ;; Add linter output first if present
+                ;; Check service connection first
+                (when-not service-valid?
+                  (reset! error-occurred true)
+                  (add-output! :error service-error)
+                  (finish nil)
+                  (reduced nil))
+
+                ;; Add linter output if present
                 (when linted
                   (add-output! :lint (:report linted))
                   (when (:error? linted)
                     (reset! error-occurred true)))
 
-                ;; If linter found critical errors, finish early
+                ;; If linter found critical errors or service not available, finish early
                 (if @error-occurred
                   (finish nil)
                   (do
@@ -162,10 +148,13 @@ If the value that is returned is too long it will be truncated."
    :description "Returns the current namespace. This tool is intended for the LLM agent (Yellow Lamb) to check the current evaluation context. Use this tool when the agent is uncertain about which namespace is active and needs to verify the context before proceeding with further code evaluations."
    :schema (json/write-str {:type :object})
    :tool-fn (fn [_ _ clj-result-k]
-              (let [res (some-> @service-atom :clojure-mcp.nrepl/state deref :current-ns)] ;; Dereference atom
-                (clj-result-k
-                 (if res [res] [])
-                 (if res false true))))})
+              (let [[service-valid? service-error] (ensure-service-atom service-atom)]
+                (if-not service-valid?
+                  (clj-result-k [service-error] true)
+                  (let [res (some-> @service-atom :clojure-mcp.nrepl/state deref :current-ns)]
+                    (clj-result-k
+                     (if res [res] ["No current namespace found"])
+                     (if res false true))))))})
 
 ;; ?? we could take an ns argument to scope the completions somewhere else
 ;; ?? we could return the arglist and doc specs along with this
@@ -181,11 +170,14 @@ This is not an exhaustive list, some completions may be missing."
                             :properties {:prefix {:type :string}}
                             :required [:prefix]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [prefix (some-> (get arg-map "prefix") string/trim) ;; Trim input
-                    completions-raw (nrepl/completions @service-atom prefix) ;; Dereference atom
-                    ;; Extract just the candidate name
-                    candidates (mapv :candidate completions-raw)] ;; Remove pr-str
-                (clj-result-k candidates false)))})
+              (let [[service-valid? service-error] (ensure-service-atom service-atom)]
+                (if-not service-valid?
+                  (clj-result-k [service-error] true)
+                  (let [prefix (some-> (get arg-map "prefix") string/trim) ;; Trim input
+                        completions-raw (nrepl/completions @service-atom prefix) ;; Dereference atom
+                        ;; Extract just the candidate name
+                        candidates (mapv :candidate completions-raw)] ;; Remove pr-str
+                    (clj-result-k candidates false)))))})
 
 (defn symbol-metadata [service-atom] ;; Changed parameter name
   {
@@ -212,13 +204,16 @@ Example result:
                             :properties {:symbol {:type :string}}
                             :required [:symbol]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [sym (some-> (get arg-map "symbol") string/trim) ;; Trim input
-                    res (nrepl/lookup @service-atom sym)] ;; Dereference atom
-                (clj-result-k
-                 [(if res
-                    (with-out-str (clojure.pprint/pprint res))
-                    "nil")]
-                 false)))})
+              (let [[service-valid? service-error] (ensure-service-atom service-atom)]
+                (if-not service-valid?
+                  (clj-result-k [service-error] true)
+                  (let [sym (some-> (get arg-map "symbol") string/trim) ;; Trim input
+                        res (nrepl/lookup @service-atom sym)] ;; Dereference atom
+                    (clj-result-k
+                     [(if res
+                        (with-out-str (clojure.pprint/pprint res))
+                        "nil")]
+                     false)))))})
 
 (defn symbol-documentation [service-atom]
   {:name "symbol_documentation"
@@ -227,16 +222,19 @@ Example result:
                             :properties {:symbol {:type :string}}
                             :required [:symbol]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [sym (some-> (get arg-map "symbol") string/trim) ;; Trim input
-                    res (nrepl/lookup @service-atom sym) ;; Dereference atom
-                    arglists (:arglists res)
-                    doc (:doc res)
-                    combined (str arglists "\n" doc)]
-                (clj-result-k
-                 (if res
-                   [combined]
-                   ["nil"])
-                 false)))})
+              (let [[service-valid? service-error] (ensure-service-atom service-atom)]
+                (if-not service-valid?
+                  (clj-result-k [service-error] true)
+                  (let [sym (some-> (get arg-map "symbol") string/trim) ;; Trim input
+                        res (nrepl/lookup @service-atom sym) ;; Dereference atom
+                        arglists (:arglists res)
+                        doc (:doc res)
+                        combined (str arglists "\n" doc)]
+                    (clj-result-k
+                     (if res
+                       [combined]
+                       ["nil"])
+                     false)))))})
 
 (defn source-code [service-atom]
   {:name "source_code"
@@ -247,16 +245,19 @@ The implementation calls `(clojure.repl/source-fn (symbol ~string))` as a hint f
                             :properties {:symbol {:type :string}}
                             :required [:symbol]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [sym-str (some-> (get arg-map "symbol") string/trim) ;; Trim input
-                    result (nrepl/tool-eval-code
-                            @service-atom ;; Dereference atom
-                            (pr-str `(clojure.repl/source-fn (symbol ~sym-str))))
-                    result-val (when result (read-string result))] ;; Handle nil result
-                (clj-result-k
-                 [(if (nil? result-val)
-                    "nil"
-                    result-val)]
-                 false)))})
+              (let [[service-valid? service-error] (ensure-service-atom service-atom)]
+                (if-not service-valid?
+                  (clj-result-k [service-error] true)
+                  (let [sym-str (some-> (get arg-map "symbol") string/trim) ;; Trim input
+                        result (nrepl/tool-eval-code
+                                @service-atom ;; Dereference atom
+                                (pr-str `(clojure.repl/source-fn (symbol ~sym-str))))
+                        result-val (when result (read-string result))] ;; Handle nil result
+                    (clj-result-k
+                     [(if (nil? result-val)
+                        "nil"
+                        result-val)]
+                     false)))))})
 
 (defn symbol-search [service-atom]
   {:name "symbol-search"
@@ -266,34 +267,40 @@ Usage: Provide a search-string which would be a substring of the found definitio
                             :properties {:search-str {:type :string}}
                             :required [:search-str]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [partial (some-> (get arg-map "search-str") string/trim) ;; Trim input
-                    res (or
-                         (some->> (nrepl/tool-eval-code
-                                   @service-atom ;; Dereference atom
-                                   (pr-str `(clojure.repl/apropos ~partial)))
-                                  read-string
-                                  (map str)
-                                  (remove #(string/starts-with? % "cider.nrepl"))
-                                  vec
-                                  not-empty)
-                         ["No Matches Found"])]
-                (clj-result-k
-                 res
-                 false)))})
+              (let [[service-valid? service-error] (ensure-service-atom service-atom)]
+                (if-not service-valid?
+                  (clj-result-k [service-error] true)
+                  (let [partial (some-> (get arg-map "search-str") string/trim) ;; Trim input
+                        res (or
+                             (some->> (nrepl/tool-eval-code
+                                       @service-atom ;; Dereference atom
+                                       (pr-str `(clojure.repl/apropos ~partial)))
+                                      read-string
+                                      (map str)
+                                      (remove #(string/starts-with? % "cider.nrepl"))
+                                      vec
+                                      not-empty)
+                             ["No Matches Found"])]
+                    (clj-result-k
+                     res
+                     false)))))})
 
 (defn list-namespaces [service-atom]
   {:name "clojure_list_namespaces"
    :description "Returns a list of all currently loaded namespaces as strings. Use this to see what libraries are loaded and search their capabilities."
    :schema (json/write-str {:type :object}) ;; No arguments needed
    :tool-fn (fn [_ _ clj-result-k]
-              (let [code "(map str (sort (map ns-name (all-ns))))"
-                    result-str (nrepl/tool-eval-code @service-atom code)
-                    result-val (when result-str (read-string result-str))]
-                (clj-result-k
-                 (if result-val
-                   (vec result-val) ;; Ensure result is a vector
-                   ["Error retrieving namespaces"]) ;; Fallback message
-                 (nil? result-val))))}) ;; Error if result is nil
+              (let [[service-valid? service-error] (ensure-service-atom service-atom)]
+                (if-not service-valid?
+                  (clj-result-k [service-error] true)
+                  (let [code "(map str (sort (map ns-name (all-ns))))"
+                        result-str (nrepl/tool-eval-code @service-atom code)
+                        result-val (when result-str (read-string result-str))]
+                    (clj-result-k
+                     (if result-val
+                       (vec result-val) ;; Ensure result is a vector
+                       ["Error retrieving namespaces"]) ;; Fallback message
+                     (nil? result-val))))))})
 
 (defn list-vars-in-namespace [service-atom]
   {:name "clojure_list_vars_in_namespace"
@@ -303,31 +310,34 @@ Usage: Provide a search-string which would be a substring of the found definitio
                                                      :description "The fully qualified name of the namespace (e.g. clojure.string)."}}
                             :required [:namespace]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [ns-str (some-> (get arg-map "namespace") string/trim)
-                    code (pr-str `(when-let [ns-obj# (find-ns (symbol ~ns-str))]
-                                    (->> (ns-publics ns-obj#)
-                                         vals ;; Get the var objects
-                                         (map meta) ;; Get metadata for each var
-                                         (map #(select-keys % [:arglists :doc :name :ns])) ;; Select desired keys
-                                         (map #(update % :ns str))
-                                         (sort-by :name) ;; Sort by name for consistent order
-                                         vec))) ;; Convert to vector
-                    result-str (nrepl/tool-eval-code @service-atom code)
-                    result-val (try
-                                 (when result-str (read-string result-str)) ;; Read the string back into Clojure data
-                                 (catch Exception _ nil))] ;; Handle potential read-string errors
-                (cond
-                  ;; Case 1: nREPL evaluation failed entirely
-                  (nil? result-str)
-                  (clj-result-k ["Error evaluating code to list vars."] true)
+              (let [[service-valid? service-error] (ensure-service-atom service-atom)]
+                (if-not service-valid?
+                  (clj-result-k [service-error] true)
+                  (let [ns-str (some-> (get arg-map "namespace") string/trim)
+                        code (pr-str `(when-let [ns-obj# (find-ns (symbol ~ns-str))]
+                                        (->> (ns-publics ns-obj#)
+                                             vals ;; Get the var objects
+                                             (map meta) ;; Get metadata for each var
+                                             (map #(select-keys % [:arglists :doc :name :ns])) ;; Select desired keys
+                                             (map #(update % :ns str))
+                                             (sort-by :name) ;; Sort by name for consistent order
+                                             vec))) ;; Convert to vector
+                        result-str (nrepl/tool-eval-code @service-atom code)
+                        result-val (try
+                                     (when result-str (read-string result-str)) ;; Read the string back into Clojure data
+                                     (catch Exception _ nil))] ;; Handle potential read-string errors
+                    (cond
+                      ;; Case 1: nREPL evaluation failed entirely
+                      (nil? result-str)
+                      (clj-result-k ["Error evaluating code to list vars."] true)
 
-                  ;; Case 2: Namespace not found OR read-string failed
-                  (nil? result-val)
-                  (clj-result-k [(str "Namespace '" ns-str "' not found or failed to parse result.")] true)
+                      ;; Case 2: Namespace not found OR read-string failed
+                      (nil? result-val)
+                      (clj-result-k [(str "Namespace '" ns-str "' not found or failed to parse result.")] true)
 
-                  ;; Case 3: Success (namespace found, potentially empty list of vars)
-                  :else
-                  (clj-result-k (mapv pr-str result-val) false))))}) ;; error? is false
+                      ;; Case 3: Success (namespace found, potentially empty list of vars)
+                      :else
+                      (clj-result-k (mapv pr-str result-val) false))))))})
 
 (defn eval-history [service-atom]
   {:name "clojure_eval_history"
@@ -337,16 +347,19 @@ Usage: Provide a search-string which would be a substring of the found definitio
                                                            :description "The number of history items to retrieve from the end."}}
                             :required [:number-to-fetch]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (try
-                (let [n-str (get arg-map "number-to-fetch")
-                      n (Integer/parseInt n-str)
-                      history (get @(::nrepl/state @service-atom) ::eval-history [])
-                      items-to-return (take n history)]
-                  (clj-result-k (vec items-to-return) false))
-                (catch NumberFormatException _
-                  (clj-result-k ["Invalid 'number-to-fetch'. Please provide an integer."] true))
-                (catch Exception e
-                  (clj-result-k [(str "Error fetching history: " (ex-message e))] true))))})
+              (let [[service-valid? service-error] (ensure-service-atom service-atom)]
+                (if-not service-valid?
+                  (clj-result-k [service-error] true)
+                  (try
+                    (let [n-str (get arg-map "number-to-fetch")
+                          n (Integer/parseInt n-str)
+                          history (get @(::nrepl/state @service-atom) ::eval-history [])
+                          items-to-return (take n history)]
+                      (clj-result-k (vec items-to-return) false))
+                    (catch NumberFormatException _
+                      (clj-result-k ["Invalid 'number-to-fetch'. Please provide an integer."] true))
+                    (catch Exception e
+                      (clj-result-k [(str "Error fetching history: " (ex-message e))] true))))))})
 
 
 (comment
