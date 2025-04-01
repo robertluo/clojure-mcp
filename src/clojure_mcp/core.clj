@@ -12,15 +12,16 @@
             McpSchema$Tool
             McpSchema$CallToolResult
             McpSchema$TextContent
-            McpSchema$Prompt              ;; <-- Add this
-            McpSchema$PromptArgument      ;; <-- Add this
-            McpSchema$GetPromptRequest    ;; <-- Add this (for type hint)
-            McpSchema$GetPromptResult     ;; <-- Add this
-            McpSchema$PromptMessage             ;; <-- Add this
-            McpSchema$Role]               ;; <-- Add this
+            McpSchema$Prompt
+            McpSchema$PromptArgument
+            McpSchema$GetPromptRequest
+            McpSchema$GetPromptResult
+            McpSchema$PromptMessage
+            McpSchema$Role
+            McpSchema$LoggingLevel]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
             McpServerFeatures$AsyncToolSpecification
-            McpServerFeatures$AsyncPromptSpecification] ;; <-- Add AsyncPromptSpecification
+            McpServerFeatures$AsyncPromptSpecification]
            [reactor.core.publisher Mono]
            [com.fasterxml.jackson.databind ObjectMapper]))
 
@@ -180,8 +181,15 @@
                    (.capabilities (-> (McpSchema$ServerCapabilities/builder)
                                       (.tools true)
                                       (.prompts true) ;; <-- Ensure prompts are enabled
+                                      #_(.logging false)
                                       (.build)))
                    (.build))]
+
+    #_(-> server
+        (.level McpSchema$LoggingLevel/INFO)
+        (.logger "ClojureMCPlog")
+        (.data("Server initialized"))
+        (.build))
     ;; for development
     (-> (.addTool server (create-async-tool echo-tool))
         (.subscribe))
