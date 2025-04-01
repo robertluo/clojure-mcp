@@ -1,61 +1,78 @@
 (ns clojure-mcp.repl-tools.function-edit
-  (:require [clojure.string :as str]
-            [clojure.java.io :as io]
-            [rewrite-clj.zip :as z]))
+  (:require
+   [rewrite-clj.zip :as z]  
+   [rewrite-clj.parser :as p]
+   [rewrite-clj.node :as n]))
 
-(defn- find-toplevel-definition
-  "Finds the zipper location of a top-level def or defn form by name."
-  [root-zloc function-name-sym]
-  (->> (z/children root-zloc) ;; Get all top-level children
-       (filter z/sexprable?)   ;; Only consider nodes that represent forms (ignore whitespace/comments)
-       (some (fn [loc]         ;; Find the first one that matches
-               (let [sexpr (z/sexpr loc)]
-                 (when (and (list? sexpr)
-                            (#{'def 'defn} (first sexpr))
-                            (= function-name-sym (second sexpr)))
-                   loc))))))     ;; Return the matching zipper location, or nil if none found
+#_(defn has-name? [sexp nm]
+    (->> sexp
+         rest
+         (take-while (complement sequential?))
+         (filter #(= nm %))
+         first))
 
-(defn replace-function-in-file
-  "Replaces the text of a function definition in a file with new text using rewrite-clj.
+(defn is-top-def-name? [sexp tag dname]
+  (and (list? sexp)
+       (= (first sexp) tag)
+       (= (second sexp) dname)))
 
-  This function parses the Clojure source file, finds the top-level definition
-  (def or defn) matching the given function name, and replaces its entire
-  form with the parsed new function text. It preserves surrounding code and comments.
+(defn find-toplevel-def [zloc tag dname]
+  (some->> sample
+           z/of-string
+           (iterate z/right)
+           (take-while not-empty)
+           (filter #(is-top-def-name? (z/sexpr %) tag dname))
+           first))
 
-  Args:
-    function-name: The simple name of the function (String or Symbol).
-    filepath: The path to the Clojure source file (String).
-    new-function-text: The complete new text for the function definition (String).
+(defn replace-top-level-def* [zloc tag name replacement-str]
+  (when-let [zloc (find-toplevel-def zloc tag name)]
+    (z/edit zloc (fn [_] replacement-str))))
 
-  Returns:
-    true if replacement was successful, false otherwise (e.g., file not found,
-    parse error, function not found, write error)."
-  [function-name filepath new-function-text]
-  (try
-    (let [function-name-sym (symbol function-name) ;; Ensure it's a symbol
-          zloc (z/of-file filepath {:track-position? true})] ; Load file into zipper
+(defn replace-top-level-def [zloc name replacment-str]
+  (let [tag (first (z/sexpr (z/of-string replacment-str)))]
+    (replace-top-level-def* zloc tag name replacment-str)))
 
-      ;; Pass the root zloc to the search function
-      (if-let [target-loc (find-toplevel-definition zloc function-name-sym)]
-        (try
-          (let [new-node (z/of-string new-function-text) ;; Use z/of-string to parse the new text
-                ;; Replace the found node with the new node
-                edited-zloc (z/replace target-loc new-node)
-                ;; Get the modified code as a string
-                new-content (z/root-string edited-zloc)]
-            ;; Write the modified content back to the file
-            (spit filepath new-content)
-            true) ; Success
-          (catch Exception e ; Catch potential parse errors in new-function-text
-            (println (str "Error parsing new function text for '" function-name "': " (.getMessage e)))
-            false))
-        (do
-          (println (str "Error: Function definition '" function-name "' not found as a top-level def/defn in file: " filepath))
-          false))) ; Function not found
+(comment
+  ;; sexp ignores meta-data so we should be good with simple detection
+  (-> (z/of-string "(defn ^Thing nnnnn [] ())")
+      (z/sexpr))
+  
+  (def sample "(defn foo [x y]
+    (println \"Original foo was called!\")
+    (+ x y (helper 5)))
 
-    (catch java.io.FileNotFoundException _
-      (println (str "Error: File not found: " filepath))
-      false)
-    (catch Exception e ; Catch potential file read or initial parse errors
-      (println (str "Error processing file " filepath ": " (.getMessage e)))
-      false)))
+(defn bar     [] true)")
+  
+  (z/root-string (replace-top-level-def (z/of-string sample) 'bar "(defn fooby [] 'yep)"))
+  
+  (find-toplevel-def (z/of-string sample) 'defn 'foo)
+  (find-toplevel-defn-zipper (z/of-string my-code) "foo")
+
+  
+  (def my-code
+    ";; A sample file
+  (ns my.app
+    (:require [clojure.string :as str]))
+
+  (defn helper [z]
+    (inc z))
+
+  ;; The function we want to replace
+  (defn foo [x y]
+    (println \"Original foo was called!\")
+    (+ x y (helper 5)))
+
+  (defn bar []
+    :baz)")
+
+(def replacement-foo
+  "(defn foo
+    \"This is the new foo.
+     It takes one argument.\"
+    [a]
+    (println \"New foo function!\")
+    (* a a))")
+
+  )
+
+

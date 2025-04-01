@@ -3,6 +3,24 @@
 
 Experiments 
 
+* Var replacement mvp
+  - see how it goes
+  - interactive discovery of best ways to call the tool, and the best return values
+
+* look at Claude
+  - try without repl integration
+  - try with REPL integration
+  
+* integrate server with gptel
+  - this looks like a promising way to evaluate how well this might work
+  
+* answer question: is Clojure code produced significantly worse that JavaScript?
+  - to answer the general question of wether it's generally worse
+  
+* interactive discovery of Clojure simplification/improvement prompt
+
+* Clojurescript eval
+
 * switching to propose and ideate solutions before evaluating
   FINDINGS
   - this works well, switching between repl iteration and improving the code
@@ -13,7 +31,7 @@ Experiments
   - very hard to remember to do this
 
 * https://github.com/yamadashy/repomix
-
+  - meh
 
 * starting without the repl driven prompt to see behavior
   FINDINGS
@@ -22,7 +40,7 @@ Experiments
   - even if you politely ask to do REPL driven development it starts baning away at files
     if you provide a directory.	
   
-  - This minimal prompt was working a bit.	
+  - This minimal prompt worked ok.	
 ```
   let's start working on Clojure library to render Clojure data like [:h1 {:class "active"} child ...] to an HTML AST 
 let's explore things first via Clojure REPL driven development
@@ -42,8 +60,16 @@ Before you evaluate code, present it in a code block
 
 * starting with Claude Project 
   - check on harmonizing artifacts with local filesystem
+  - INITIAL FINDINGS its OK
 
 * work on an existing complicated code base
+  FINDINGS
+  - this method of interaction actually works
+  - need more experience with this but IO is the hardests part of this
+    * working on large files is intolerable
+	* large edits can be slow especially
+	
+
 
 3. Clojure Project management tool
   - manages data about project
