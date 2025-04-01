@@ -21,6 +21,7 @@ Experiments
     creating complete files
   - even if you politely ask to do REPL driven development it starts baning away at files
     if you provide a directory.	
+  
   - This minimal prompt was working a bit.	
 ```
   let's start working on Clojure library to render Clojure data like [:h1 {:class "active"} child ...] to an HTML AST 
@@ -38,7 +39,6 @@ This is the plan:
 
 Before you evaluate code, present it in a code block 
 ```
-
 
 * starting with Claude Project 
   - check on harmonizing artifacts with local filesystem

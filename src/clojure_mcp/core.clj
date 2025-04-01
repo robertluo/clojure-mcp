@@ -24,6 +24,8 @@
            [reactor.core.publisher Mono]
            [com.fasterxml.jackson.databind ObjectMapper]))
 
+(def nrepl-client-atom (atom nil))
+
 (defn ensure-service-atom
   "Ensures the service-atom is not nil and returns a tuple of [valid? error-message]
    where valid? is true if the atom exists and error-message is nil in that case.
@@ -75,19 +77,19 @@
                       * arg-map      - map with string keys representing the mcp tool call args
                       * nrepl-client - the validated and dereferenced nREPL client
                       * clj-result-k - continuation fn taking vector of strings and boolean error flag."
-  [{:keys [name description schema service-atom tool-fn]}]
+  [{:keys [name description schema tool-fn]}]
   (let [mono-fn (create-mono-from-callback
                  (fn [exchange arg-map mono-fill-k] ;; The mono wrapper still gets exchange and args
-                   (let [[service-valid? service-error] (ensure-service-atom service-atom)]
+                   (let [[service-valid? service-error] (ensure-service-atom nrepl-client-atom)]
                      (if-not service-valid?
                        ;; If service is invalid, immediately fill the Mono with an error result
                        (mono-fill-k (adapt-result [service-error] true))
                        ;; If service is valid, proceed with the actual tool function
-                       (let [nrepl-client @service-atom ;; Dereference the validated atom
+                       (let [nrepl-client @nrepl-client-atom ;; Dereference the validated atom
                              clj-result-k (fn [res-list error?] ;; Define the final continuation
                                             (mono-fill-k (adapt-result res-list error?)))]
                          ;; Call the tool's function with the nrepl-client and the continuation
-                         (tool-fn exchange arg-map nrepl-client clj-result-k))))))]
+                         (tool-fn exchange arg-map clj-result-k))))))]
     (McpServerFeatures$AsyncToolSpecification.
      (McpSchema$Tool. name description schema)
      (reify java.util.function.BiFunction
@@ -144,10 +146,10 @@
 
 (defn add-tool
   "Helper function to create an async tool from a map and add it to the server."
-  [mcp-server service-atom tool-map]
+  [mcp-server  tool-map]
   (.removeTool mcp-server (:name tool-map))
   ;; Pass the service-atom along when creating the tool
-  (-> (.addTool mcp-server (create-async-tool (assoc tool-map :service-atom service-atom)))
+  (-> (.addTool mcp-server (create-async-tool tool-map))
       (.subscribe)))
 
 ;; helper tool to demonstrate how all this gets hooked together
@@ -201,7 +203,6 @@
 
     server))
 
-(def nrepl-client-atom (atom nil))
 
 (defn create-and-start-nrepl-connection [config]
   (let [nrepl-client (nrepl/create config)]
@@ -238,8 +239,6 @@
     (add-tool mcp (repl-tools/eval-history nrepl-client-atom)) ;; Add the eval-history tool
 
     mcp))
-
-
 
 (comment
   (def mcp-serv (nrepl-mcp-server {:port 54171})) ;; Start server, sets atom
