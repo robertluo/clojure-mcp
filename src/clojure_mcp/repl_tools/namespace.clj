@@ -60,4 +60,4 @@
 
                   ;; Case 3: Success (namespace found, potentially empty list of vars)
                   :else
-                  (clj-result-k (mapv pr-str result-val) false))))}))
+                  (clj-result-k (mapv pr-str result-val) false))))})

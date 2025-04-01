@@ -11,14 +11,14 @@
    Safely handles nil state-atom."
   [state-atom form-str]
   (when state-atom
-    (swap! state-atom update ::eval-history conj form-str)))
+    (swap! state-atom update :clojure-mcp.repl-tools/eval-history conj form-str)))
 
 (defn eval-history-reset 
   "Resets the evaluation history.
    Safely handles nil state-atom."
   [state-atom]
   (when state-atom
-    (swap! state-atom assoc ::eval-history nil)))
+    (swap! state-atom assoc :clojure-mcp.repl-tools/eval-history nil)))
 
 ;; Eval results formatting
 ;; The goal is to make it clear for the LLM to understand

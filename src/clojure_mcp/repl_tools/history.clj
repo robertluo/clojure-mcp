@@ -14,7 +14,7 @@
               (try
                 (let [n-str (get arg-map "number-to-fetch")
                       n (Integer/parseInt n-str)
-                      history (get @(::nrepl/state @service-atom) ::eval-history [])
+                      history (get @(::nrepl/state @service-atom) :clojure-mcp.repl-tools/eval-history [])
                       items-to-return (take n history)]
                   (clj-result-k (vec items-to-return) false))
                 (catch NumberFormatException _
