@@ -37,7 +37,7 @@
 
       (if-let [target-loc (find-toplevel-definition (z/down zloc) function-name-sym)]
         (try
-          (let [new-node (z/parse-string new-function-text)
+          (let [new-node (z/of-string new-function-text) ;; Use z/of-string to parse the new text
                 ;; Replace the found node with the new node
                 edited-zloc (z/replace target-loc new-node)
                 ;; Get the modified code as a string
