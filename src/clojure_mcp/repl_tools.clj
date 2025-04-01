@@ -5,18 +5,7 @@
    [clojure.data.json :as json]
    [clojure.string :as string]))
 
-(defn ensure-service-atom 
-  "Ensures the service-atom is not nil and returns a tuple of [valid? error-message]
-   where valid? is true if the atom exists and error-message is nil in that case.
-   If the atom is nil, valid? is false and error-message contains an error description."
-  [service-atom]
-  (if (nil? service-atom)
-    [false "REPL service connection is not available"]
-    (if (nil? @service-atom)
-      [false "REPL client not initialized"]
-      [true nil])))
-
-(defn eval-history-push 
+(defn eval-history-push
   "Pushes a form string to the evaluation history.
    Safely handles nil state-atom."
   [state-atom form-str]
