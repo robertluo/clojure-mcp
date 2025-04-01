@@ -3,10 +3,6 @@
 
 Experiments 
 
-* Var replacement mvp
-  - see how it goes
-  - interactive discovery of best ways to call the tool, and the best return values
-
 * look at Claude
   - try without repl integration
   - try with REPL integration
@@ -16,6 +12,10 @@ Experiments
   
 * answer question: is Clojure code produced significantly worse that JavaScript?
   - to answer the general question of wether it's generally worse
+  FINDINGS
+  - genAI for JS seems generally the same when it comes to code quality
+    perhaps worse DP on point of view
+  - code works but isn't what I'd call maintainable
   
 * interactive discovery of Clojure simplification/improvement prompt
 

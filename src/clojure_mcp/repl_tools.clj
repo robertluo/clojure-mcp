@@ -316,6 +316,13 @@ Usage: Provide a search-string which would be a substring of the found definitio
                 (catch Exception e
                   (clj-result-k [(str "Error fetching history: " (ex-message e))] true))))})
 
+
+;; TODOS
+;; add instructions in the prompt to prefer clojure Edits
+;; possibly rename this so it is more clear
+;; possible allow batch edits
+;; explore taking a namespace to allow edits on it
+
 (defn top-level-form-edit-tool [service-atom]
   {:name "top_level_form_edit"
    :description "Edits any top-level form in a Clojure file, replacing it with a new implementation.
@@ -327,11 +334,11 @@ in the rest of the file."
                             :properties {:form_name {:type :string
                                                      :description "The name of the form to edit (e.g., function name, var name, namespace name)"}
                                          :file_path {:type :string
-                                                    :description "Path to the file containing the form"}
+                                                     :description "Path to the file containing the form"}
                                          :form_type {:type :string
-                                                    :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
+                                                     :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
                                          :new_implementation {:type :string
-                                                             :description "String with the new form implementation"}}
+                                                              :description "String with the new form implementation"}}
                             :required [:form_name :file_path :form_type :new_implementation]})
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [form-name (get arg-map "form_name")
@@ -346,15 +353,18 @@ in the rest of the file."
                                 form-type
                                 new-impl)
                                #_(catch Exception e
-                                 (str "Error: " (.getMessage e))))]
+                                   (str "Error: " (.getMessage e))))]
                 (if (true? success?)
                   (clj-result-k [(str "Successfully updated form '" form-name "' in file " file-path)] false)
                   (clj-result-k [(if (string? success?)
                                    success?
                                    (str "Failed to update form '" form-name "' in file " file-path))]
-                               true))))})
+                                true))))})
 
 (comment
+  
+
+  
   (def client-atom (atom (nrepl/create {:port 7888})))
   (nrepl/start-polling @client-atom)
   (nrepl/stop-polling @client-atom)
