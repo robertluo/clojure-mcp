@@ -4,16 +4,26 @@
             [rewrite-clj.zip :as z]))
 
 (defn- find-toplevel-definition
-  "Finds the zipper location of a top-level def or defn form by name."
-  [zloc function-name-sym]
-  (loop [loc zloc]
-    (when loc
-      (let [sexpr (z/sexpr loc)]
-        (if (and (list? sexpr)
-                 (#{'def 'defn} (first sexpr))
-                 (= function-name-sym (second sexpr)))
+  "Finds the zipper location of a top-level def or defn form by name.
+   Starts searching from the children of the provided root-zloc."
+  [root-zloc function-name-sym]
+  ;; Start searching from the first top-level form (child of the root)
+  (loop [loc (z/down root-zloc)]
+    (when loc ;; Check if we have a valid location
+      (let [sexpr (try (z/sexpr loc) (catch Exception _ nil))] ;; Handle potential errors reading sexpr
+        (cond
+          ;; Check if the current node is the target definition
+          (and (list? sexpr)
+               (#{'def 'defn} (first sexpr))
+               (= function-name-sym (second sexpr)))
           loc ;; Found it
-          (recur (z/right loc)))))))
+
+          ;; If not found and we can move right, continue searching siblings
+          (not (z/end? loc)) ;; Check if we are at the end of the current level
+          (recur (z/right loc))
+
+          ;; Otherwise (at the end of this level), stop searching
+          :else nil)))))
 
 (defn replace-function-in-file
   "Replaces the text of a function definition in a file with new text using rewrite-clj.
@@ -35,7 +45,8 @@
     (let [function-name-sym (symbol function-name) ;; Ensure it's a symbol
           zloc (z/of-file filepath {:track-position? true})] ; Load file into zipper
 
-      (if-let [target-loc (find-toplevel-definition (z/down zloc) function-name-sym)]
+      ;; Pass the root zloc to the search function
+      (if-let [target-loc (find-toplevel-definition zloc function-name-sym)]
         (try
           (let [new-node (z/of-string new-function-text) ;; Use z/of-string to parse the new text
                 ;; Replace the found node with the new node
