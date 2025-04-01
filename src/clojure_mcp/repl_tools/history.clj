@@ -21,3 +21,42 @@
                   (clj-result-k ["Invalid 'number-to-fetch'. Please provide an integer."] true))
                 (catch Exception e
                   (clj-result-k [(str "Error fetching history: " (ex-message e))] true))))})
+
+(comment
+  ;; === Examples of using the history tools ===
+  
+  ;; Setup for REPL-based testing
+  (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
+  (clojure-mcp.nrepl/start-polling @client-atom)
+  
+  ;; Test helper function
+  (defn make-test-tool [{:keys [tool-fn] :as _tool-map}]
+    (fn [arg-map]
+      (let [prom (promise)]
+        (tool-fn nil arg-map 
+                 (fn [res error]
+                   (deliver prom {:res res :error error})))
+        @prom)))
+  
+  ;; First add some history by evaluating expressions
+  (require '[clojure-mcp.repl-tools.eval :as eval-tools])
+  (def eval-tester (make-test-tool (eval-tools/eval-code client-atom)))
+  (eval-tester {"expression" "(+ 1 1)"})
+  (eval-tester {"expression" "(+ 2 2)"})
+  (eval-tester {"expression" "(+ 3 3)"})
+  
+  ;; Now test fetching history
+  (def history-tester (make-test-tool (eval-history client-atom)))
+  
+  ;; Fetch last 2 items
+  (history-tester {"number-to-fetch" "2"})
+  
+  ;; Fetch more items than available
+  (history-tester {"number-to-fetch" "10"})
+  
+  ;; Test with invalid input
+  (history-tester {"number-to-fetch" "abc"})
+  
+  ;; Cleanup
+  (clojure-mcp.nrepl/stop-polling @client-atom)
+)

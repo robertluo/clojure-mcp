@@ -61,3 +61,35 @@
                   ;; Case 3: Success (namespace found, potentially empty list of vars)
                   :else
                   (clj-result-k (mapv pr-str result-val) false))))})
+
+(comment
+  ;; === Examples of using the namespace tools ===
+  
+  ;; Setup for REPL-based testing
+  (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
+  (clojure-mcp.nrepl/start-polling @client-atom)
+  
+  ;; Test helper function
+  (defn make-test-tool [{:keys [tool-fn] :as _tool-map}]
+    (fn [arg-map]
+      (let [prom (promise)]
+        (tool-fn nil arg-map 
+                 (fn [res error]
+                   (deliver prom {:res res :error error})))
+        @prom)))
+  
+  ;; Testing current namespace
+  (def ns-tester (make-test-tool (current-namespace client-atom)))
+  (ns-tester {})
+  
+  ;; Testing listing all namespaces
+  (def list-ns-tester (make-test-tool (list-namespaces client-atom)))
+  (list-ns-tester {})
+  
+  ;; Testing listing vars in a namespace
+  (def vars-tester (make-test-tool (list-vars-in-namespace client-atom)))
+  (vars-tester {"namespace" "clojure.string"})
+  
+  ;; Cleanup
+  (clojure-mcp.nrepl/stop-polling @client-atom)
+)

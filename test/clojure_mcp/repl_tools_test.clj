@@ -37,7 +37,7 @@
 (use-fixtures :each cleanup-test-file)
 
 ;; Helper to invoke tool functions more easily in tests
-(defn make-test-tool [{:keys [tool-fn] :as _tool-map}]
+(defn make-test-tool [{:keys [tool-fn] :as tool-map}]
   (fn [arg-map]
     (let [prom (promise)]
       (tool-fn nil arg-map

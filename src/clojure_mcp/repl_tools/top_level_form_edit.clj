@@ -174,4 +174,43 @@ in the rest of the file."
     "ns"
     "test.namespace"
     "(ns test.namespace (:require [clojure.string :as str] [clojure.set :as set]))"))
+  
+  ;; === Examples of using the top-level form edit tool ===
+  
+  ;; Setup for REPL-based testing
+  (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
+  (clojure-mcp.nrepl/start-polling @client-atom)
+  
+  ;; Test helper function
+  (defn make-test-tool [{:keys [tool-fn] :as _tool-map}]
+    (fn [arg-map]
+      (let [prom (promise)]
+        (tool-fn nil arg-map 
+                 (fn [res error]
+                   (deliver prom {:res res :error error})))
+        @prom)))
+  
+  ;; Testing the top-level form edit tool
+  (def edit-tester (make-test-tool (top-level-form-edit-tool client-atom)))
+  
+  ;; Edit a function in a file
+  (edit-tester {"form_name" "example-function"
+                "file_path" "/path/to/file.clj"
+                "form_type" "defn"
+                "new_implementation" "(defn example-function [x y]\n  (+ x y))"})
+  
+  ;; Edit a namespace declaration
+  (edit-tester {"form_name" "my.project.core"
+                "file_path" "/path/to/core.clj"
+                "form_type" "ns"
+                "new_implementation" "(ns my.project.core\n  (:require [clojure.string :as str]))"})
+  
+  ;; Edit a variable definition
+  (edit-tester {"form_name" "config"
+                "file_path" "/path/to/config.clj"
+                "form_type" "def"
+                "new_implementation" "(def config {:port 8080 :host \"localhost\"})"})
+  
+  ;; Cleanup
+  (clojure-mcp.nrepl/stop-polling @client-atom)
   )

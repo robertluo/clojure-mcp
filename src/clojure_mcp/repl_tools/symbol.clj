@@ -114,3 +114,43 @@ Usage: Provide a search-string which would be a substring of the found definitio
                 (clj-result-k
                  res
                  false)))})
+
+(comment
+  ;; === Examples of using the symbol tools ===
+  
+  ;; Setup for REPL-based testing
+  (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
+  (clojure-mcp.nrepl/start-polling @client-atom)
+  
+  ;; Test helper function
+  (defn make-test-tool [{:keys [tool-fn] :as _tool-map}]
+    (fn [arg-map]
+      (let [prom (promise)]
+        (tool-fn nil arg-map 
+                 (fn [res error]
+                   (deliver prom {:res res :error error})))
+        @prom)))
+  
+  ;; Testing symbol documentation
+  (def doc-tester (make-test-tool (symbol-documentation client-atom)))
+  (doc-tester {"symbol" "map"})
+  
+  ;; Testing symbol metadata
+  (def meta-tester (make-test-tool (symbol-metadata client-atom)))
+  (meta-tester {"symbol" "filter"})
+  
+  ;; Testing source code retrieval
+  (def src-tester (make-test-tool (source-code client-atom)))
+  (src-tester {"symbol" "map"})
+  
+  ;; Testing symbol search
+  (def search-tester (make-test-tool (symbol-search client-atom)))
+  (search-tester {"search-str" "reduce"})
+  
+  ;; Testing completions
+  (def completions-tester (make-test-tool (symbol-completions client-atom)))
+  (completions-tester {"prefix" "ma"})
+  
+  ;; Cleanup
+  (clojure-mcp.nrepl/stop-polling @client-atom)
+)

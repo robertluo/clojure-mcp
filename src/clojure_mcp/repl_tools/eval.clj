@@ -95,3 +95,40 @@ If the value that is returned is too long it will be truncated."
                                                               (add-output! "ERROR: " "Evaluation failed")
                                                               (finish _)))))))
                 ))})
+
+(comment
+  ;; === Examples of using the eval tools ===
+  
+  ;; Setup for REPL-based testing
+  (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
+  (clojure-mcp.nrepl/start-polling @client-atom)
+  
+  ;; Test helper function
+  (defn make-test-tool [{:keys [tool-fn]}]
+    (fn [arg-map]
+      (let [prom (promise)]
+        (tool-fn nil arg-map 
+                 (fn [res error]
+                   (deliver prom {:res res :error error})))
+        @prom)))
+  
+  ;; Testing simple expression evaluation
+  (def eval-tester (make-test-tool (eval-code client-atom)))
+  (eval-tester {"expression" "(+ 1 2)"})
+  
+  ;; Testing multi-expression evaluation
+  (eval-tester {"expression" "(println \"Hello World\")\n(+ 3 4)"})
+  
+  ;; Testing evaluation with error
+  (eval-tester {"expression" "(/ 1 0)"})
+  
+  ;; Testing evaluation with linter warning
+  (eval-tester {"expression" "(let [unused 1] (+ 2 3))"})
+  
+  ;; Manipulating evaluation history
+  (eval-history-push (::nrepl/state @client-atom) "(+ 10 20)")
+  (eval-history-reset (::nrepl/state @client-atom))
+  
+  ;; Cleanup
+  (clojure-mcp.nrepl/stop-polling @client-atom)
+)
