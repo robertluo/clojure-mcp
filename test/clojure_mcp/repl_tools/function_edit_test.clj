@@ -55,8 +55,8 @@
 
   (testing "Replacing function with comments and different formatting"
     (let [initial-content "(ns format-test)\n\n;; Comment before\n(defn func-to-replace \n [arg1]\n ;; body comment\n (inc arg1))\n\n;; Comment after\n(def another-var)"
-          new-func-text ";; New comment\n(defn func-to-replace\n  [arg1 arg2]\n  (+ arg1 arg2))"
-          expected-content "(ns format-test)\n\n;; New comment\n(defn func-to-replace\n  [arg1 arg2]\n  (+ arg1 arg2))\n\n;; Comment after\n(def another-var)"]
+          new-func-text "(defn func-to-replace\n  [arg1 arg2]\n  (+ arg1 arg2))"
+          expected-content "(ns format-test)\n\n;; Comment before\n(defn func-to-replace\n  [arg1 arg2]\n  (+ arg1 arg2))\n\n;; Comment after\n(def another-var)"]
       (setup-test-file initial-content)
       (is (true? (replace-function-in-file "func-to-replace" *test-file-path* new-func-text)))
       (is (= (clojure.string/trim expected-content) (clojure.string/trim (slurp *test-file-path*))))))

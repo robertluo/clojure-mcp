@@ -4,11 +4,13 @@
    [clojure-mcp.nrepl :as nrepl]
    [clojure-mcp.repl-tools :as repl-tools]
    [nrepl.server :as nrepl-server]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [clojure.java.io :as io]))
 ;; Removed extra closing parenthesis
 
 (defonce ^:dynamic *nrepl-server* nil)
 (defonce ^:dynamic *nrepl-client-atom* nil)
+(def ^:dynamic *test-file-path* "test_function_edit.clj")
 
 (defn test-nrepl-fixture [f]
   (let [server (nrepl-server/start-server :port 0) ; Use port 0 for dynamic port assignment
@@ -25,7 +27,14 @@
           (nrepl/stop-polling client)
           (nrepl-server/stop-server server))))))
 
+(defn cleanup-test-file [f]
+  (try
+    (f)
+    (finally
+      (io/delete-file *test-file-path* true))))
+
 (use-fixtures :once test-nrepl-fixture)
+(use-fixtures :each cleanup-test-file)
 
 ;; Helper to invoke tool functions more easily in tests
 (defn make-test-tool [{:keys [tool-fn] :as _tool-map}]
@@ -265,3 +274,47 @@
         (let [result (history-tool {"number-to-fetch" nil})] ;; Simulate missing/invalid arg reaching fn
           (is (true? (:error? result)))
           (is (re-find #"Invalid 'number-to-fetch'" (first (:res result)))))))))
+
+(deftest function-edit-tool-test
+  (testing "Edit function in file"
+    ;; Create a test file with a sample function
+    (let [initial-content "(ns test-namespace)\n\n(defn sample-function [a b]\n  (+ a b))\n\n(defn another-function [] :ok)"
+          _ (spit *test-file-path* initial-content)
+          edit-tool (make-test-tool (repl-tools/function-edit-tool *nrepl-client-atom*))]
+      
+      ;; Test successful function edit
+      (let [new-impl "(defn sample-function\n  \"Updated docstring\"\n  [a b c]\n  (* a b c))"
+            result (edit-tool {"function_name" "sample-function"
+                               "file_path" *test-file-path*
+                               "new_implementation" new-impl})]
+        (is (false? (:error? result)))
+        (is (= 1 (count (:res result))))
+        (is (str/includes? (first (:res result)) "Successfully updated"))
+        
+        ;; Verify file content was updated correctly
+        (let [updated-content (slurp *test-file-path*)]
+          (is (str/includes? updated-content "Updated docstring"))
+          (is (str/includes? updated-content "[a b c]"))
+          (is (str/includes? updated-content "(* a b c)"))
+          (is (str/includes? updated-content "another-function")))) ; Other function should remain
+      
+      ;; Test non-existent function
+      (let [result (edit-tool {"function_name" "non-existent-function"
+                               "file_path" *test-file-path*
+                               "new_implementation" "(defn non-existent-function [] :nope)"})]
+        (is (true? (:error? result)))
+        (is (str/includes? (first (:res result)) "Failed to update")))
+      
+      ;; Test non-existent file
+      (let [result (edit-tool {"function_name" "any-function"
+                               "file_path" "non-existent-file.clj"
+                               "new_implementation" "(defn any-function [] :any)"})]
+        (is (true? (:error? result)))
+        (is (str/includes? (first (:res result)) "Error")))
+      
+      ;; Test invalid function implementation
+      (let [result (edit-tool {"function_name" "sample-function"
+                               "file_path" *test-file-path*
+                               "new_implementation" "(defn sample-function [x"})] ; Invalid syntax
+        (is (true? (:error? result)))
+        (is (str/includes? (first (:res result)) "Error"))))))

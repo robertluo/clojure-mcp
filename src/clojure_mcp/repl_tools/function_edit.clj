@@ -4,51 +4,129 @@
    [rewrite-clj.parser :as p]
    [rewrite-clj.node :as n]))
 
-#_(defn has-name? [sexp nm]
-    (->> sexp
-         rest
-         (take-while (complement sequential?))
-         (filter #(= nm %))
-         first))
-
-(defn is-top-def-name? [sexp tag dname]
+(defn is-top-def-name?
+  "Check if a sexp is a top-level definition with a specific tag and name.
+   
+   Arguments:
+   - sexp: The S-expression to check
+   - tag: The definition tag (e.g., 'defn, 'def)
+   - dname: The name of the definition
+   
+   Returns true if the sexp matches the pattern (tag dname ...)"
+  [sexp tag dname]
   (and (list? sexp)
        (= (first sexp) tag)
        (= (second sexp) dname)))
 
-(defn find-toplevel-def [zloc tag dname]
-  (some->> sample
-           z/of-string
+(defn find-toplevel-def
+  "Find a top-level definition with a specific tag and name in a zipper.
+   
+   Arguments:
+   - zloc: The zipper location to start searching from
+   - tag: The definition tag (e.g., 'defn, 'def)
+   - dname: The name of the definition
+   
+   Returns the zipper location of the matched definition, or nil if not found."
+  [zloc tag dname]
+  (some->> zloc
            (iterate z/right)
-           (take-while not-empty)
-           (filter #(is-top-def-name? (z/sexpr %) tag dname))
+           (take-while identity)
+           (filter #(try 
+                      (is-top-def-name? (z/sexpr %) tag dname)
+                      (catch Exception _ false)))
            first))
 
-(defn replace-top-level-def* [zloc tag name replacement-str]
-  (when-let [zloc (find-toplevel-def zloc tag name)]
-    (z/edit zloc (fn [_] replacement-str))))
+(defn replace-top-level-def*
+  "Replace a top-level definition with a new string.
+   
+   Arguments:
+   - zloc: The zipper location to start searching from
+   - tag: The definition tag (e.g., 'defn, 'def)
+   - name: The name of the definition
+   - replacement-str: The string with the new definition
+   
+   Returns the updated zipper, or nil if the definition was not found."
+  [zloc tag name replacement-str]
+  (when-let [def-zloc (find-toplevel-def zloc tag name)]
+    (z/edit def-zloc (fn [_] 
+                      (-> replacement-str 
+                          p/parse-string-all)))))
 
-(defn replace-top-level-def [zloc name replacment-str]
-  (let [tag (first (z/sexpr (z/of-string replacment-str)))]
-    (replace-top-level-def* zloc tag name replacment-str)))
+(defn replace-top-level-def
+  "Replace a top-level definition with a new string, inferring the tag from the replacement.
+   
+   Arguments:
+   - zloc: The zipper location to start searching from
+   - name: The name of the definition
+   - replacement-str: The string with the new definition
+   
+   Returns the updated zipper, or nil if the definition was not found."
+  [zloc name replacement-str]
+  (let [parsed (try (z/of-string replacement-str) (catch Exception _ nil))
+        tag (when parsed (first (z/sexpr parsed)))]
+    (when tag
+      (replace-top-level-def* zloc tag name replacement-str))))
+
+(defn edit-function-in-file
+  "Edit a function in a file, replacing it with a new implementation.
+   
+   Arguments:
+   - file-path: Path to the file containing the function
+   - fn-name: Name of the function to replace (symbol)
+   - new-fn-str: String with the new function implementation
+   
+   Returns the updated file content as a string."
+  [file-path fn-name new-fn-str]
+  (let [file-content (slurp file-path)
+        zloc (z/of-string file-content)
+        updated-zloc (replace-top-level-def zloc fn-name new-fn-str)]
+    (if updated-zloc
+      (z/root-string updated-zloc)
+      file-content)))
+
+(defn replace-function-in-file
+  "Replace a function in a file with a new implementation.
+   
+   Arguments:
+   - fn-name: Name of the function to replace (string or symbol)
+   - file-path: Path to the file
+   - new-fn-str: String with the new function implementation
+   
+   Returns true if the function was replaced successfully, false otherwise."
+  [fn-name file-path new-fn-str]
+  (try
+    (let [fn-name (if (string? fn-name) (symbol fn-name) fn-name)
+          file-content (slurp file-path)
+          zloc (z/of-string file-content)
+          updated-zloc (replace-top-level-def zloc fn-name new-fn-str)]
+      (if updated-zloc
+        (do
+          (spit file-path (z/root-string updated-zloc))
+          true)
+        false))
+    #_(catch Exception e
+      (println "Error replacing function:" (.getMessage e))
+      false)))
 
 (comment
-  ;; sexp ignores meta-data so we should be good with simple detection
-  (-> (z/of-string "(defn ^Thing nnnnn [] ())")
-      (z/sexpr))
-  
+  ;; Example usage
   (def sample "(defn foo [x y]
     (println \"Original foo was called!\")
     (+ x y (helper 5)))
 
-(defn bar     [] true)")
+(defn bar [] true)")
   
-  (z/root-string (replace-top-level-def (z/of-string sample) 'bar "(defn fooby [] 'yep)"))
-  
+  ;; Test finding a function
   (find-toplevel-def (z/of-string sample) 'defn 'foo)
-  (find-toplevel-defn-zipper (z/of-string my-code) "foo")
-
   
+  ;; Test replacing a function
+  (z/root-string 
+   (replace-top-level-def 
+    (z/of-string sample) 
+    'bar 
+    "(defn bar [] 'updated-value)"))
+  
+  ;; Example of editing a function in a file
   (def my-code
     ";; A sample file
   (ns my.app
@@ -65,14 +143,18 @@
   (defn bar []
     :baz)")
 
-(def replacement-foo
-  "(defn foo
+  (def replacement-foo
+    "(defn foo
     \"This is the new foo.
      It takes one argument.\"
     [a]
     (println \"New foo function!\")
     (* a a))")
-
-  )
-
-
+  
+  ;; Replace foo in my-code
+  (println
+   (edit-function-in-file 
+    "dummy-path.clj"  ;; In real use, this would be an actual file path
+    'foo 
+    replacement-foo))
+)

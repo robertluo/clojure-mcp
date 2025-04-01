@@ -75,11 +75,14 @@ Before you evaluate code, present it in a code block
   - manages data about project
   - allows var definition replacement in files
   
+# KEY FINDINGS for Clojure workflow
+
+* Flesh Out Code a bit first before enguaging assistance WORKS VERY WELL
+  - This can the place of detailed prompt because it possible captures more intention
 
 
-Eval tool output
 
-The problem is the creation of a library for rendering Clojure data of the form [:h1 {:class "active"} children ...] into HTML.
+
 
 let's use s/fdef and perhaps create some empty clojure function stubs
 -----

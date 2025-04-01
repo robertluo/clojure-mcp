@@ -109,3 +109,6 @@ The next AI PL may be a lisp with Idris or TLA+ qualities. The simple
 syntax combined with enforced correctness and high degree of feedback.
 
 
+
+
+

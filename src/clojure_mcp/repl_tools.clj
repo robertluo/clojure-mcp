@@ -3,7 +3,8 @@
    [clojure-mcp.nrepl :as nrepl]
    [clojure-mcp.linting :as linting]
    [clojure.data.json :as json]
-   [clojure.string :as string]))
+   [clojure.string :as string]
+   [clojure-mcp.repl-tools.function-edit :as function-edit]))
 
 (defn eval-history-push
   "Pushes a form string to the evaluation history.
@@ -315,6 +316,39 @@ Usage: Provide a search-string which would be a substring of the found definitio
                 (catch Exception e
                   (clj-result-k [(str "Error fetching history: " (ex-message e))] true))))})
 
+(defn function-edit-tool [service-atom]
+  {:name "function_edit"
+   :description "Edits a function in a Clojure file, replacing it with a new implementation.
+   
+This tool allows you to modify existing functions in source files without manually editing the files.
+It preserves formatting and whitespace in the rest of the file."
+   :schema (json/write-str {:type :object
+                            :properties {:function_name {:type :string
+                                                         :description "The name of the function to edit (as a string or symbol)"}
+                                         :file_path {:type :string
+                                                     :description "Path to the file containing the function"}
+                                         :new_implementation {:type :string
+                                                              :description "String with the new function implementation (full defn form)"}}
+                            :required [:function_name :file_path :new_implementation]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [fn-name (get arg-map "function_name")
+                    file-path (get arg-map "file_path")
+                    new-impl (get arg-map "new_implementation")
+                    success? (try
+                               ;; Call the function from function_edit.clj
+                               (function-edit/replace-function-in-file
+                                fn-name
+                                file-path
+                                new-impl)
+                               #_(catch Exception e
+                                 (str "Error: " (.getMessage e))))]
+                (if (true? success?)
+                  (clj-result-k [(str "Successfully updated function '" fn-name "' in file " file-path)] false)
+                  (clj-result-k [(if (string? success?)
+                                   success?
+                                   (str "Failed to update function '" fn-name "' in file " file-path))]
+                               true))))})
+
 
 (comment
   (def client-atom (atom (nrepl/create {:port 7888})))
@@ -329,6 +363,11 @@ Usage: Provide a search-string which would be a substring of the found definitio
                    (deliver prom {:res res :error error})))
         @prom)))
 
+  (def edit-tester (make-test-tool (function-edit-tool client-atom))) ;; Pass the atom
+
+  (edit-tester {"function_name" "yoyo"
+                "file_path" "/Users/bruce/workspace/llempty/clojure-mcp/src/user.clj"
+                "new_implementation" "(defn yoyo [] 'nada)"})
 
   ;; Testing the eval-code tool
   (def eval-tester (make-test-tool (eval-code client-atom))) ;; Pass the atom

@@ -237,6 +237,7 @@
     (add-tool mcp (repl-tools/list-namespaces nrepl-client-atom))
     (add-tool mcp (repl-tools/list-vars-in-namespace nrepl-client-atom))
     (add-tool mcp (repl-tools/eval-history nrepl-client-atom)) ;; Add the eval-history tool
+    (add-tool mcp (repl-tools/function-edit-tool nrepl-client-atom)) ;; Add the function-edit tool
 
     mcp))
 
