@@ -4,26 +4,16 @@
             [rewrite-clj.zip :as z]))
 
 (defn- find-toplevel-definition
-  "Finds the zipper location of a top-level def or defn form by name.
-   Starts searching from the children of the provided root-zloc."
+  "Finds the zipper location of a top-level def or defn form by name."
   [root-zloc function-name-sym]
-  ;; Start searching from the first top-level form (child of the root)
-  (loop [loc (z/down root-zloc)]
-    (when loc ;; Check if we have a valid location
-      (let [sexpr (try (z/sexpr loc) (catch Exception _ nil))] ;; Handle potential errors reading sexpr
-        (cond
-          ;; Check if the current node is the target definition
-          (and (list? sexpr)
-               (#{'def 'defn} (first sexpr))
-               (= function-name-sym (second sexpr)))
-          loc ;; Found it
-
-          ;; If not found and we can move right, continue searching siblings
-          (not (z/end? loc)) ;; Check if we are at the end of the current level
-          (recur (z/right loc))
-
-          ;; Otherwise (at the end of this level), stop searching
-          :else nil)))))
+  (->> (z/children root-zloc) ;; Get all top-level children
+       (filter z/sexprable?)   ;; Only consider nodes that represent forms (ignore whitespace/comments)
+       (some (fn [loc]         ;; Find the first one that matches
+               (let [sexpr (z/sexpr loc)]
+                 (when (and (list? sexpr)
+                            (#{'def 'defn} (first sexpr))
+                            (= function-name-sym (second sexpr)))
+                   loc))))))     ;; Return the matching zipper location, or nil if none found
 
 (defn replace-function-in-file
   "Replaces the text of a function definition in a file with new text using rewrite-clj.
