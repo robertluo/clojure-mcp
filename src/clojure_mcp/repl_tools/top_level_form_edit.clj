@@ -3,7 +3,8 @@
    [rewrite-clj.zip :as z]  
    [rewrite-clj.parser :as p]
    [rewrite-clj.node :as n]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [clojure.data.json :as json]))
 
 (defn is-top-level-form?
   "Check if a sexp is a top-level definition with a specific tag and name.
@@ -96,6 +97,44 @@
     (catch Exception e
       (println "Error replacing form:" (.getMessage e))
       false)))
+
+(defn top-level-form-edit-tool [service-atom]
+  {:name "top_level_form_edit"
+   :description "Edits any top-level form in a Clojure file, replacing it with a new implementation.
+   
+This tool allows you to modify any top-level form (def, defn, ns, deftest etc.) 
+in source files without manually editing the files. It preserves formatting and whitespace 
+in the rest of the file."
+   :schema (json/write-str {:type :object
+                            :properties {:form_name {:type :string
+                                                     :description "The name of the form to edit (e.g., function name, var name, namespace name)"}
+                                         :file_path {:type :string
+                                                     :description "Path to the file containing the form"}
+                                         :form_type {:type :string
+                                                     :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
+                                         :new_implementation {:type :string
+                                                              :description "String with the new form implementation"}}
+                            :required [:form_name :file_path :form_type :new_implementation]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [form-name (get arg-map "form_name")
+                    file-path (get arg-map "file_path")
+                    form-type (get arg-map "form_type")
+                    new-impl (get arg-map "new_implementation")
+                    success? (try
+                               ;; Call the function to replace the form
+                               (replace-form-in-file
+                                form-name
+                                file-path
+                                form-type
+                                new-impl)
+                               #_(catch Exception e
+                                   (str "Error: " (.getMessage e))))]
+                (if (true? success?)
+                  (clj-result-k [(str "Successfully updated form '" form-name "' in file " file-path)] false)
+                  (clj-result-k [(if (string? success?)
+                                   success?
+                                   (str "Failed to update form '" form-name "' in file " file-path))]
+                                true))))})
 
 (comment
   ;; Example usage
