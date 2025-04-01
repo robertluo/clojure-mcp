@@ -79,6 +79,9 @@ Before you evaluate code, present it in a code block
 
 * Flesh Out Code a bit first before enguaging assistance WORKS VERY WELL
   - This can the place of detailed prompt because it possible captures more intention
+* Needs to remember that namespaces have dash fomating and the associated files have underscore formating
+* needs to remember to require reload and then switch into the namespace that needs to be worked on
+
 
 
 
