@@ -5,7 +5,9 @@
    rename, copy, etc.)."
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [clojure-mcp.emacs-tools-enhanced.file.core :refer [emacs-eval with-file]]))
+            [clojure-mcp.emacs-tools-enhanced.file.core :refer [emacs-eval with-file]])
+  (:import [java.nio.file Files Path Paths LinkOption FileSystems]
+           [java.nio.file.attribute BasicFileAttributes PosixFileAttributes PosixFilePermissions]))
 
 (defn find-files
   "Finds files matching a pattern in a directory.
@@ -120,3 +122,43 @@
         (format "Path does not exist or is not a directory: %s" path)))
     (catch Exception e
       (format "Error listing directory: %s - %s" path (.getMessage e)))))
+
+(defn get-file-info
+  "Gets detailed metadata about a file or directory.
+   Returns a formatted string with the file's metadata.
+   Provides information about size, creation time, modification time,
+   access time, type (file/directory), and permissions (if available).
+   Returns an error message if the file doesn't exist or an error occurs."
+  [path]
+  (try
+    (let [file (io/file path)]
+      (if (.exists file)
+        (let [path-obj (Paths/get (.toURI file))
+              attrs (Files/readAttributes path-obj BasicFileAttributes (into-array LinkOption []))
+              is-directory (.isDirectory file)
+              file-size (.size attrs)
+              creation-time (.toMillis (.creationTime attrs))
+              last-modified (.toMillis (.lastModifiedTime attrs))
+              last-access (.toMillis (.lastAccessTime attrs))
+              
+              ;; Try to get POSIX permissions if supported
+              posix-attrs (try
+                            (Files/readAttributes path-obj PosixFileAttributes (into-array LinkOption []))
+                            (catch UnsupportedOperationException _ nil))
+              
+              permissions (if posix-attrs 
+                            (PosixFilePermissions/toString (.permissions posix-attrs))
+                            "Not available")
+              
+              lines ["File Information:"
+                     (format "Path: %s" path)
+                     (format "Type: %s" (if is-directory "Directory" "File"))
+                     (format "Size: %d bytes" file-size)
+                     (format "Created: %s" (java.util.Date. creation-time))
+                     (format "Modified: %s" (java.util.Date. last-modified))
+                     (format "Accessed: %s" (java.util.Date. last-access))
+                     (format "Permissions: %s" permissions)]]
+          (str/join "\n" lines))
+        (format "Error: Path does not exist: %s" path)))
+    (catch Exception e
+      (format "Error getting file info: %s - %s" path (.getMessage e)))))
