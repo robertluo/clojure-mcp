@@ -32,7 +32,8 @@
                         duration))]
     (if (:success result)
       (success-result [(str file-path)]
-                      (str "Successfully flashed file: " file-path)))))
+                      (str "Successfully flashed file: " file-path))
+      result)))
 
 
 #_(flash-file "/Users/bruce/workspace/llempty/clojure-mcp/src/clojure_mcp/emacs_tools_enhanced/file/core.clj")

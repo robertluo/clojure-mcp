@@ -2,7 +2,8 @@
   (:require [clojure.data.json :as json]
             [clojure-mcp.nrepl :as nrepl]
             [clojure-mcp.repl-tools :as repl-tools]
-            [clojure-mcp.prompts :as prompts])
+            [clojure-mcp.prompts :as prompts]
+            [clojure-mcp.emacs-tools-enhanced.file-api :as file-api])
   (:gen-class)
   (:import [io.modelcontextprotocol.server.transport StdioServerTransportProvider]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
@@ -246,7 +247,9 @@
     (add-tool mcp (repl-tools/list-vars-in-namespace nrepl-client-atom))
     (add-tool mcp (repl-tools/eval-history nrepl-client-atom)) ;; Add the eval-history tool
     (add-tool mcp (repl-tools/top-level-form-edit-tool nrepl-client-atom)) ;; Add the top-level-form-edit tool
-    
+
+    (add-tool mcp (file-api/emacs-flash-file-tool))
+
     mcp))
 
 (comment
