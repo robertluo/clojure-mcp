@@ -34,7 +34,9 @@
       result)))
 
 (defn file-exists?
-  "Checks if a file exists using Emacs."
+  "Checks if a file or directory exists using Emacs.
+   Returns true if the path exists (either as a file or directory),
+   otherwise returns false."
   [file-path]
   (= "t" (emacs-eval (format "(if (file-exists-p \"%s\") \"t\" \"nil\")" 
                             (str/replace file-path "\"" "\\\"")))))
@@ -45,7 +47,11 @@
    
    This is more efficient than reading files one by one when you need to analyze 
    or compare multiple files. Each file's content is returned with its path as a reference.
-   Failed reads for individual files won't stop the entire operation."
+   Failed reads for individual files won't stop the entire operation.
+   
+   Note: While the function checks if paths exist (including directories), it only
+   attempts to read content from regular files. Directories will be marked as existing
+   but will result in an error message in the content field."
   [file-paths]
   ;; Simple implementation using the existing functions
   (mapv (fn [path]
