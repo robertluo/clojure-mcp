@@ -3,7 +3,7 @@
    
    This namespace provides functions for editing file content in Emacs."
   (:require [clojure.string :as str]
-            [clojure-mcp.emacs-tools-enhanced.file.core :refer [emacs-eval with-file]]))
+            [clojure-mcp.emacs-tools-enhanced.file.core :refer [emacs-eval with-file error-result success-result]]))
 
 (defn dry-run-edits
   "Generates a diff preview of the changes that would be made by the edits.
@@ -49,9 +49,7 @@
                                      (str/replace old-text "\"" "\\\"") 
                                      (str/replace new-text "\"" "\\\""))))))
         diff-result (emacs-eval elisp-code)]
-    {:success true
-     :message ["Dry run completed"]
-     :content [diff-result]}))
+    (success-result [diff-result] "Dry run completed")))
 
 (defn edit-file
   "Makes multiple text replacements in a file with optional visual highlighting.
@@ -70,7 +68,7 @@
   [file-path edits & {:keys [highlight-duration dry-run] 
                      :or {highlight-duration 2.0 dry-run false}}]
   (if (empty? edits)
-    {:success true, :message ["No edits to apply"], :content []}
+    (success-result [] "No edits to apply")
     (if dry-run
       ;; For dry-run, use our dry-run-edits helper
       (dry-run-edits file-path edits)
@@ -118,18 +116,13 @@
           ;; If result is a string
           (string? result)
           (if (str/starts-with? result "Error:")
-            {:success false
-             :message [result]
-             :content []}
-            {:success true
-             :message [(if (re-find #"^Applied \d+ changes$" result)
-                         result
-                         "Edit operation completed")]
-             :content [result]})
+            (error-result result)
+            (success-result [result] 
+                           (if (re-find #"^Applied \d+ changes$" result)
+                             result
+                             "Edit operation completed")))
           
           ;; Otherwise
           :else
-          {:success true
-           :message ["Edit operation completed"]
-           :content [(str result)]})))))
+          (success-result [(str result)] "Edit operation completed"))))))
 

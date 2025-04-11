@@ -12,13 +12,13 @@
 
 (defn error-result [error-message]
   {:success false
-   :messages []
-   :contents [error-message]})
+   :message []
+   :content [error-message]})
 
 (defn success-result [contents & messages]
   {:success true
-   :messages (or messages [])
-   :contents contents})
+   :message (or messages [])
+   :content contents})
 
 ;; -------------------------------------------------------------------------
 ;; Core Elisp Evaluation
