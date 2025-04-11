@@ -1,0 +1,231 @@
+(ns clojure-mcp.emacs-tools-enhanced.file.content
+  "File content operations for Emacs.
+   
+   This namespace provides functions for reading, writing, editing, and
+   manipulating the content of files in Emacs."
+  (:require [clojure.string :as str]
+            [clojure-mcp.emacs-tools-enhanced.file.core :refer [emacs-eval with-file]]))
+
+;; -------------------------------------------------------------------------
+;; File Content Operations
+;; -------------------------------------------------------------------------
+
+(defn read-file
+  "Reads the entire content of a file using Emacs.
+   Opens the file in Emacs and retrieves its content without any user interaction.
+   Uses special settings to avoid prompts and blocking behavior."
+  [file-path]
+  (let [result (emacs-eval 
+                (format "(condition-case err
+                           (progn
+                             (let ((auto-revert-verbose nil)  ;; No messages about reverting
+                                   (revert-without-query t)   ;; Don't confirm reverting
+                                   (inhibit-message t))       ;; Suppress messages
+                               (find-file-noselect \"%s\" t)  ;; Use noselect to avoid displaying
+                               (with-current-buffer (find-buffer-visiting \"%s\")
+                                 (let ((modified-p (buffer-modified-p)))
+                                   ;; Force revert without any user interaction
+                                   (revert-buffer t t t)
+                                   ;; Restore modified state if needed
+                                   (set-buffer-modified-p modified-p)
+                                   (buffer-string)))))
+                           (error (format \"Error: %%s\" (error-message-string err))))"
+                         (str/replace file-path "\"" "\\\"")
+                         (str/replace file-path "\"" "\\\"")))]
+    ;; Check if result starts with "Error:"
+    (if (and result (str/starts-with? result "Error:"))
+      result  ;; Return the error message
+      result)))
+
+(defn write-file
+  "Writes content to a file, handling both new and existing files.
+   If the file exists and overwrite is false, returns an error message.
+   Otherwise, creates or overwrites the file with the given content.
+   
+   Options:
+   - overwrite: Whether to overwrite existing files (default: true)
+   - highlight: Whether to highlight changes in the buffer (default: true)
+   - flash: Whether to flash the modeline (default: true)"
+  [file-path content & {:keys [overwrite highlight flash] 
+                      :or {overwrite true highlight true flash true}}]
+  (let [result (with-file file-path 
+                (format "(progn
+                          %s
+                          (erase-buffer)
+                          (insert \"%s\")
+                          (save-buffer)
+                          %s
+                          %s)"
+                        (if overwrite
+                          ""
+                          "(when (file-exists-p (buffer-file-name))
+                             (error \"File exists and overwrite is not enabled\"))")  
+                        (str/replace content "\"" "\\\"")
+                        (if highlight
+                          "(let ((overlay (make-overlay (point-min) (point-max))))
+                             (overlay-put overlay 'face 'highlight)
+                             (overlay-put overlay 'priority 100)
+                             (run-with-timer 2.0 nil 
+                               (lambda () (delete-overlay overlay))))"
+                          "")
+                        (if flash
+                          "(let ((bg (face-background 'mode-line)))
+                             (set-face-background 'mode-line \"red\")
+                             (run-with-timer 0.1 nil
+                               (lambda ()
+                                 (set-face-background 'mode-line bg))))"
+                          "")))]
+    result))
+
+(defn- dry-run-edits
+  "Generates a diff preview of the changes that would be made by the edits.
+   
+   Parameters:
+   - file-path: Path to the file to edit
+   - edits: Sequence of maps with :old-text and :new-text keys
+   
+   Returns a map with:
+   - :success - Whether the operation was successful
+   - :message - Message about dry run
+   - :diff - Git-style diff output"
+  [file-path edits]
+  (let [elisp-code (format 
+                   "(progn
+                      (let ((diff-output \"\"))
+                        (with-temp-buffer
+                          (insert-file-contents \"%s\")
+                          (let ((orig-content (buffer-string)))
+                            (dolist (edit '(%s))
+                              (let ((old-text (car edit))
+                                    (new-text (cdr edit)))
+                                (goto-char (point-min))
+                                (while (search-forward old-text nil t)
+                                  (replace-match new-text nil t))))
+                            
+                            (let ((modified-content (buffer-string)))
+                              (with-temp-buffer
+                                (insert orig-content)
+                                (let ((orig-buf (current-buffer)))
+                                  (with-temp-buffer
+                                    (insert modified-content)
+                                    (let ((modified-buf (current-buffer)))
+                                      (diff-buffers orig-buf modified-buf nil 'noasync)
+                                      (with-current-buffer \"*Diff*\"
+                                        (setq diff-output (buffer-string))))))))))
+                        diff-output))"
+                   (str/replace file-path "\"" "\\\"")
+                   (str/join " " 
+                           (for [{:keys [old-text new-text]} edits]
+                             (when (and old-text new-text)
+                               (format "(\"%s\" . \"%s\")"
+                                     (str/replace old-text "\"" "\\\"") 
+                                     (str/replace new-text "\"" "\\\""))))))
+        diff-result (emacs-eval elisp-code)]
+    {:success true
+     :message "Dry run completed"
+     :diff diff-result}))
+
+(defn edit-file
+  "Makes multiple text replacements in a file with optional visual highlighting.
+   
+   Takes a sequence of edits, where each edit is a map with :old-text and :new-text keys.
+   Applies edits sequentially in the order provided.
+   
+   Options:
+   - highlight-duration: Duration of the highlight effect in seconds (default: 2.0)
+   - dry-run: Preview changes using git-style diff format (default: false)"
+  [file-path edits & {:keys [highlight-duration dry-run] 
+                     :or {highlight-duration 2.0 dry-run false}}]
+  (if (empty? edits)
+    {:success true, :message "No edits to apply"}
+    (if dry-run
+      ;; For dry-run, use our dry-run-edits helper
+      (dry-run-edits file-path edits)
+      ;; For actual edits, apply one by one using elisp directly
+      (let [elisp-code (format 
+                      "(progn
+                         (let ((total-changes 0))
+                           %s
+                           (save-buffer)
+                           (format \"Applied %%d changes\" total-changes)))"
+                      (str/join "\n" 
+                              (map (fn [{:keys [old-text new-text]}]
+                                     (format "
+                                     (save-excursion
+                                       (goto-char (point-min))
+                                       (let ((count 0))
+                                         (while (search-forward \"%s\" nil t)
+                                           (setq count (1+ count))
+                                           (let ((start (match-beginning 0)))
+                                             (replace-match \"%s\" nil t)
+                                             (let ((overlay (make-overlay start (point))))
+                                               (overlay-put overlay 'face 'highlight)
+                                               (overlay-put overlay 'priority 100)
+                                               (run-with-timer %s nil 
+                                                 (lambda () (delete-overlay overlay))))))
+                                         (setq total-changes (+ total-changes count))))"
+                                           (str/replace old-text "\"" "\\\"")
+                                           (str/replace new-text "\"" "\\\"")
+                                           highlight-duration))
+                                   (filter (fn [{:keys [old-text new-text]}]
+                                            (and old-text new-text)) 
+                                           edits))))
+            result (with-file file-path elisp-code)]
+        result))))
+
+(defn replace-in-file
+  "Replaces all occurrences of a string with another string in a file,
+   with optional visual highlighting.
+   
+   Options:
+   - highlight-duration: Duration of the highlight effect in seconds (default: 2.0)"
+  [file-path old-text new-text & {:keys [highlight-duration] :or {highlight-duration 2.0}}]
+  (let [result (with-file file-path 
+                (format "(progn
+                          (save-excursion
+                            (goto-char (point-min))
+                            (let ((count 0))
+                              (while (search-forward \"%s\" nil t)
+                                (setq count (1+ count))
+                                (let ((start (match-beginning 0)))
+                                  (replace-match \"%s\" nil t)
+                                  (let ((end (point))
+                                        (overlay (make-overlay start end)))
+                                    (overlay-put overlay 'face 'highlight)
+                                    (overlay-put overlay 'priority 100)
+                                    (run-with-timer %s nil 
+                                      (lambda () (delete-overlay overlay))))))
+                              (message \"Updated %%d occurrences\" count)))
+                          (save-buffer))"
+                        (str/replace old-text "\"" "\\\"")
+                        (str/replace new-text "\"" "\\\"")
+                        highlight-duration))]
+    result))
+
+(defn append-to-file
+  "Appends content to the end of a file with optional highlighting.
+   
+   Options:
+   - highlight-duration: Duration of the highlight effect in seconds (default: 2.0)"
+  [file-path content & {:keys [highlight-duration] :or {highlight-duration 2.0}}]
+  (let [result (with-file file-path 
+                (format "(progn
+                          (goto-char (point-max))
+                          (let ((start (point)))
+                            (insert \"\n%s\")
+                            (let ((overlay (make-overlay start (point-max))))
+                              (overlay-put overlay 'face 'highlight)
+                              (overlay-put overlay 'priority 100)
+                              (run-with-timer %s nil 
+                                (lambda () (delete-overlay overlay)))))
+                          (save-buffer))"
+                        (-> content
+                            (str/replace "\\" "\\\\")
+                            (str/replace "\"" "\\\"")
+                            (str/replace "\n" "\\n"))
+                        highlight-duration))]
+    result))
+
+(defn flash-file
+  "Flashes the file in Emacs to draw attention to it.
+   Uses
