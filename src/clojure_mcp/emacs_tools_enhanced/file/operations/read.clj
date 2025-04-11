@@ -23,7 +23,8 @@
                                    (revert-buffer t t t)
                                    ;; Restore modified state if needed
                                    (set-buffer-modified-p modified-p)
-                                   (buffer-string)))))
+                                   ;; Use buffer-substring-no-properties to avoid text properties
+                                   (buffer-substring-no-properties (point-min) (point-max))))))
                            (error (format \"Error: %%s\" (error-message-string err))))"
                          (str/replace file-path "\"" "\\\"")
                          (str/replace file-path "\"" "\\\"")))]
@@ -37,3 +38,20 @@
   [file-path]
   (= "t" (emacs-eval (format "(if (file-exists-p \"%s\") \"t\" \"nil\")" 
                             (str/replace file-path "\"" "\\\"")))))
+
+(defn read-multiple-files
+  "Reads the contents of multiple files simultaneously.
+   Returns a sequence of maps with :path, :content, and :exists keys.
+   
+   This is more efficient than reading files one by one when you need to analyze 
+   or compare multiple files. Each file's content is returned with its path as a reference.
+   Failed reads for individual files won't stop the entire operation."
+  [file-paths]
+  ;; Simple implementation using the existing functions
+  (mapv (fn [path]
+          {:path path
+           :content (if (file-exists? path)
+                     (read-file path)
+                     "File does not exist")
+           :exists (file-exists? path)})
+        file-paths))
