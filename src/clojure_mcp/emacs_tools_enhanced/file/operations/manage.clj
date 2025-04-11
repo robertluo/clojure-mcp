@@ -11,7 +11,11 @@
 
 (defn find-files
   "Finds files matching a pattern in a directory.
-   Returns a list of full file paths."
+   
+   Returns a map with:
+   - :success - Whether the operation was successful
+   - :message - Array of message strings about the operation
+   - :content - Array containing the matching file paths"
   [directory pattern]
   (let [result (emacs-eval 
                (format "(let ((files nil))
@@ -20,8 +24,16 @@
                          (mapconcat 'identity (nreverse files) \"\n\"))"
                        (str/replace directory "\"" "\\\"")
                        (str/replace pattern "\"" "\\\"")))]
-    (when (not-empty result)
-      (str/split result #"\n"))))
+    (if (or (not result) (str/starts-with? result "Error:"))
+      {:success false
+       :message [(or result "No files found")]
+       :content []}
+      (let [files (if (not-empty result)
+                    (str/split result #"\n")
+                    [])]
+        {:success true
+         :message [(str "Found " (count files) " files matching \"" pattern "\" in " directory)]
+         :content files}))))
 
 (defn with-files
   "Applies a function to a collection of files.
@@ -35,7 +47,11 @@
 
 (defn delete-file
   "Deletes a file with confirmation in Emacs.
-   Returns true if successful, false otherwise."
+   
+   Returns a map with:
+   - :success - Whether the operation was successful
+   - :message - Array of message strings about the operation
+   - :content - Array containing the path of the deleted file (if successful)"
   [file-path & {:keys [no-confirm] :or {no-confirm false}}]
   (let [result (emacs-eval 
                (format "(condition-case err
@@ -45,34 +61,59 @@
                          (error nil))"
                        (str/replace file-path "\"" "\\\"")
                        (if no-confirm "t" "nil")))]
-    (= result "t")))
+    (let [success? (= result "t")]
+      (if success?
+        {:success true
+         :message [(str "Successfully deleted file: " file-path)]
+         :content [(str file-path)]}
+        {:success false
+         :message [(str "Failed to delete file: " file-path)]
+         :content []}))))
 
 (defn move-file
   "Moves or renames files and directories.
    Takes source and destination paths.
    Fails if the destination already exists.
-   Returns a formatted string indicating success or failure."
+   
+   Returns a map with:
+   - :success - Whether the operation was successful
+   - :message - Array of message strings about the operation
+   - :content - Array containing the old and new file paths (if successful)"
   [source destination]
   (try
     (let [src-file (io/file source)
           dest-file (io/file destination)]
       (cond
         (not (.exists src-file))
-        (format "Error: Source does not exist: %s" source)
+        {:success false
+         :message [(str "Error: Source does not exist: " source)]
+         :content []}
         
         (.exists dest-file)
-        (format "Error: Destination already exists: %s" destination)
+        {:success false
+         :message [(str "Error: Destination already exists: " destination)]
+         :content []}
         
         :else
         (if (.renameTo src-file dest-file)
-          (format "Successfully moved %s to %s" source destination)
-          (format "Failed to move %s to %s" source destination))))
+          {:success true
+           :message [(str "Successfully moved " source " to " destination)]
+           :content [source, destination]}
+          {:success false
+           :message [(str "Failed to move " source " to " destination)]
+           :content []})))
     (catch Exception e
-      (format "Error moving file: %s - %s" source (.getMessage e)))))
+      {:success false
+       :message [(str "Error moving file: " source " - " (.getMessage e))]
+       :content []})))
 
 (defn copy-file
   "Copies a file from source-path to dest-path.
-   Returns true if successful, false otherwise."
+   
+   Returns a map with:
+   - :success - Whether the operation was successful
+   - :message - Array of message strings about the operation
+   - :content - Array containing the source and destination paths (if successful)"
   [source-path dest-path & {:keys [no-confirm] :or {no-confirm false}}]
   (let [result (emacs-eval 
                (format "(condition-case err
@@ -83,29 +124,56 @@
                        (str/replace source-path "\"" "\\\"")
                        (str/replace dest-path "\"" "\\\"")
                        (if no-confirm "t" "nil")))]
-    (= result "t")))
+    (let [success? (= result "t")]
+      (if success?
+        {:success true
+         :message [(str "Successfully copied file from " source-path " to " dest-path)]
+         :content [source-path, dest-path]}
+        {:success false
+         :message [(str "Failed to copy file from " source-path " to " dest-path)]
+         :content []}))))
 
 (defn create-directory
   "Creates a new directory or ensures it exists.
    Creates parent directories if needed.
    Succeeds silently if directory already exists.
-   Returns a success or error message string."
+   
+   Returns a map with:
+   - :success - Whether the operation was successful
+   - :message - Array of message strings about the operation
+   - :content - Array containing the path of the created directory (if successful)"
   [path]
   (try
     (let [dir (io/file path)
           existed (.exists dir)
           result (.mkdirs dir)]
       (cond
-        existed (format "Directory already exists: %s" path)
-        result (format "Successfully created directory: %s" path)
-        :else (format "Failed to create directory: %s" path)))
+        existed 
+        {:success true
+         :message [(str "Directory already exists: " path)]
+         :content [(str path)]}
+        
+        result 
+        {:success true
+         :message [(str "Successfully created directory: " path)]
+         :content [(str path)]}
+        
+        :else 
+        {:success false
+         :message [(str "Failed to create directory: " path)]
+         :content []}))
     (catch Exception e
-      (format "Error creating directory: %s - %s" path (.getMessage e)))))
+      {:success false
+       :message [(str "Error creating directory: " path " - " (.getMessage e))]
+       :content []})))
 
 (defn list-directory
   "Lists directory contents with [FILE] or [DIR] prefixes.
-   Returns a formatted string with one item per line.
-   Returns an error message if directory doesn't exist or an error occurs."
+   
+   Returns a map with:
+   - :success - Whether the operation was successful
+   - :message - Array of message strings about the operation
+   - :content - Array containing directory entries with [FILE] or [DIR] prefixes"
   [path]
   (try
     (let [dir (io/file path)]
@@ -158,7 +226,13 @@
                      (format "Modified: %s" (java.util.Date. last-modified))
                      (format "Accessed: %s" (java.util.Date. last-access))
                      (format "Permissions: %s" permissions)]]
-          (str/join "\n" lines))
-        (format "Error: Path does not exist: %s" path)))
+          {:success true
+           :content lines
+           :message []})
+        {:success false
+         :content []
+         :message [(format "Error: Path does not exist: %s" path)]}))
     (catch Exception e
-      (format "Error getting file info: %s - %s" path (.getMessage e)))))
+      {:success false
+       :content []
+       :message [(format "Error getting file info: %s - %s" path (.getMessage e))]})))

@@ -14,8 +14,8 @@
    
    Returns a map with:
    - :success - Whether the operation was successful
-   - :message - Message about dry run
-   - :diff - Git-style diff output"
+   - :message - Array of message strings about the operation
+   - :content - Array containing the diff output"
   [file-path edits]
   (let [elisp-code (format 
                    "(progn
@@ -50,8 +50,8 @@
                                      (str/replace new-text "\"" "\\\""))))))
         diff-result (emacs-eval elisp-code)]
     {:success true
-     :message "Dry run completed"
-     :diff diff-result}))
+     :message ["Dry run completed"]
+     :content [diff-result]}))
 
 (defn edit-file
   "Makes multiple text replacements in a file with optional visual highlighting.
@@ -61,11 +61,16 @@
    
    Options:
    - highlight-duration: Duration of the highlight effect in seconds (default: 2.0)
-   - dry-run: Preview changes using git-style diff format (default: false)"
+   - dry-run: Preview changes using git-style diff format (default: false)
+   
+   Returns a map with:
+   - :success - Whether the operation was successful
+   - :message - Array of message strings about the operation
+   - :content - Array containing results data (if any)"
   [file-path edits & {:keys [highlight-duration dry-run] 
                      :or {highlight-duration 2.0 dry-run false}}]
   (if (empty? edits)
-    {:success true, :message "No edits to apply"}
+    {:success true, :message ["No edits to apply"], :content []}
     (if dry-run
       ;; For dry-run, use our dry-run-edits helper
       (dry-run-edits file-path edits)
@@ -99,4 +104,32 @@
                                             (and old-text new-text)) 
                                            edits))))
             result (with-file file-path elisp-code)]
-        result))))
+        (cond
+          ;; If result is already a map with :success key, normalize it
+          (and (map? result) (contains? result :success))
+          (-> result
+              (update :message #(if (string? %) [%] (or % [])))
+              (assoc :content (if (contains? result :value)
+                               (if (sequential? (:value result))
+                                 (mapv str (:value result))
+                                 [(str (:value result))])
+                               [])))
+          
+          ;; If result is a string
+          (string? result)
+          (if (str/starts-with? result "Error:")
+            {:success false
+             :message [result]
+             :content []}
+            {:success true
+             :message [(if (re-find #"^Applied \d+ changes$" result)
+                         result
+                         "Edit operation completed")]
+             :content [result]})
+          
+          ;; Otherwise
+          :else
+          {:success true
+           :message ["Edit operation completed"]
+           :content [(str result)]})))))
+

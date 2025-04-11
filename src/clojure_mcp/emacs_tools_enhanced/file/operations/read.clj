@@ -8,7 +8,12 @@
 (defn read-file
   "Reads the entire content of a file using Emacs.
    Opens the file in Emacs and retrieves its content without any user interaction.
-   Uses special settings to avoid prompts and blocking behavior."
+   Uses special settings to avoid prompts and blocking behavior.
+   
+   Returns a map with:
+   - :success - Whether the operation was successful
+   - :message - Array of message strings about the operation
+   - :content - Array containing the file content"
   [file-path]
   (let [result (emacs-eval 
                 (format "(condition-case err
@@ -30,34 +35,62 @@
                          (str/replace file-path "\"" "\\\"")))]
     ;; Check if result starts with "Error:"
     (if (and result (str/starts-with? result "Error:"))
-      result  ;; Return the error message
-      result)))
+      {:success false
+       :message [result]
+       :content []}
+      {:success true
+       :message [(str "Successfully read file: " file-path)]
+       :content [result]})))
 
 (defn file-exists?
   "Checks if a file or directory exists using Emacs.
-   Returns true if the path exists (either as a file or directory),
-   otherwise returns false."
+   
+   Returns a map with:
+   - :success - Always true (operation completed)
+   - :message - Array of message strings about the operation
+   - :content - Array containing a boolean indicating if the file exists"
   [file-path]
-  (= "t" (emacs-eval (format "(if (file-exists-p \"%s\") \"t\" \"nil\")" 
-                            (str/replace file-path "\"" "\\\"")))))
+  (let [exists? (= "t" (emacs-eval (format "(if (file-exists-p \"%s\") \"t\" \"nil\")" 
+                                          (str/replace file-path "\"" "\\\""))))]
+    {:success true
+     :message [(if exists? 
+                (str "File exists: " file-path) 
+                (str "File does not exist: " file-path))]
+     :content [(if exists?
+                   "true"
+                   "false")]}))
+
+
 
 (defn read-multiple-files
   "Reads the contents of multiple files simultaneously.
-   Returns a sequence of maps with :path, :content, and :exists keys.
    
    This is more efficient than reading files one by one when you need to analyze 
    or compare multiple files. Each file's content is returned with its path as a reference.
    Failed reads for individual files won't stop the entire operation.
    
-   Note: While the function checks if paths exist (including directories), it only
-   attempts to read content from regular files. Directories will be marked as existing
-   but will result in an error message in the content field."
+   Returns a map with:
+   - :success - Always true (operation completed, even if individual files fail)
+   - :message - Array of message strings about the operation
+   - :content - Array containing maps with :path, :content, and :exists keys"
   [file-paths]
-  ;; Simple implementation using the existing functions
-  (mapv (fn [path]
-          {:path path
-           :content (if (file-exists? path)
-                     (read-file path)
-                     "File does not exist")
-           :exists (file-exists? path)})
-        file-paths))
+  (let [results (mapv (fn [path]
+                         (let [exists-result (file-exists? path)
+                               exists? (= "true" (first (:content exists-result)))
+                               read-result (if exists?
+                                            (read-file path)
+                                            {:success false
+                                             :message ["File does not exist"]
+                                             :content []})]
+                           {:path path
+                            :content (if exists? (first (:content read-result)) "")
+                            :exists (if exists? "true" "false")}))
+                       file-paths)]
+    {:success true
+     :message [(str "Read " (count file-paths) " files")]
+     :content (mapv (fn [result]
+                       (str (:path result) ": " 
+                            (if (= (:exists result) "true")
+                              (str "exists, content length: " (count (:content result)))
+                              "does not exist")))
+                    results)}))

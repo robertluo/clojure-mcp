@@ -22,7 +22,6 @@
   {:read-file       read-ops/read-file
    :write-file      write-ops/write-file
    :edit-file       edit-ops/edit-file
-   :replace-in-file edit-ops/replace-in-file
    :append          write-ops/append-to-file
    :with-file       core/with-file
    :emacs-eval      core/emacs-eval
@@ -30,7 +29,7 @@
    :save-file       write-ops/save-file
    :flash-file      visual-ops/flash-file
    :delete-file     manage-ops/delete-file
-   :rename-file     manage-ops/rename-file
+   :rename-file     manage-ops/move-file
    :copy-file       manage-ops/copy-file
    :find-files      manage-ops/find-files
    :with-files      manage-ops/with-files})

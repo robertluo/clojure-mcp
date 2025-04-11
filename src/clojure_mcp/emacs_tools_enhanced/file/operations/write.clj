@@ -13,7 +13,12 @@
    Options:
    - overwrite: Whether to overwrite existing files (default: true)
    - highlight: Whether to highlight changes in the buffer (default: true)
-   - flash: Whether to flash the modeline (default: true)"
+   - flash: Whether to flash the modeline (default: true)
+   
+   Returns a map with:
+   - :success - Whether the operation was successful
+   - :message - Array of message strings about the operation
+   - :content - Array containing the path of the written file"
   [file-path content & {:keys [overwrite highlight flash] 
                       :or {overwrite true highlight true flash true}}]
   (let [result (with-file file-path 
@@ -43,13 +48,39 @@
                                (lambda ()
                                  (set-face-background 'mode-line bg))))"
                           "")))]
-    result))
+    (cond
+      ;; If result is already a map with :success key, normalize it
+      (and (map? result) (contains? result :success))
+      (-> result
+          (update :message #(if (string? %) [%] (or % [])))
+          (assoc :content [(str file-path)]))
+      
+      ;; If result is a string
+      (string? result)
+      (if (str/starts-with? result "Error:")
+        {:success false
+         :message [result]
+         :content []}
+        {:success true
+         :message [(str "Successfully wrote to file: " file-path)]
+         :content [(str file-path)]})
+      
+      ;; Otherwise
+      :else
+      {:success true
+       :message [(str "File written: " file-path)]
+       :content [(str file-path)]})))
 
 (defn append-to-file
   "Appends content to the end of a file with optional highlighting.
    
    Options:
-   - highlight-duration: Duration of the highlight effect in seconds (default: 2.0)"
+   - highlight-duration: Duration of the highlight effect in seconds (default: 2.0)
+   
+   Returns a map with:
+   - :success - Whether the operation was successful
+   - :message - Array of message strings about the operation
+   - :content - Array containing the path of the file that was appended to"
   [file-path content & {:keys [highlight-duration] :or {highlight-duration 2.0}}]
   (let [result (with-file file-path 
                 (format "(progn
@@ -67,10 +98,57 @@
                             (str/replace "\"" "\\\"")
                             (str/replace "\n" "\\n"))
                         highlight-duration))]
-    result))
+    (cond
+      ;; If result is already a map with :success key, normalize it
+      (and (map? result) (contains? result :success))
+      (-> result
+          (update :message #(if (string? %) [%] (or % [])))
+          (assoc :content [(str file-path)]))
+      
+      ;; If result is a string
+      (string? result)
+      (if (str/starts-with? result "Error:")
+        {:success false
+         :message [result]
+         :content []}
+        {:success true
+         :message [(str "Successfully appended to file: " file-path)]
+         :content [(str file-path)]})
+      
+      ;; Otherwise
+      :else
+      {:success true
+       :message [(str "Appended to file: " file-path)]
+       :content [(str file-path)]})))
 
 (defn save-file
-  "Saves the file if it's open in a buffer."
+  "Saves the file if it's open in a buffer.
+   
+   Returns a map with:
+   - :success - Whether the operation was successful
+   - :message - Array of message strings about the operation
+   - :content - Array containing the path of the saved file"
   [file-path]
   (let [result (with-file file-path "(save-buffer)")]
-    result))
+    (cond
+      ;; If result is already a map with :success key, normalize it
+      (and (map? result) (contains? result :success))
+      (-> result
+          (update :message #(if (string? %) [%] (or % [])))
+          (assoc :content [(str file-path)]))
+      
+      ;; If result is a string
+      (string? result)
+      (if (str/starts-with? result "Error:")
+        {:success false
+         :message [result]
+         :content []}
+        {:success true
+         :message [(str "Successfully saved file: " file-path)]
+         :content [(str file-path)]})
+      
+      ;; Otherwise
+      :else
+      {:success true
+       :message [(str "File saved: " file-path)]
+       :content [(str file-path)]})))

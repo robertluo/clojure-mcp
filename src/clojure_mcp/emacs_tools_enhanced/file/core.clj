@@ -7,6 +7,20 @@
             [clojure.java.shell :as shell]))
 
 ;; -------------------------------------------------------------------------
+;; Result helpers
+;; -------------------------------------------------------------------------
+
+(defn error-result [error-message]
+  {:success false
+   :messages []
+   :contents [error-message]})
+
+(defn success-result [contents & messages]
+  {:success true
+   :messages (or messages [])
+   :contents contents})
+
+;; -------------------------------------------------------------------------
 ;; Core Elisp Evaluation
 ;; -------------------------------------------------------------------------
 
