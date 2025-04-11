@@ -5,7 +5,7 @@
    rename, copy, etc.)."
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [clojure-mcp.emacs-tools-enhanced.file.core :refer [emacs-eval with-file]])
+            [clojure-mcp.emacs-tools-enhanced.file.core :refer [emacs-eval with-file error-result success-result]])
   (:import [java.nio.file Files Path Paths LinkOption FileSystems]
            [java.nio.file.attribute BasicFileAttributes PosixFileAttributes PosixFilePermissions]))
 
@@ -25,15 +25,11 @@
                        (str/replace directory "\"" "\\\"")
                        (str/replace pattern "\"" "\\\"")))]
     (if (or (not result) (str/starts-with? result "Error:"))
-      {:success false
-       :message [(or result "No files found")]
-       :content []}
+      (error-result (or result "No files found"))
       (let [files (if (not-empty result)
                     (str/split result #"\n")
                     [])]
-        {:success true
-         :message [(str "Found " (count files) " files matching \"" pattern "\" in " directory)]
-         :content files}))))
+        (success-result files (str "Found " (count files) " files matching \"" pattern "\" in " directory))))))
 
 (defn with-files
   "Applies a function to a collection of files.
@@ -63,12 +59,8 @@
                        (if no-confirm "t" "nil")))]
     (let [success? (= result "t")]
       (if success?
-        {:success true
-         :message [(str "Successfully deleted file: " file-path)]
-         :content [(str file-path)]}
-        {:success false
-         :message [(str "Failed to delete file: " file-path)]
-         :content []}))))
+        (success-result [(str file-path)] (str "Successfully deleted file: " file-path))
+        (error-result (str "Failed to delete file: " file-path))))))
 
 (defn move-file
   "Moves or renames files and directories.
@@ -85,27 +77,17 @@
           dest-file (io/file destination)]
       (cond
         (not (.exists src-file))
-        {:success false
-         :message [(str "Error: Source does not exist: " source)]
-         :content []}
+        (error-result (str "Error: Source does not exist: " source))
         
         (.exists dest-file)
-        {:success false
-         :message [(str "Error: Destination already exists: " destination)]
-         :content []}
+        (error-result (str "Error: Destination already exists: " destination))
         
         :else
         (if (.renameTo src-file dest-file)
-          {:success true
-           :message [(str "Successfully moved " source " to " destination)]
-           :content [source, destination]}
-          {:success false
-           :message [(str "Failed to move " source " to " destination)]
-           :content []})))
+          (success-result [source, destination] (str "Successfully moved " source " to " destination))
+          (error-result (str "Failed to move " source " to " destination)))))
     (catch Exception e
-      {:success false
-       :message [(str "Error moving file: " source " - " (.getMessage e))]
-       :content []})))
+      (error-result (str "Error moving file: " source " - " (.getMessage e))))))
 
 (defn copy-file
   "Copies a file from source-path to dest-path.
@@ -126,12 +108,8 @@
                        (if no-confirm "t" "nil")))]
     (let [success? (= result "t")]
       (if success?
-        {:success true
-         :message [(str "Successfully copied file from " source-path " to " dest-path)]
-         :content [source-path, dest-path]}
-        {:success false
-         :message [(str "Failed to copy file from " source-path " to " dest-path)]
-         :content []}))))
+        (success-result [source-path, dest-path] (str "Successfully copied file from " source-path " to " dest-path))
+        (error-result (str "Failed to copy file from " source-path " to " dest-path))))))
 
 (defn create-directory
   "Creates a new directory or ensures it exists.
@@ -149,23 +127,15 @@
           result (.mkdirs dir)]
       (cond
         existed 
-        {:success true
-         :message [(str "Directory already exists: " path)]
-         :content [(str path)]}
+        (success-result [(str path)] (str "Directory already exists: " path))
         
         result 
-        {:success true
-         :message [(str "Successfully created directory: " path)]
-         :content [(str path)]}
+        (success-result [(str path)] (str "Successfully created directory: " path))
         
         :else 
-        {:success false
-         :message [(str "Failed to create directory: " path)]
-         :content []}))
+        (error-result (str "Failed to create directory: " path))))
     (catch Exception e
-      {:success false
-       :message [(str "Error creating directory: " path " - " (.getMessage e))]
-       :content []})))
+      (error-result (str "Error creating directory: " path " - " (.getMessage e))))))
 
 (defn list-directory
   "Lists directory contents with [FILE] or [DIR] prefixes.
@@ -185,11 +155,11 @@
                               (if (.isDirectory f) "[DIR]" "[FILE]")
                               (.getPath f)))]
           (if (seq lines)
-            (str/join "\n" lines)
-            (format "Directory is empty: %s" path)))
-        (format "Path does not exist or is not a directory: %s" path)))
+            (success-result lines)
+            (error-result (format "Directory is empty: %s" path))))
+        (error-result (format "Path does not exist or is not a directory: %s" path))))
     (catch Exception e
-      (format "Error listing directory: %s - %s" path (.getMessage e)))))
+      (error-result (format "Error listing directory: %s - %s" path (.getMessage e))))))
 
 (defn get-file-info
   "Gets detailed metadata about a file or directory.
@@ -226,13 +196,7 @@
                      (format "Modified: %s" (java.util.Date. last-modified))
                      (format "Accessed: %s" (java.util.Date. last-access))
                      (format "Permissions: %s" permissions)]]
-          {:success true
-           :content lines
-           :message []})
-        {:success false
-         :content []
-         :message [(format "Error: Path does not exist: %s" path)]}))
+          (success-result lines))
+        (error-result (format "Error: Path does not exist: %s" path))))
     (catch Exception e
-      {:success false
-       :content []
-       :message [(format "Error getting file info: %s - %s" path (.getMessage e))]})))
+      (error-result (format "Error getting file info: %s - %s" path (.getMessage e))))))
