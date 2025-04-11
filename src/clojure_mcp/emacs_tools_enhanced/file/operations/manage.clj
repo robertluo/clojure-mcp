@@ -45,20 +45,28 @@
                        (if no-confirm "t" "nil")))]
     (= result "t")))
 
-(defn rename-file
-  "Renames a file from old-path to new-path.
-   Returns true if successful, false otherwise."
-  [old-path new-path & {:keys [no-confirm] :or {no-confirm false}}]
-  (let [result (emacs-eval 
-               (format "(condition-case err
-                         (progn
-                           (rename-file \"%s\" \"%s\" %s)
-                           t)
-                         (error nil))"
-                       (str/replace old-path "\"" "\\\"")
-                       (str/replace new-path "\"" "\\\"")
-                       (if no-confirm "t" "nil")))]
-    (= result "t")))
+(defn move-file
+  "Moves or renames files and directories.
+   Takes source and destination paths.
+   Fails if the destination already exists.
+   Returns a formatted string indicating success or failure."
+  [source destination]
+  (try
+    (let [src-file (io/file source)
+          dest-file (io/file destination)]
+      (cond
+        (not (.exists src-file))
+        (format "Error: Source does not exist: %s" source)
+        
+        (.exists dest-file)
+        (format "Error: Destination already exists: %s" destination)
+        
+        :else
+        (if (.renameTo src-file dest-file)
+          (format "Successfully moved %s to %s" source destination)
+          (format "Failed to move %s to %s" source destination))))
+    (catch Exception e
+      (format "Error moving file: %s - %s" source (.getMessage e)))))
 
 (defn copy-file
   "Copies a file from source-path to dest-path.
