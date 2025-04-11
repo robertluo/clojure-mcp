@@ -3,7 +3,7 @@
    
    This namespace provides functions for reading file content in Emacs."
   (:require [clojure.string :as str]
-            [clojure-mcp.emacs-tools-enhanced.file.core :refer [emacs-eval]]))
+            [clojure-mcp.emacs-tools-enhanced.file.core :refer [emacs-eval success-result error-result]]))
 
 (defn read-file
   "Reads the entire content of a file using Emacs.
@@ -35,12 +35,8 @@
                          (str/replace file-path "\"" "\\\"")))]
     ;; Check if result starts with "Error:"
     (if (and result (str/starts-with? result "Error:"))
-      {:success false
-       :message [result]
-       :content []}
-      {:success true
-       :message [(str "Successfully read file: " file-path)]
-       :content [result]})))
+      (error-result result)
+      (success-result [(str "Successfully read file: " file-path)]))))
 
 (defn file-exists?
   "Checks if a file or directory exists using Emacs.
@@ -52,15 +48,21 @@
   [file-path]
   (let [exists? (= "t" (emacs-eval (format "(if (file-exists-p \"%s\") \"t\" \"nil\")" 
                                           (str/replace file-path "\"" "\\\""))))]
-    {:success true
-     :message [(if exists? 
-                (str "File exists: " file-path) 
-                (str "File does not exist: " file-path))]
-     :content [(if exists?
-                   "true"
-                   "false")]}))
+    (success-result [(if exists?
+                       "true"
+                       "false")]
+                    (if exists? 
+                      (str "File exists: " file-path) 
+                      (str "File does not exist: " file-path)))))
 
+(defn format-file [{:keys [path exists content]}]
+   (str "<file-content path='" path "' "
+        "exists='" (pr-str exists) "' "
+        (if exists
+          (str "length='" (pr-str (count content)) "'>" content "</file-content>" )
+          "/>")))
 
+#_(format-file {:path "/src/file.clj" :exists false :content "Igot lots of stuff in me \n asdfa "})
 
 (defn read-multiple-files
   "Reads the contents of multiple files simultaneously.
@@ -75,22 +77,14 @@
    - :content - Array containing maps with :path, :content, and :exists keys"
   [file-paths]
   (let [results (mapv (fn [path]
-                         (let [exists-result (file-exists? path)
-                               exists? (= "true" (first (:content exists-result)))
-                               read-result (if exists?
+                        (let [exists-result (file-exists? path)
+                              exists? (= "true" (first (:content exists-result)))
+                              read-result (if exists?
                                             (read-file path)
-                                            {:success false
-                                             :message ["File does not exist"]
-                                             :content []})]
-                           {:path path
-                            :content (if exists? (first (:content read-result)) "")
-                            :exists (if exists? "true" "false")}))
-                       file-paths)]
-    {:success true
-     :message [(str "Read " (count file-paths) " files")]
-     :content (mapv (fn [result]
-                       (str (:path result) ": " 
-                            (if (= (:exists result) "true")
-                              (str "exists, content length: " (count (:content result)))
-                              "does not exist")))
-                    results)}))
+                                            (error-result "File does not exist"))]
+                          {:path path
+                           :content (if exists? (first (:content read-result)) "")
+                           :exists exists?}))
+                      file-paths)]
+    (success-result (map format-file results) (str "Read " (count file-paths) " files"))))
+

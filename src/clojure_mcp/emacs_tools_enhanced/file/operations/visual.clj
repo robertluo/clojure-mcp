@@ -4,7 +4,7 @@
    This namespace provides functions for visual operations on files in Emacs,
    such as highlighting and flashing."
   (:require [clojure.string :as str]
-            [clojure-mcp.emacs-tools-enhanced.file.core :refer [with-file]]))
+            [clojure-mcp.emacs-tools-enhanced.file.core :refer [with-file success-result]]))
 
 (defn flash-file
   "Flashes the file in Emacs to draw attention to it.
@@ -30,25 +30,9 @@
                               (lambda ()
                                 (set-face-background 'mode-line bg)))))"
                         duration))]
-    (cond
-      ;; If result is already a map with :success key, normalize it
-      (and (map? result) (contains? result :success))
-      (-> result
-          (update :message #(if (string? %) [%] (or % [])))
-          (assoc :content [(str file-path)]))
-      
-      ;; If result is a string
-      (string? result)
-      (if (str/starts-with? result "Error:")
-        {:success false
-         :message [result]
-         :content []}
-        {:success true
-         :message [(str "Successfully flashed file: " file-path)]
-         :content [(str file-path)]})
-      
-      ;; Otherwise
-      :else
-      {:success true
-       :message [(str "File flashed: " file-path)]
-       :content [(str file-path)]})))
+    (if (:success result)
+      (success-result [(str file-path)]
+                      (str "Successfully flashed file: " file-path)))))
+
+
+#_(flash-file "/Users/bruce/workspace/llempty/clojure-mcp/src/clojure_mcp/emacs_tools_enhanced/file/core.clj")

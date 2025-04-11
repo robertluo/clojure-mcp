@@ -3,7 +3,7 @@
    
    This namespace provides functions for writing content to files in Emacs."
   (:require [clojure.string :as str]
-            [clojure-mcp.emacs-tools-enhanced.file.core :refer [with-file]]))
+            [clojure-mcp.emacs-tools-enhanced.file.core :refer [with-file success-result]]))
 
 (defn write-file
   "Writes content to a file, handling both new and existing files.
@@ -48,28 +48,10 @@
                                (lambda ()
                                  (set-face-background 'mode-line bg))))"
                           "")))]
-    (cond
-      ;; If result is already a map with :success key, normalize it
-      (and (map? result) (contains? result :success))
-      (-> result
-          (update :message #(if (string? %) [%] (or % [])))
-          (assoc :content [(str file-path)]))
-      
-      ;; If result is a string
-      (string? result)
-      (if (str/starts-with? result "Error:")
-        {:success false
-         :message [result]
-         :content []}
-        {:success true
-         :message [(str "Successfully wrote to file: " file-path)]
-         :content [(str file-path)]})
-      
-      ;; Otherwise
-      :else
-      {:success true
-       :message [(str "File written: " file-path)]
-       :content [(str file-path)]})))
+    (if (:success result)
+      (success-result [file-path]
+                      (str "Successfully wrote to file: " file-path))
+      result)))
 
 (defn append-to-file
   "Appends content to the end of a file with optional highlighting.
@@ -98,28 +80,10 @@
                             (str/replace "\"" "\\\"")
                             (str/replace "\n" "\\n"))
                         highlight-duration))]
-    (cond
-      ;; If result is already a map with :success key, normalize it
-      (and (map? result) (contains? result :success))
-      (-> result
-          (update :message #(if (string? %) [%] (or % [])))
-          (assoc :content [(str file-path)]))
-      
-      ;; If result is a string
-      (string? result)
-      (if (str/starts-with? result "Error:")
-        {:success false
-         :message [result]
-         :content []}
-        {:success true
-         :message [(str "Successfully appended to file: " file-path)]
-         :content [(str file-path)]})
-      
-      ;; Otherwise
-      :else
-      {:success true
-       :message [(str "Appended to file: " file-path)]
-       :content [(str file-path)]})))
+    (if (:success result)
+      (success-result [file-path]
+                      (str "Successfully appended to file: " file-path))
+      result)))
 
 (defn save-file
   "Saves the file if it's open in a buffer.
@@ -130,25 +94,7 @@
    - :content - Array containing the path of the saved file"
   [file-path]
   (let [result (with-file file-path "(save-buffer)")]
-    (cond
-      ;; If result is already a map with :success key, normalize it
-      (and (map? result) (contains? result :success))
-      (-> result
-          (update :message #(if (string? %) [%] (or % [])))
-          (assoc :content [(str file-path)]))
-      
-      ;; If result is a string
-      (string? result)
-      (if (str/starts-with? result "Error:")
-        {:success false
-         :message [result]
-         :content []}
-        {:success true
-         :message [(str "Successfully saved file: " file-path)]
-         :content [(str file-path)]})
-      
-      ;; Otherwise
-      :else
-      {:success true
-       :message [(str "File saved: " file-path)]
-       :content [(str file-path)]})))
+    (if (:success result)
+      (success-result [file-path]
+                      (str "Successfully saved file: " file-path))
+      result)))

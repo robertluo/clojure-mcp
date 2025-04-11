@@ -68,11 +68,8 @@
           result (emacs-eval wrapped-code)
           parsed (read-string result)]
       (if (first parsed)
-        {:success true
-         :message (second parsed)
-         :value (nth parsed 2)}
-        {:success false
-         :message (second parsed)}))
+        (success-result [(nth parsed 2)]
+                        (second parsed))
+        (error-result (second parsed))))
     (catch Exception e
-      {:success false
-       :message (str "Error: " (.getMessage e))})))
+      (error-result (str "Error: " (.getMessage e))))))
