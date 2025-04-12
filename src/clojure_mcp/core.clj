@@ -192,7 +192,7 @@
         (.data("Server initialized"))
         (.build))
     ;; for development
-    (-> (.addTool server (create-async-tool echo-tool))
+    #_(-> (.addTool server (create-async-tool echo-tool))
         (.subscribe))
 
     ;; Add Prompts
@@ -246,10 +246,25 @@
     (add-tool mcp (repl-tools/list-namespaces nrepl-client-atom))
     (add-tool mcp (repl-tools/list-vars-in-namespace nrepl-client-atom))
     (add-tool mcp (repl-tools/eval-history nrepl-client-atom)) ;; Add the eval-history tool
-    (add-tool mcp (repl-tools/top-level-form-edit-tool nrepl-client-atom)) ;; Add the top-level-form-edit tool
+    #_(add-tool mcp (repl-tools/top-level-form-edit-tool nrepl-client-atom)) ;; Add the top-level-form-edit tool
 
     (add-tool mcp (file-api/emacs-flash-file-tool))
+    (add-tool mcp (file-api/emacs-edit-file-tool))
+    (add-tool mcp (file-api/emacs-write-file-tool))
+    (add-tool mcp (file-api/emacs-append-to-file-tool))
+    (add-tool mcp (file-api/emacs-read-file-tool))
+    (add-tool mcp (file-api/emacs-file-exists-tool))
+    (add-tool mcp (file-api/emacs-read-multiple-files-tool))
+    (add-tool mcp (file-api/emacs-find-files-tool))
+        
+    (add-tool mcp (file-api/emacs-delete-file-tool))
+    (add-tool mcp (file-api/emacs-move-file-tool))
+    (add-tool mcp (file-api/emacs-copy-file-tool))
 
+    (add-tool mcp (file-api/emacs-create-directory-tool))
+    (add-tool mcp (file-api/emacs-list-directory-tool))
+    (add-tool mcp (file-api/emacs-get-file-info-tool))
+    
     mcp))
 
 (comment

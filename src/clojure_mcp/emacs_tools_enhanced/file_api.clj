@@ -172,7 +172,7 @@ or compare multiple files. Each file's content is returned with metadata."
 
 (defn emacs-find-files-tool []
   (make-mcp-tool
-   "emacs_find_files"
+   "emacs_search_files"
    "Finds files matching a pattern in a directory.
 Uses Emacs' directory-files-recursively to find files matching a regex pattern."
    {:type :object
