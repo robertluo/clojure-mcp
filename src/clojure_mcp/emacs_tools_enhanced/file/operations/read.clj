@@ -5,6 +5,13 @@
   (:require [clojure.string :as str]
             [clojure-mcp.emacs-tools-enhanced.file.core :refer [emacs-eval success-result error-result]]))
 
+(defn format-file [{:keys [path exists content]}]
+   (str "<file-content path='" path "' "
+        "exists='" (pr-str exists) "' "
+        (if exists
+          (str "length='" (pr-str (count content)) "'>" content "</file-content>" )
+          "/>")))
+
 (defn read-file
   "Reads the entire content of a file using Emacs.
    Opens the file in Emacs and retrieves its content without any user interaction.
@@ -31,12 +38,15 @@
                                    ;; Use buffer-substring-no-properties to avoid text properties
                                    (buffer-substring-no-properties (point-min) (point-max))))))
                            (error (format \"Error: %%s\" (error-message-string err))))"
-                         (str/replace file-path "\"" "\\\"")
-                         (str/replace file-path "\"" "\\\"")))]
+                        (str/replace file-path "\"" "\\\"")
+                        (str/replace file-path "\"" "\\\"")))]
     ;; Check if result starts with "Error:"
     (if (and result (str/starts-with? result "Error:"))
       (error-result result)
-      (success-result [(str "Successfully read file: " file-path)]))))
+      (success-result [(format-file
+                        {:path file-path
+                         :exists true
+                         :content result})] (str "Successfully read file: " file-path)))))
 
 (defn file-exists?
   "Checks if a file or directory exists using Emacs.
@@ -54,13 +64,6 @@
                     (if exists? 
                       (str "File exists: " file-path) 
                       (str "File does not exist: " file-path)))))
-
-(defn format-file [{:keys [path exists content]}]
-   (str "<file-content path='" path "' "
-        "exists='" (pr-str exists) "' "
-        (if exists
-          (str "length='" (pr-str (count content)) "'>" content "</file-content>" )
-          "/>")))
 
 #_(format-file {:path "/src/file.clj" :exists false :content "Igot lots of stuff in me \n asdfa "})
 
