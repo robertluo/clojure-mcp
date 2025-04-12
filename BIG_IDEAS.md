@@ -1,4 +1,4 @@
-# Gen AI dev overaching ideas
+# How programmers can work GenAI general ideas
 
 ## Naive Hypothesises
 
@@ -26,6 +26,7 @@ Simple regular syntax
 
 > Gen AI has no problem generating programs that are HARD to reason about
 
+
 LLMs will acrete complexity just like us. Producing programs that the
 HUMANS and thus the LLMs will have a hard time thinking aobut.
 
@@ -38,6 +39,9 @@ maintainable code?
 
 This hasn't changed.
 
+
+
+
 > Perhaps the Lisp REPL workflow that I have come to love is a solution.
 
 A lifetime of coding has led me to this workflow and it has proven
@@ -48,9 +52,9 @@ Not acting on files and working and only on a scratch pad in memory meaning fast
 aside:
 _No file patching needed during development. File patching and running tests suites comsume time and tokens._
 
-> Tiny steps with High quality rich feedback is the recipe for the sauce
+> Tiny steps with rich feedback is the recipe for the sauce
 
-This rapid contextual feedback loop is important for LLMs and for programmers. 
+This rapid contextual feedback loop is important for llms AND for programmers. 
 
 The higher the quality of the feedback the higher the potential for
 quality for HUMANS and LLMS.
@@ -66,6 +70,24 @@ Hammock time and paper time is needed always.
 
 > The granular steps in LLM repl iteration PRODUCES the LLM context you want. 
 
+
+> genAI code is like compiled code, do you want to maintain compiled code?
+
+Generated programs are in dire need of higher level concise
+maintainable abstractions.
+
+Languages that provide constraints (functional, immutable, restricted
+concurrency patterns) produce better genAI programs because bad
+paths are not as available or idiomatic.
+
+Languages that are constrained and provide higher level abstractions
+produce/gen more concise, more abstract programs that we can reason
+about at a higher level.
+
+Clojure has a lot of potential here especially with contracts via Clojure Spec
+
+* the example of SEXP to HTML AST demonstrates this
+  - try generating this in JavaScript vs Clojure
 
 > LLM REPL driven workflow with high quality feedback provides
 > Reinforcement learning (o1 Deepseek style) the examples it needs.
@@ -98,9 +120,27 @@ of programs that can be reasoned about
 
 This is a much more humane workflow.
 
+> With in Collaboration we can and should be creating higher quality code
+
+This is the ultimate goal after all.
+
+And now I beleive it's possible.
+
+
+> LLMs are fantastic for quickly building tools taylored to giving feedback
+> for your specific problem
+
+
+
+
 
 > The lack of experience in REPL driven development has led to a lack
 > of insight into these possibilities.
+
+
+
+
+
 
 
 ## Speculation
