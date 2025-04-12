@@ -37,6 +37,7 @@
 
 (defn with-file
   "Executes a function with elisp code on a file with improved error handling.
+   Gives focus to the file being edited.
    Returns a map with :success, :message, and optionally :value fields."
   [file-path elisp-code & {:keys [conflict-strategy] :or {conflict-strategy :error}}]
   (try
