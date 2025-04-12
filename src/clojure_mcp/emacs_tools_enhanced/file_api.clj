@@ -38,6 +38,10 @@
                 (catch Exception e
                   (clj-result-k [(str "Error: " (.getMessage e))] true))))})
 
+;; -------------------------------------------------------------------------
+;; Visual operations
+;; -------------------------------------------------------------------------
+
 (defn emacs-flash-file-tool []
   (make-mcp-tool
    "emacs_flash_file"
@@ -50,26 +54,227 @@ Given a `path` to a file, this will bring focus to the file and flash its conten
      (visual-ops/flash-file (get arg-map "path")))))
 
 ;; -------------------------------------------------------------------------
+;; Editing operations
+;; -------------------------------------------------------------------------
+
+(defn emacs-edit-file-tool []
+  (make-mcp-tool
+   "emacs_edit_file"
+   "Makes multiple text replacements in a file with optional visual highlighting.
+Takes an array of edits, where each edit is a object with `old_text` and `new_text` keys.
+Applies edits sequentially in the order provided."
+   {:type :object
+    :properties {:path {:type :string}
+                 :edits {:type :array
+                         :items {:type :object
+                                 :properties {:old_text {:type :string}
+                                              :new_text {:type :string}}
+                                 :required [:old_text :new_text]}}
+                 :highlight_duration {:type :number}
+                 :dry_run {:type :boolean}}
+    :required [:path :edits]}
+   (fn [arg-map]
+     (let [edits (map (fn [edit] {:old-text (get edit "old_text")
+                                  :new-text (get edit "new_text")})
+                      (get arg-map "edits"))
+           highlight-duration (or (get arg-map "highlight_duration") 2.0)
+           dry-run (or (get arg-map "dry_run") false)]
+       (edit-ops/edit-file (get arg-map "path") 
+                           edits 
+                           :highlight-duration highlight-duration 
+                           :dry-run dry-run)))))
+
+;; -------------------------------------------------------------------------
+;; Writing operations
+;; -------------------------------------------------------------------------
+
+(defn emacs-write-file-tool []
+  (make-mcp-tool
+   "emacs_write_file"
+   "Writes content to a file, handling both new and existing files.
+If the file exists and overwrite is false, returns an error message.
+Otherwise, creates or overwrites the file with the given content."
+   {:type :object
+    :properties {:path {:type :string}
+                 :content {:type :string}
+                 :overwrite {:type :boolean}
+                 :highlight {:type :boolean}
+                 :flash {:type :boolean}}
+    :required [:path :content]}
+   (fn [arg-map]
+     (let [overwrite (if (contains? arg-map "overwrite") (get arg-map "overwrite") true)
+           highlight (if (contains? arg-map "highlight") (get arg-map "highlight") true)
+           flash (if (contains? arg-map "flash") (get arg-map "flash") true)]
+       (write-ops/write-file (get arg-map "path") 
+                            (get arg-map "content")
+                            :overwrite overwrite
+                            :highlight highlight
+                            :flash flash)))))
+
+(defn emacs-append-to-file-tool []
+  (make-mcp-tool
+   "emacs_append_to_file"
+   "Appends content to the end of a file with optional highlighting.
+Adds the content as a new line at the end of the file."
+   {:type :object
+    :properties {:path {:type :string}
+                 :content {:type :string}
+                 :highlight_duration {:type :number}}
+    :required [:path :content]}
+   (fn [arg-map]
+     (let [highlight-duration (or (get arg-map "highlight_duration") 2.0)]
+       (write-ops/append-to-file (get arg-map "path") 
+                                (get arg-map "content")
+                                :highlight-duration highlight-duration)))))
+
+;; -------------------------------------------------------------------------
+;; Reading operations
+;; -------------------------------------------------------------------------
+
+(defn emacs-read-file-tool []
+  (make-mcp-tool
+   "emacs_read_file"
+   "Reads the entire content of a file using Emacs.
+Opens the file in Emacs and retrieves its content without any user interaction."
+   {:type :object
+    :properties {:path {:type :string}}
+    :required [:path]}
+   (fn [arg-map]
+     (read-ops/read-file (get arg-map "path")))))
+
+(defn emacs-file-exists-tool []
+  (make-mcp-tool
+   "emacs_file_exists"
+   "Checks if a file or directory exists using Emacs.
+Returns a boolean indicating if the file exists."
+   {:type :object
+    :properties {:path {:type :string}}
+    :required [:path]}
+   (fn [arg-map]
+     (read-ops/file-exists? (get arg-map "path")))))
+
+(defn emacs-read-multiple-files-tool []
+  (make-mcp-tool
+   "emacs_read_multiple_files"
+   "Reads the contents of multiple files simultaneously.
+More efficient than reading files one by one when you need to analyze
+or compare multiple files. Each file's content is returned with metadata."
+   {:type :object
+    :properties {:paths {:type :array
+                        :items {:type :string}}}
+    :required [:paths]}
+   (fn [arg-map]
+     (read-ops/read-multiple-files (get arg-map "paths")))))
+
+;; -------------------------------------------------------------------------
+;; File management operations
+;; -------------------------------------------------------------------------
+
+(defn emacs-find-files-tool []
+  (make-mcp-tool
+   "emacs_find_files"
+   "Finds files matching a pattern in a directory.
+Uses Emacs' directory-files-recursively to find files matching a regex pattern."
+   {:type :object
+    :properties {:directory {:type :string}
+                 :pattern {:type :string}}
+    :required [:directory :pattern]}
+   (fn [arg-map]
+     (manage-ops/find-files (get arg-map "directory") 
+                           (get arg-map "pattern")))))
+
+(defn emacs-delete-file-tool []
+  (make-mcp-tool
+   "emacs_delete_file"
+   "Deletes a file with optional confirmation in Emacs."
+   {:type :object
+    :properties {:path {:type :string}
+                 :no_confirm {:type :boolean}}
+    :required [:path]}
+   (fn [arg-map]
+     (let [no-confirm (or (get arg-map "no_confirm") false)]
+       (manage-ops/delete-file (get arg-map "path") 
+                              :no-confirm no-confirm)))))
+
+(defn emacs-move-file-tool []
+  (make-mcp-tool
+   "emacs_move_file"
+   "Moves or renames files and directories.
+Takes source and destination paths. Fails if the destination already exists."
+   {:type :object
+    :properties {:source {:type :string}
+                 :destination {:type :string}}
+    :required [:source :destination]}
+   (fn [arg-map]
+     (manage-ops/move-file (get arg-map "source") 
+                          (get arg-map "destination")))))
+
+(defn emacs-copy-file-tool []
+  (make-mcp-tool
+   "emacs_copy_file"
+   "Copies a file from source path to destination path with optional confirmation."
+   {:type :object
+    :properties {:source {:type :string}
+                 :destination {:type :string}
+                 :no_confirm {:type :boolean}}
+    :required [:source :destination]}
+   (fn [arg-map]
+     (let [no-confirm (or (get arg-map "no_confirm") false)]
+       (manage-ops/copy-file (get arg-map "source") 
+                            (get arg-map "destination")
+                            :no-confirm no-confirm)))))
+
+(defn emacs-create-directory-tool []
+  (make-mcp-tool
+   "emacs_create_directory"
+   "Creates a new directory or ensures it exists.
+Creates parent directories if needed. Succeeds silently if directory already exists."
+   {:type :object
+    :properties {:path {:type :string}}
+    :required [:path]}
+   (fn [arg-map]
+     (manage-ops/create-directory (get arg-map "path")))))
+
+(defn emacs-list-directory-tool []
+  (make-mcp-tool
+   "emacs_list_directory"
+   "Lists directory contents with [FILE] or [DIR] prefixes."
+   {:type :object
+    :properties {:path {:type :string}}
+    :required [:path]}
+   (fn [arg-map]
+     (manage-ops/list-directory (get arg-map "path")))))
+
+(defn emacs-get-file-info-tool []
+  (make-mcp-tool
+   "emacs_get_file_info"
+   "Gets detailed metadata about a file or directory.
+Provides information about size, creation time, modification time,
+access time, type (file/directory), and permissions (if available)."
+   {:type :object
+    :properties {:path {:type :string}}
+    :required [:path]}
+   (fn [arg-map]
+     (manage-ops/get-file-info (get arg-map "path")))))
+
+;; -------------------------------------------------------------------------
 ;; Public API
 ;; -------------------------------------------------------------------------
 
-#_(defn file-api
-    "Returns a map of all file-centric functions for manipulating files in Emacs."
-    []
-    {:read-file       read-ops/read-file
-     :write-file      write-ops/write-file
-     :edit-file       edit-ops/edit-file
-     :append          write-ops/append-to-file
-     :with-file       core/with-file
-     :emacs-eval      core/emacs-eval
-     :file-exists?    read-ops/file-exists?
-     :save-file       write-ops/save-file
-     :flash-file      visual-ops/flash-file
-     :delete-file     manage-ops/delete-file
-     :rename-file     manage-ops/move-file
-     :copy-file       manage-ops/copy-file
-     :find-files      manage-ops/find-files
-     :with-files      manage-ops/with-files})
-
-;; Export the API for easy access
-#_(def files (file-api))
+(defn file-tools
+  "Returns a map of all file-centric MCP tools for Emacs file operations."
+  []
+  {:emacs-flash-file        (emacs-flash-file-tool)
+   :emacs-edit-file         (emacs-edit-file-tool)
+   :emacs-write-file        (emacs-write-file-tool)
+   :emacs-append-to-file    (emacs-append-to-file-tool)
+   :emacs-read-file         (emacs-read-file-tool)
+   :emacs-file-exists       (emacs-file-exists-tool)
+   :emacs-read-multiple-files (emacs-read-multiple-files-tool)
+   :emacs-find-files        (emacs-find-files-tool)
+   :emacs-delete-file       (emacs-delete-file-tool)
+   :emacs-move-file         (emacs-move-file-tool)
+   :emacs-copy-file         (emacs-copy-file-tool)
+   :emacs-create-directory  (emacs-create-directory-tool)
+   :emacs-list-directory    (emacs-list-directory-tool)
+   :emacs-get-file-info     (emacs-get-file-info-tool)})
