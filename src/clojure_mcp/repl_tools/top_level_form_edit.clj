@@ -4,7 +4,8 @@
    [rewrite-clj.parser :as p]
    [rewrite-clj.node :as n]
    [clojure.string :as str]
-   [clojure.data.json :as json]))
+   [clojure.data.json :as json]
+   [clojure-mcp.linting :as linting]))
 
 (defn is-top-level-form?
   "Check if a sexp is a top-level definition with a specific tag and name.
@@ -81,24 +82,34 @@
    - tag: The type of the form (defn, def, ns, etc.)
    - new-form-str: String with the new form implementation
    
-   Returns true if the form was replaced successfully, false otherwise."
+   Returns:
+   - true if the form was replaced successfully
+   - false if the form was not found
+   - A string with the linting error message if there were linting issues"
   [name file-path tag new-form-str]
   (try
     (let [name (if (string? name) name (str name))
           tag (if (string? tag) tag (str tag))
-          file-content (slurp file-path)
-          zloc (z/of-string file-content)
-          updated-zloc (replace-top-level-form zloc tag name new-form-str)]
-      (if updated-zloc
-        (do
-          (spit file-path (z/root-string updated-zloc))
-          true)
-        false))
+          ;; Lint the code first
+          lint-result (linting/lint new-form-str)]
+      
+      ;; Fail early if there are linting issues
+      (if lint-result
+        (str "Linting issues in replacement form:\n" (:report lint-result))
+        
+        ;; Continue with replacement if no linting issues
+        (let [file-content (slurp file-path)
+              zloc (z/of-string file-content)
+              updated-zloc (replace-top-level-form zloc tag name new-form-str)]
+          (if updated-zloc
+            (do
+              (spit file-path (z/root-string updated-zloc))
+              true)
+            false))))
     (catch Exception e
-      (println "Error replacing form:" (.getMessage e))
-      false)))
+      (str "Error: " (.getMessage e)))))
 
-(defn top-level-form-edit-tool [service-atom]
+(defn top-level-form-edit-tool [_service-atom]
   {:name "top_level_form_edit"
    :description "Edits any top-level form in a Clojure file, replacing it with a new implementation.
    
@@ -120,21 +131,39 @@ in the rest of the file."
                     file-path (get arg-map "file_path")
                     form-type (get arg-map "form_type")
                     new-impl (get arg-map "new_implementation")
-                    success? (try
-                               ;; Call the function to replace the form
-                               (replace-form-in-file
-                                form-name
-                                file-path
-                                form-type
-                                new-impl)
-                               #_(catch Exception e
-                                   (str "Error: " (.getMessage e))))]
-                (if (true? success?)
-                  (clj-result-k [(str "Successfully updated form '" form-name "' in file " file-path)] false)
-                  (clj-result-k [(if (string? success?)
-                                   success?
-                                   (str "Failed to update form '" form-name "' in file " file-path))]
-                                true))))})
+                    ;; Perform linting first
+                    lint-result (linting/lint new-impl)]
+                
+                ;; Check for linting issues before proceeding
+                (if lint-result
+                  ;; If there are linting issues, fail with error message
+                  (let [lint-report (:report lint-result)
+                        formatted-report (str "Cannot update form '" form-name "' due to linting issues:\n\n" 
+                                             lint-report 
+                                             "\n\nPlease fix these issues before updating the form.")]
+                    (clj-result-k [formatted-report] true))
+                  
+                  ;; If no linting issues, proceed with the update
+                  (let [result (replace-form-in-file
+                                 form-name
+                                 file-path
+                                 form-type
+                                 new-impl)]
+                    (cond
+                      ;; Success case
+                      (true? result)
+                      (clj-result-k [(str "Successfully updated form '" form-name "' in file " file-path)] 
+                                   false)
+                      
+                      ;; Form not found
+                      (false? result)
+                      (clj-result-k [(str "Could not find form '" form-name "' of type '" form-type "' in file " file-path)]
+                                   true)
+                      
+                      ;; Other error (string result means error)
+                      :else
+                      (clj-result-k [(str "Error updating form: " result)]
+                                   true))))))})
 
 (comment
   ;; Example usage
