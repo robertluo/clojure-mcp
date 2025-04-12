@@ -5,6 +5,47 @@
   (:require [clojure.string :as str]
             [clojure-mcp.emacs-tools-enhanced.file.core :refer [emacs-eval with-file error-result success-result]]))
 
+(defn- generate-edit-code
+  "Generates the Elisp code for applying edits.
+   
+   Parameters:
+   - edits: Sequence of maps with :old-text and :new-text keys
+   - with-highlighting: Whether to include highlighting code (default: false)
+   - highlight-duration: Duration of the highlight effect in seconds (default: 2.0)
+   
+   Returns a string containing Elisp code that applies the edits."
+  [edits & {:keys [with-highlighting highlight-duration] 
+            :or {with-highlighting false highlight-duration 2.0}}]
+  (str/join "\n" 
+           (map (fn [{:keys [old-text new-text]}]
+                  (format 
+                   "(save-excursion
+                      (goto-char (point-min))
+                      (let ((count 0)
+                            (found nil))
+                        (while (search-forward \"%s\" nil t)
+                          (setq count (1+ count))
+                          (setq found t)
+                          (let ((start (match-beginning 0)))
+                            (replace-match \"%s\" nil t)
+                            %s))
+                        (when found
+                          (setq applied-edits (1+ applied-edits)))
+                        (setq total-changes (+ total-changes count))))"
+                   (str/replace old-text "\"" "\\\"")
+                   (str/replace new-text "\"" "\\\"")
+                   (if with-highlighting
+                     (format "(let ((overlay (make-overlay start (point))))
+                               (overlay-put overlay 'face 'highlight)
+                               (overlay-put overlay 'priority 100)
+                               (run-with-timer %s nil 
+                                 (lambda () (delete-overlay overlay))))" 
+                             highlight-duration)
+                     "")))
+                (filter (fn [{:keys [old-text new-text]}]
+                         (and old-text new-text)) 
+                        edits))))
+
 (defn dry-run-edits
   "Generates a diff preview of the changes that would be made by the edits.
    Uses the same search-and-replace logic as the actual edit function.
@@ -19,16 +60,17 @@
    - :message - Array of message strings about the operation
    - :content - Array containing the diff output"
   [file-path edits]
-  (let [elisp-code (format 
+  (let [edit-code (generate-edit-code edits)
+        elisp-code (format 
                    "(progn
                       (let ((diff-output \"\")
-                            (total-edits 0)
+                            (applied-edits 0)
                             (total-changes 0))
                         (with-temp-buffer
                           (insert-file-contents \"%s\")
                           (let ((orig-content (buffer-string)))
                             
-                            ;; Apply edits using same logic as actual edit-file function
+                            ;; Apply edits using the shared code
                             %s
                             
                             (let ((modified-content (buffer-string)))
@@ -52,25 +94,7 @@
                         ;; Return the diff
                         diff-output))"
                    (str/replace file-path "\"" "\\\"")
-                   (str/join "\n" 
-                           (map (fn [{:keys [old-text new-text]}]
-                                  (format 
-                                   "(save-excursion
-                                      (goto-char (point-min))
-                                      (let ((count 0)
-                                            (found nil))
-                                        (while (search-forward \"%s\" nil t)
-                                          (setq count (1+ count))
-                                          (setq found t)
-                                          (replace-match \"%s\" nil t))
-                                        (when found
-                                          (setq total-edits (1+ total-edits)))
-                                        (setq total-changes (+ total-changes count))))"
-                                   (str/replace old-text "\"" "\\\"")
-                                   (str/replace new-text "\"" "\\\"")))
-                                (filter (fn [{:keys [old-text new-text]}]
-                                         (and old-text new-text)) 
-                                        edits))))
+                   edit-code)
         diff-result (emacs-eval elisp-code)]
     (success-result [diff-result] "Dry run completed")))
 
@@ -102,7 +126,10 @@
         ;; For dry-run, just return the diff
         diff-result
         ;; For actual edits, apply and then return with diff
-        (let [elisp-code (format 
+        (let [edit-code (generate-edit-code edits 
+                                           :with-highlighting true 
+                                           :highlight-duration highlight-duration)
+              elisp-code (format 
                         "(progn
                            (let ((applied-edits 0)
                                  (total-changes 0))
@@ -110,32 +137,7 @@
                              (save-buffer)
                              (format \"Applied %%d of %%d edits with %%d total changes\" 
                                      applied-edits %d total-changes)))"
-                        (str/join "\n" 
-                                (map (fn [{:keys [old-text new-text]}]
-                                       (format "
-                                       (save-excursion
-                                         (goto-char (point-min))
-                                         (let ((count 0)
-                                               (found nil))
-                                           (while (search-forward \"%s\" nil t)
-                                             (setq count (1+ count))
-                                             (setq found t)
-                                             (let ((start (match-beginning 0)))
-                                               (replace-match \"%s\" nil t)
-                                               (let ((overlay (make-overlay start (point))))
-                                                 (overlay-put overlay 'face 'highlight)
-                                                 (overlay-put overlay 'priority 100)
-                                                 (run-with-timer %s nil 
-                                                   (lambda () (delete-overlay overlay))))))
-                                           (when found
-                                             (setq applied-edits (1+ applied-edits)))
-                                           (setq total-changes (+ total-changes count))))"
-                                             (str/replace old-text "\"" "\\\"")
-                                             (str/replace new-text "\"" "\\\"")
-                                             highlight-duration))
-                                     (filter (fn [{:keys [old-text new-text]}]
-                                              (and old-text new-text)) 
-                                             edits)))
+                        edit-code
                         (count (filter #(and (:old-text %) (:new-text %)) edits)))
               
               ;; Use with-file with revert-first strategy to avoid disk conflicts
