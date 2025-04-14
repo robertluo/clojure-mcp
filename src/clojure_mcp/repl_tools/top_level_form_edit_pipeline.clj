@@ -242,9 +242,16 @@
   [_]
   {:name "clojure_edit_replace_form"
    :description
-   (str "Edits any top-level form in a Clojure file, replacing it with a new implementation.\n   \n"
-        "This tool allows you to modify any top-level form (def, defn, ns, deftest etc.) in source files without manually editing the files. "
-        "It preserves formatting and whitespace in the rest of the file.")
+   (str "Replaces a top-level Clojure form with new implementation. Use this to modify existing functions, vars, "
+        "or other forms while preserving surrounding code formatting. Example: Update a function's implementation "
+        "or signature without rewriting the entire file.\n\n"
+        "# Example:\n"
+        "# clojure_edit_replace_form(\n"
+        "#   file_path: \"src/my_ns/core.clj\",\n"
+        "#   form_name: \"process-data\",\n"
+        "#   form_type: \"defn\",\n"
+        "#   new_implementation: \"(defn process-data [x] (+ x 10))\"\n"
+        "# )")
    :schema
    (json/write-str
     {:type :object
@@ -288,9 +295,15 @@
   [_]
   {:name "clojure_edit_insert_before_form"
    :description
-   (str "Inserts new content before a top-level form in a Clojure file.\n   \n"
-        "This tool allows you to insert new code (such as a new function or definition) before an existing top-level form "
-        "(def, defn, ns, deftest etc.) in source files. It preserves formatting and whitespace in the rest of the file.")
+   (str "Inserts new Clojure code immediately before a specified top-level form. Perfect for adding helper functions, "
+        "imports, or configuration before existing code. Maintains proper formatting and whitespace in the file.\n\n"
+        "# Example:\n"
+        "# clojure_edit_insert_before_form(\n"
+        "#   file_path: \"src/my_ns/core.clj\",\n"
+        "#   before_form_name: \"main-function\",\n"
+        "#   form_type: \"defn\",\n"
+        "#   new_form_str: \"(defn helper-function [x] (str x))\"\n"
+        "# )")
    :schema
    (json/write-str
     {:type :object
@@ -334,9 +347,15 @@
   [_]
   {:name "clojure_edit_insert_after_form"
    :description
-   (str "Inserts new content after a top-level form in a Clojure file.\n   \n"
-        "This tool allows you to insert new code (such as a new function or definition) after an existing top-level form "
-        "(def, defn, ns, deftest etc.) in source files. It preserves formatting and whitespace in the rest of the file.")
+   (str "Inserts new Clojure code immediately after a specified top-level form. Ideal for extending existing functionality "
+        "with new functions or adding dependent code. Preserves all formatting in the file.\n\n"
+        "# Example:\n"
+        "# clojure_edit_insert_after_form(\n"
+        "#   file_path: \"src/my_ns/core.clj\",\n"
+        "#   after_form_name: \"config\",\n"
+        "#   form_type: \"def\",\n"
+        "#   new_form_str: \"(def extended-config (merge config {:new-key 'value}))\"\n"
+        "# )")
    :schema
    (json/write-str
     {:type :object
