@@ -46,3 +46,14 @@
       {:report (with-out-str
                  (kondo/print! res))
        :error? (some-> res :summary :error (> 0))})))
+
+(defn format-lint-warnings
+  "Formats lint warnings into a more readable string.
+   Takes the result from the lint function and returns a formatted string."
+  [lint-result]
+  (if (nil? lint-result)
+    "No linting issues found."
+    (let [report (:report lint-result)
+          is-error (:error? lint-result)
+          severity (if is-error "errors" "warnings")]
+      (str "Code has linting " severity ":\n\n" report))))

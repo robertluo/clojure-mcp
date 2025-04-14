@@ -5,7 +5,8 @@
    [rewrite-clj.node :as n]
    [clojure.string :as str]
    [clojure.data.json :as json]
-   [clojure-mcp.linting :as linting]))
+   [clojure-mcp.linting :as linting]
+   [clojure-mcp.utils.emacs-integration :as emacs]))
 
 (defn is-top-level-form?
   "Check if a sexp is a top-level definition with a specific tag and name.
@@ -85,7 +86,7 @@
    Returns:
    - true if the form was replaced successfully
    - false if the form was not found
-   - A string with the linting error message if there were linting issues"
+   - A map with :error and :message keys if there were errors"
   [name file-path tag new-form-str]
   (try
     (let [name (if (string? name) name (str name))
@@ -95,19 +96,28 @@
       
       ;; Fail early if there are linting issues
       (if lint-result
-        (str "Linting issues in replacement form:\n" (:report lint-result))
+        {:error :lint-failure 
+         :message (str "Linting issues in replacement form:\n" (:report lint-result))}
         
         ;; Continue with replacement if no linting issues
-        (let [file-content (slurp file-path)
-              zloc (z/of-string file-content)
-              updated-zloc (replace-top-level-form zloc tag name new-form-str)]
-          (if updated-zloc
-            (do
-              (spit file-path (z/root-string updated-zloc))
-              true)
-            false))))
+        (try
+          (let [file-content (slurp file-path)
+                zloc (z/of-string file-content)
+                updated-zloc (replace-top-level-form zloc tag name new-form-str)]
+            (if updated-zloc
+              (do
+                (spit file-path (z/root-string updated-zloc))
+                true)
+              false))
+          (catch java.io.FileNotFoundException _
+            {:error :file-not-found
+             :message (str "File not found: " file-path)})
+          (catch java.io.IOException e
+            {:error :io-error
+             :message (str "IO error while reading/writing file: " (.getMessage e))}))))
     (catch Exception e
-      (str "Error: " (.getMessage e)))))
+      {:error :unknown-error
+       :message (str "Error: " (.getMessage e) "\n" (ex-data e))})))
 
 (defn top-level-form-edit-tool [_service-atom]
   {:name "top_level_form_edit"
@@ -137,9 +147,9 @@ in the rest of the file."
                 ;; Check for linting issues before proceeding
                 (if lint-result
                   ;; If there are linting issues, fail with error message
-                  (let [lint-report (:report lint-result)
-                        formatted-report (str "Cannot update form '" form-name "' due to linting issues:\n\n" 
-                                             lint-report 
+                  (let [formatted-lint (linting/format-lint-warnings lint-result)
+                        formatted-report (str "Cannot update form '" form-name "' of type '" form-type "':\n\n" 
+                                             formatted-lint 
                                              "\n\nPlease fix these issues before updating the form.")]
                     (clj-result-k [formatted-report] true))
                   
@@ -152,18 +162,32 @@ in the rest of the file."
                     (cond
                       ;; Success case
                       (true? result)
-                      (clj-result-k [(str "Successfully updated form '" form-name "' in file " file-path)] 
-                                   false)
+                      (do
+                        ;; Try to highlight the updated form in Emacs
+                        (try
+                          (emacs/highlight-form file-path form-type form-name)
+                          (catch Exception e
+                            (println "Warning: Failed to highlight form in Emacs:" (.getMessage e))))
+                        
+                        (clj-result-k [(str "Successfully updated form '" form-name "' in file " file-path)] 
+                                    false))
                       
                       ;; Form not found
                       (false? result)
                       (clj-result-k [(str "Could not find form '" form-name "' of type '" form-type "' in file " file-path)]
-                                   true)
+                                    true)
                       
-                      ;; Other error (string result means error)
+                      ;; Map result indicates specific error
+                      (map? result)
+                      (let [error-type (name (:error result))
+                            error-msg (:message result)
+                            formatted-error (str "Error (" error-type ") updating form '" form-name "': " error-msg)]
+                        (clj-result-k [formatted-error] true))
+                      
+                      ;; Other error (string result means error from older implementation)
                       :else
                       (clj-result-k [(str "Error updating form: " result)]
-                                   true))))))})
+                                    true))))))})
 
 (comment
   ;; Example usage
