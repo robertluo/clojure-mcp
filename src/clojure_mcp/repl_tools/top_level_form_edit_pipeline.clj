@@ -470,8 +470,13 @@
   [_]
   {:name "clojure_file_outline"
    :description
-   (str "Generates a collapsed outline view of a Clojure file with only function/var names and argument lists. "
-        "Optionally expands specific forms to show their full implementation.\n\n"
+   (str "Generates a collapsed outline view of a Clojure file with only top-level function/var names and argument lists. "
+        "This tool helps you understand the structure of a file without being overwhelmed by implementation details.\n\n"
+        "Use this tool when:\n"
+        "- You want to get a quick overview of a large or unfamiliar file\n"
+        "- You need to locate specific functions or variables within a file\n"
+        "- You want to selectively examine implementations of specific forms while keeping others collapsed\n\n"
+        "The outline preserves function signatures, making it easy to understand the API without diving into implementations.\n\n"
         "# Example:\n"
         "# clojure_file_outline(\n"
         "#   file_path: \"src/my_ns/core.clj\",\n"
