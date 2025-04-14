@@ -80,14 +80,15 @@ This approach enables:
    - `/path/to/your/workspace` - Path to your workspace directory
    - `/path/to/python` - Path to your Python installation if using Git integration
 
-3. Start the MCP servers before connecting with Claude:
-   ```bash
-   # Start the Clojure MCP server (in the clojure-mcp directory)
-   clojure -X:mcp
-   ```
-   Note: The filesystem and git servers start automatically when Claude Desktop connects.
-
 4. Launch Claude Desktop and start a new conversation.
+
+> If you change the server you must restart Claude Desktop to see the changes.
+
+### Integarted prompt 
+
+In the chat message input box there is a icon with 2 little plugs. You
+can use this to choose some build in prompts.  The only one of use
+right now is the REPL driven development prompt `clojure-repl-driven.txt`.
 
 ### Using with Claude Desktop
 
@@ -103,188 +104,17 @@ To connect Claude to your project:
 1. Open Claude Desktop
 2. Start a new conversation
 3. Claude will automatically connect to the configured MCP servers
-4. Ask Claude to work on your Clojure project using REPL-driven development
-5. Guide the development process by providing problems to solve
+4. Use the little plug tool in the chat interface to bring up available prompts
+5. Choose the clojure-repl-driven.txt 
+6. Start a conversation initiating
+7. Guide the development process
 
-## 🎮 Usage
+## Learning Curve
 
-### Starting the MCP Server
-
-Launch the Clojure MCP server:
-
-```bash
-# Start the MCP server with nREPL connection on port 7888
-clojure -X:mcp
-```
-
-Then connect to it using Claude Desktop or any other MCP-compatible interface.
-
-### Basic Workflow
-
-1. **Initialize Development**:
-   - Ask Claude to start with REPL-driven development
-   - Specify the namespace you want to work in
-
-2. **Develop Incrementally**:
-   - Work step-by-step, validating each expression
-   - Claude will evaluate expressions and show results immediately
-   - Guide Claude's development process as needed
-
-3. **Complete the Solution**:
-   - Once the solution works in the REPL, save it to a proper file
-   - Reload the namespace and verify it still works
-   - Commit your changes
-
-### Example Sessions
-
-#### Example 1: Fibonacci Sequence
-
-Start a conversation with Claude and give it a problem statement:
-
-```
-I'd like to implement a function that finds the Nth Fibonacci number using Clojure. Let's use REPL-driven development to build and test this step by step.
-```
-
-Claude will then:
-1. Set up a namespace and development environment
-2. Experiment with small expressions to verify the approach
-3. Build up to a complete solution while validating each step
-4. Save the final solution to a file
-5. Test the saved solution
-
-The conversation might look like this:
-
-```clojure
-;; First, let's create a namespace for our work
-(ns fibonacci.core)
-
-;; Let's think about the Fibonacci sequence:
-;; 0, 1, 1, 2, 3, 5, 8, 13, ...
-;; Let's verify we understand the sequence by calculating a few terms
-
-;; First two terms are 0 and 1
-(def fib-0 0)
-(def fib-1 1)
-
-;; Calculate next terms manually
-(+ fib-0 fib-1)  ;; => 1 (third term)
-(+ fib-1 1)      ;; => 2 (fourth term)
-(+ 1 2)          ;; => 3 (fifth term)
-
-;; Now let's build a recursive function
-(defn fib-recursive [n]
-  (if (<= n 1)
-    n
-    (+ (fib-recursive (- n 1))
-       (fib-recursive (- n 2)))))
-
-;; Test our function
-(fib-recursive 0)  ;; => 0
-(fib-recursive 1)  ;; => 1
-(fib-recursive 5)  ;; => 5
-(fib-recursive 10) ;; => 55
-
-;; This works, but is inefficient for large values
-;; Let's create a more efficient version using memoization
-
-(def fib-memo
-  (memoize
-   (fn [n]
-     (if (<= n 1)
-       n
-       (+ (fib-memo (- n 1))
-          (fib-memo (- n 2)))))))
-
-;; Test our memoized version
-(fib-memo 20)  ;; => 6765
-(fib-memo 30)  ;; => 832040
-```
-
-After testing in the REPL, Claude will save the solution to a file:
-
-```clojure
-(ns fibonacci.core
-  "Functions for working with Fibonacci numbers")
-
-(defn fib-recursive
-  "Calculates the Nth Fibonacci number recursively.
-   Warning: Very inefficient for large values of N."
-  [n]
-  (if (<= n 1)
-    n
-    (+ (fib-recursive (- n 1))
-       (fib-recursive (- n 2)))))
-
-(def fib-memo
-  "Efficient memoized version of the Fibonacci function."
-  (memoize
-   (fn [n]
-     (if (<= n 1)
-       n
-       (+ (fib-memo (- n 1))
-          (fib-memo (- n 2)))))))
-
-(defn fibonacci
-  "Returns the Nth Fibonacci number.
-   Uses the efficient memoized implementation."
-  [n]
-  (when (neg? n)
-    (throw (IllegalArgumentException. "Fibonacci is not defined for negative numbers")))
-  (fib-memo n))
-```
-
-#### Example 2: Data Transformation Pipeline
-
-Here's another example of developing a data processing pipeline:
-
-```
-I want to build a function that processes a collection of maps representing users, filtering out inactive users, extracting certain fields, and sorting by age.
-```
-
-Claude will work through the solution:
-
-```clojure
-;; Create a sample dataset to work with
-(def users
-  [{:id 1 :name "Alice" :age 28 :active true :roles [:admin :user]}
-   {:id 2 :name "Bob" :age 35 :active false :roles [:user]}
-   {:id 3 :name "Charlie" :age 22 :active true :roles [:user]}
-   {:id 4 :name "Diana" :age 42 :active true :roles [:manager :user]}
-   {:id 5 :name "Evan" :age 19 :active false :roles [:user]}])
-
-;; First, let's filter out inactive users
-(filter :active users)
-;; => ({:id 1, :name "Alice", :age 28, :active true, :roles [:admin :user]}
-;;     {:id 3, :name "Charlie", :age 22, :active true, :roles [:user]}
-;;     {:id 4, :name "Diana", :age 42, :active true, :roles [:manager :user]})
-
-;; Now extract just the fields we want
-(map #(select-keys % [:id :name :age]) (filter :active users))
-;; => ({:id 1, :name "Alice", :age 28}
-;;     {:id 3, :name "Charlie", :age 22}
-;;     {:id 4, :name "Diana", :age 42})
-
-;; Sort by age
-(sort-by :age (map #(select-keys % [:id :name :age]) (filter :active users)))
-;; => ({:id 3, :name "Charlie", :age 22}
-;;     {:id 1, :name "Alice", :age 28}
-;;     {:id 4, :name "Diana", :age 42})
-
-;; Put it all together in a function
-(defn process-users [users]
-  (->> users
-       (filter :active)
-       (map #(select-keys % [:id :name :age]))
-       (sort-by :age)))
-
-;; Test the function
-(process-users users)
-;; => ({:id 3, :name "Charlie", :age 22}
-;;     {:id 1, :name "Alice", :age 28}
-;;     {:id 4, :name "Diana", :age 42})
-```
-
-This development style demonstrates the power of the REPL-driven approach, where each step is immediately validated before moving to the next.
+> This tool has a learning curve. You may in practice have to remind
+> the LLM to develop in the REPL.  You may also have to remind the LLM
+> to use the `clojure_edit` family of tools which have linters build
+> in to prevent unbalanced parens and the like.
 
 ## 🧰 Available Tools
 
@@ -372,8 +202,9 @@ The core philosophy of this project is that:
 
 The project includes several prompts that guide LLM behavior:
 
-- `clojure_dev` - General Clojure development guidelines
 - `clojure-repl-driven` - REPL-driven development workflow
+
+- `clojure_dev` - General Clojure development guidelines
 - `clj-spec-driven-modifier` - Spec-driven development guidelines
 - `clj-test-driven-modifier` - Test-driven development workflow
 - `clj-set-project-dir` - Project context setting
@@ -382,33 +213,6 @@ The project includes several prompts that guide LLM behavior:
 ## 🔍 Troubleshooting
 
 ### Common Issues
-
-#### Connection Problems
-
-**Problem**: Claude cannot connect to the Clojure REPL.
-**Solution**: 
-- Ensure the MCP server is running with `clojure -X:mcp`
-- Check the port configuration matches in both Claude Desktop config and the server
-- Verify no firewall rules are blocking the connection
-- Restart the MCP server and Claude Desktop
-
-#### Namespace Not Found
-
-**Problem**: Claude reports a namespace cannot be found.
-**Solution**:
-- Ensure the namespace exists in your project
-- Use the correct namespace format (with hyphens, not underscores in the file path)
-- Check if the namespace needs to be created first
-- Verify the namespace is in the correct directory structure
-
-#### Code Evaluation Errors
-
-**Problem**: Clojure code evaluation fails with errors.
-**Solution**:
-- Examine the error message carefully
-- Ask Claude to break down complex operations into smaller steps
-- Check that all required namespaces are required
-- Ensure variables are defined before they are used
 
 #### File Editing Issues
 
@@ -419,20 +223,6 @@ The project includes several prompts that guide LLM behavior:
 - Ensure proper permissions on directories
 - Try using the specialized Clojure editing tools rather than direct file editing
 
-### Getting Help
-
-If you encounter issues not covered here:
-- Check the project's issue tracker
-- Look for common nREPL or Clojure configuration issues
-- Ensure you're using compatible versions of all components
-- Join the community discussion on [Clojurians Slack](http://clojurians.net/) in the #mcp channel
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit pull requests or open issues.
-
 ## 📝 License
 
-Copyright © 2025
-
-Distributed under the Eclipse Public License version 1.0.
+This is a private project for now. Not intended for public consumption.

@@ -39,12 +39,12 @@
    :prompt-fn (simple-content-prompt-fn
                "REPL-Driven Development Guide for Clojure"
                (str
-                (load-prompt-from-resource "prompts/CLOJURE.md")
-                "\n\n---\n\n" ;; Separator
-                (load-prompt-from-resource "prompts/clojure_dev.txt")
-                "\n\n---\n\n" ;; Separator
-                (load-prompt-from-resource "prompts/clojure-repl-guide.md")
-                "\n\n---\n\n" ;; Separator
+                ;(load-prompt-from-resource "prompts/CLOJURE.md")
+                ; "\n\n---\n\n" ;; Separator
+                ;(load-prompt-from-resource "prompts/clojure_dev.txt")
+                ;"\n\n---\n\n" ;; Separator
+                ;(load-prompt-from-resource "prompts/clojure-repl-guide.md")
+                ;"\n\n---\n\n" ;; Separator
                 (load-prompt-from-resource "prompts/repl_driven.md")))})
 
 (def clojure-spec-driven-modifier
