@@ -7,8 +7,77 @@
    [clojure.data.json :as json]
    [clojure.spec.alpha :as s]
    [clojure-mcp.linting :as linting]
-   [clojure-mcp.utils.emacs-integration :as emacs]
-   [clojure-mcp.repl-tools.top-level-form-edit :as tfe]))
+   [clojure-mcp.utils.emacs-integration :as emacs]))
+
+(defn is-top-level-form?
+  "Check if a sexp is a top-level definition with a specific tag and name.
+   
+   Arguments:
+   - zloc: The zipper location to check
+   - tag: The definition tag (e.g., 'defn, 'def)
+   - dname: The name of the definition
+   
+   Returns true if the sexp matches the pattern (tag dname ...)"
+  [zloc tag dname]
+  (try
+    (let [sexp (z/sexpr zloc)]
+      (and (list? sexp)
+           (= (first sexp) (symbol tag))
+           (= (second sexp) (symbol dname))))
+    (catch Exception _ false)))
+
+(defn find-top-level-form
+  "Find a top-level form with a specific tag and name in a zipper.
+   
+   Arguments:
+   - zloc: The zipper location to start searching from
+   - tag: The tag name as a string (e.g., \"defn\", \"def\", \"ns\")
+   - dname: The name of the definition as a string
+   
+   Returns the zipper location of the matched form, or nil if not found."
+  [zloc tag dname]
+  (loop [loc zloc]
+    (cond
+      (nil? loc) nil
+      (is-top-level-form? loc tag dname) loc
+      :else (recur (z/right loc)))))
+
+(defn edit-top-level-form
+  "Edit a top-level form by replacing it or inserting content before or after.
+   
+   Arguments:
+   - zloc: The zipper location to start searching from
+   - tag: The form type (e.g., 'defn, 'def, 'ns)
+   - name: The name of the form
+   - content-str: The string to insert or replace with
+   - edit-type: Keyword indicating the edit type (:replace, :before, or :after)
+   
+   Returns the updated zipper, or nil if the form was not found."
+  [zloc tag name content-str edit-type]
+  (when-let [form-zloc (find-top-level-form zloc tag name)]
+    (case edit-type
+      :replace (z/replace form-zloc (p/parse-string content-str))
+      :before  (-> form-zloc
+                   (z/insert-left (p/parse-string-all (str content-str "\n\n")))
+                   z/up)
+      :after   (-> form-zloc
+                   (z/insert-right (p/parse-string-all (str "\n\n" content-str)))
+                   z/up))))
+
+(defn row-col->offset [s target-row target-col]
+  (loop [lines (clojure.string/split-lines s)
+         current-row 1
+         offset 0]
+    (if (or (empty? lines) (>= current-row target-row))
+      (+ offset target-col) ; Add (col - 1) for 0-based index
+      (recur (next lines)
+             (inc current-row)
+             (+ offset (count (first lines)) 1)))))
+
+(defn zloc-offsets [source-str positions]
+  (mapv (fn [[row col]] (row-col->offset source-str row col))
+        positions))
+
 
 ;; Base spec for our context map
 (s/def ::file-path string?)
@@ -91,9 +160,10 @@
    Adds ::zloc to the context with the zipper location."
   [ctx]
   (let [zloc (z/of-string (::source ctx) {:track-position? true})
-        form-zloc (tfe/find-top-level-form zloc 
-                                         (::top-level-def-type ctx) 
-                                         (::top-level-def-name ctx))]
+        form-zloc
+        (find-top-level-form zloc 
+                                 (::top-level-def-type ctx) 
+                                 (::top-level-def-name ctx))]
     (if form-zloc
       (assoc ctx ::zloc form-zloc)
       {::error :form-not-found
@@ -108,7 +178,7 @@
   (let [edit-type (::edit-type ctx)
         form-zloc (::zloc ctx)
         content-str (::new-source-code ctx)
-        updated-zloc (tfe/edit-top-level-form 
+        updated-zloc (edit-top-level-form 
                        form-zloc
                        (::top-level-def-type ctx)
                        (::top-level-def-name ctx)
@@ -127,7 +197,7 @@
     (let [updated-zloc (::zloc ctx)
           positions (z/position-span updated-zloc)
           final-source (z/root-string updated-zloc)
-          offsets (tfe/zloc-offsets final-source positions)]
+          offsets (zloc-offsets final-source positions)]
       (spit (::file-path ctx) final-source)
       (assoc ctx ::offsets offsets))
     (catch Exception e
