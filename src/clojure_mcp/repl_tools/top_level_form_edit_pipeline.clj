@@ -233,36 +233,33 @@
 
 ;; Tool Factory for creating edit tools using the pipeline
 (defn create-form-edit-tool
-  "Creates a tool function for the specified edit type using the pipeline pattern.
+  "Creates a tool function using the pipeline pattern.
    
    Arguments:
-   - edit-type: Keyword indicating the edit type (:replace, :before, or :after)
+   - tool-config: A map with the following keys:
+     - :name - The name of the tool
+     - :description - A description of what the tool does
+     - :schema - JSON schema for the tool's input parameters (string or map)
+     - :param-name - The name of the parameter for the form name
+     - :param-description - Description of the form name parameter
+     - :content-param-name - The name of the parameter for the new content
+     - :content-description - Description of the content parameter
+     - :action-prefix - Prefix for action messages (e.g., 'before', 'after')
+     - :success-message - Format string for success message
+     - :edit-type - Keyword indicating the edit type (:replace, :before, or :after)
    - service-atom: Service atom
    
    Returns:
    - A tool map with name, description, schema and tool-fn"
-  [edit-type service-atom]
-  (let [config (get tfe/edit-type-config edit-type)
-        {:keys [tool-name short-description intro param-name param-description
-                content-param-name content-description action-prefix success-message]} config
-        long-description (str short-description "\n   \n" intro
-                             " It preserves formatting and whitespace in the rest of the file.")]
+  [tool-config service-atom]
+  (let [{:keys [name description schema param-name param-description
+                content-param-name content-description 
+                action-prefix success-message edit-type]} tool-config
+        schema-str (if (string? schema) schema (json/write-str schema))]
     
-    {:name tool-name
-     :description long-description
-     :schema
-     (json/write-str
-      {:type :object
-       :properties
-       {param-name {:type :string
-                    :description param-description}
-        :file_path {:type :string
-                    :description "Path to the file containing the form"}
-        :form_type {:type :string
-                    :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
-        content-param-name {:type :string
-                            :description content-description}}
-       :required [param-name :file_path :form_type content-param-name]})
+    {:name name
+     :description description
+     :schema schema-str
      :tool-fn (fn [_ arg-map clj-result-k]
                 (let [form-name (get arg-map param-name)
                       file-path (get arg-map "file_path")
@@ -285,13 +282,94 @@
 
 ;; Tool functions using the pipeline
 (defn top-level-form-edit-tool [service-atom]
-  (create-form-edit-tool :replace service-atom))
+  (let [config (get tfe/edit-type-config :replace)
+        {:keys [tool-name short-description intro param-name param-description
+                content-param-name content-description action-prefix success-message]} config
+        description (str short-description "\n   \n" intro
+                        " It preserves formatting and whitespace in the rest of the file.")
+        schema {:type :object
+                :properties
+                {param-name {:type :string
+                             :description param-description}
+                 :file_path {:type :string
+                             :description "Path to the file containing the form"}
+                 :form_type {:type :string
+                             :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
+                 content-param-name {:type :string
+                                     :description content-description}}
+                :required [param-name :file_path :form_type content-param-name]}]
+    (create-form-edit-tool 
+     {:name tool-name
+      :description description
+      :schema schema
+      :param-name param-name
+      :param-description param-description
+      :content-param-name content-param-name
+      :content-description content-description
+      :action-prefix action-prefix
+      :success-message success-message
+      :edit-type :replace}
+     service-atom)))
 
 (defn top-level-form-insert-before-tool [service-atom]
-  (create-form-edit-tool :before service-atom))
+  (let [config (get tfe/edit-type-config :before)
+        {:keys [tool-name short-description intro param-name param-description
+                content-param-name content-description action-prefix success-message]} config
+        description (str short-description "\n   \n" intro
+                        " It preserves formatting and whitespace in the rest of the file.")
+        schema {:type :object
+                :properties
+                {param-name {:type :string
+                             :description param-description}
+                 :file_path {:type :string
+                             :description "Path to the file containing the form"}
+                 :form_type {:type :string
+                             :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
+                 content-param-name {:type :string
+                                     :description content-description}}
+                :required [param-name :file_path :form_type content-param-name]}]
+    (create-form-edit-tool 
+     {:name tool-name
+      :description description
+      :schema schema
+      :param-name param-name
+      :param-description param-description
+      :content-param-name content-param-name
+      :content-description content-description
+      :action-prefix action-prefix
+      :success-message success-message
+      :edit-type :before}
+     service-atom)))
 
 (defn top-level-form-insert-after-tool [service-atom]
-  (create-form-edit-tool :after service-atom))
+  (let [config (get tfe/edit-type-config :after)
+        {:keys [tool-name short-description intro param-name param-description
+                content-param-name content-description action-prefix success-message]} config
+        description (str short-description "\n   \n" intro
+                        " It preserves formatting and whitespace in the rest of the file.")
+        schema {:type :object
+                :properties
+                {param-name {:type :string
+                             :description param-description}
+                 :file_path {:type :string
+                             :description "Path to the file containing the form"}
+                 :form_type {:type :string
+                             :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
+                 content-param-name {:type :string
+                                     :description content-description}}
+                :required [param-name :file_path :form_type content-param-name]}]
+    (create-form-edit-tool 
+     {:name tool-name
+      :description description
+      :schema schema
+      :param-name param-name
+      :param-description param-description
+      :content-param-name content-param-name
+      :content-description content-description
+      :action-prefix action-prefix
+      :success-message success-message
+      :edit-type :after}
+     service-atom)))
 
 (comment
   ;; Examples of using the pipeline
