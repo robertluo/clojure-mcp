@@ -1,5 +1,23 @@
 ## Looking forward
 
+* fix emacs highlighting
+  - revert still requiring a check, turn on auto-revert at start of pipeline
+  - 
+* integrate clj-format to format output
+* clojure-project-introspect tool
+* edit tools return diff with context - perhaps provide dry-run
+* read-summary-prompt looks up summary given a phrase
+* summary chain tool takes a keyword/phrase and creates a work summary file
+  - probably uses separate langchain for this.
+  - until then we will query the previous summary and then combine it with the current summary.
+  
+* read-form tool takes a file path and reads the single form with type and name
+
+* update the prompts to provide more workflow advice
+
+
+
+
 * gptel mcp integration
 * start with design session - see below
 * Clojure implemented tools repl tools not exposed as MCP tools only through eval
