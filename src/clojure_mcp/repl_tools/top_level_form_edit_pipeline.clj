@@ -233,14 +233,14 @@
 
 
 (defn top-level-form-edit-tool 
-  "Returns a tool map for editing top-level forms in Clojure files.
+  "Returns a tool map for replacing top-level forms in Clojure files.
    
    Arguments:
    - service-atom: Service atom (required for tool registration but not used in this implementation)
    
    Returns a map with :name, :description, :schema and :tool-fn keys"
   [_]
-  {:name "top_level_form_edit"
+  {:name "clojure_edit_replace_form"
    :description
    (str "Edits any top-level form in a Clojure file, replacing it with a new implementation.\n   \n"
         "This tool allows you to modify any top-level form (def, defn, ns, deftest etc.) in source files without manually editing the files. "
@@ -278,52 +278,6 @@
                      [(format "Successfully updated form '%s' in file %s" form-name file-path)]
                      false)))))})
 
-
-;; Tool Factory for creating edit tools using the pipeline
-(defn create-form-edit-tool
-  "Creates a tool function using the pipeline pattern.
-   This function is now deprecated and kept for reference only.
-   
-   Arguments:
-   - tool-config: A map with tool configuration
-   - service-atom: Service atom
-   
-   Returns:
-   - A tool map with name, description, schema and tool-fn"
-  [_ _]
-  nil)
-
-;; Tool functions using the pipeline
-(defn top-level-form-edit-tool [service-atom]
-  (let [config (get tfe/edit-type-config :replace)
-        {:keys [tool-name short-description intro param-name param-description
-                content-param-name content-description action-prefix success-message]} config
-        description (str short-description "\n   \n" intro
-                        " It preserves formatting and whitespace in the rest of the file.")
-        schema {:type :object
-                :properties
-                {param-name {:type :string
-                             :description param-description}
-                 :file_path {:type :string
-                             :description "Path to the file containing the form"}
-                 :form_type {:type :string
-                             :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
-                 content-param-name {:type :string
-                                     :description content-description}}
-                :required [param-name :file_path :form_type content-param-name]}]
-    (create-form-edit-tool 
-     {:name tool-name
-      :description description
-      :schema schema
-      :param-name param-name
-      :param-description param-description
-      :content-param-name content-param-name
-      :content-description content-description
-      :action-prefix action-prefix
-      :success-message success-message
-      :edit-type :replace}
-     service-atom)))
-
 (defn top-level-form-insert-before-tool 
   "Returns a tool map for inserting before top-level forms in Clojure files.
    
@@ -332,7 +286,7 @@
    
    Returns a map with :name, :description, :schema and :tool-fn keys"
   [_]
-  {:name "insert_before_top_level_form"
+  {:name "clojure_edit_insert_before_form"
    :description
    (str "Inserts new content before a top-level form in a Clojure file.\n   \n"
         "This tool allows you to insert new code (such as a new function or definition) before an existing top-level form "
@@ -378,7 +332,7 @@
    
    Returns a map with :name, :description, :schema and :tool-fn keys"
   [_]
-  {:name "insert_after_top_level_form"
+  {:name "clojure_edit_insert_after_form"
    :description
    (str "Inserts new content after a top-level form in a Clojure file.\n   \n"
         "This tool allows you to insert new code (such as a new function or definition) after an existing top-level form "
