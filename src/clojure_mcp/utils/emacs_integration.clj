@@ -68,11 +68,9 @@
          elisp-code (format "(progn
                                (find-file \"%s\")
                                (switch-to-buffer (current-buffer))
+                               (auto-revert-mode 1)
                                (let ((revert-without-query '(\".*\")))
                                  (revert-buffer t t t))
-                               ;; Enable auto-revert-mode to ensure the buffer automatically picks up
-                               ;; external changes to the file (like those made by our tools)
-                               (auto-revert-mode 1)
                                (goto-char %d)
                                (push-mark %d t t)
                                %s

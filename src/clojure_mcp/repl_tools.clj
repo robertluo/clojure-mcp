@@ -6,7 +6,7 @@
    [clojure-mcp.repl-tools.history :as history-tools]
    [clojure-mcp.repl-tools.namespace :as namespace-tools]
    [clojure-mcp.repl-tools.symbol :as symbol-tools]
-   [clojure-mcp.repl-tools.top-level-form-edit :as edit-tools]))
+   [clojure-mcp.repl-tools.top-level-form-edit-pipeline :as edit-tools]))
 
 ;; Re-export all tool functions
 
@@ -31,7 +31,14 @@
 (def symbol-search symbol-tools/symbol-search)
 
 ;; Code editing tools
-(def top-level-form-edit-tool edit-tools/top-level-form-edit-tool)
+(def clojure-edit-replace-form
+  edit-tools/top-level-form-edit-tool)
+
+(def clojure-edit-insert-before-form
+  edit-tools/top-level-form-insert-before-tool)
+
+(def clojure-edit-insert-after-form
+  edit-tools/top-level-form-insert-after-tool)
 
 (comment
   (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
@@ -48,4 +55,4 @@
 
   (def edit-tester (make-test-tool (top-level-form-edit-tool client-atom)))
   (def eval-tester (make-test-tool (eval-code client-atom)))
-)
+  )
