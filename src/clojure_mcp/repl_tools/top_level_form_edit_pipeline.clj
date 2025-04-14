@@ -1,6 +1,6 @@
 (ns clojure-mcp.repl-tools.top-level-form-edit-pipeline
   (:require
-   [rewrite-clj.zip :as z]  
+   [rewrite-clj.zip :as z]
    [rewrite-clj.parser :as p]
    [rewrite-clj.node :as n]
    [cljfmt.core :as fmt]
@@ -79,7 +79,6 @@
   (mapv (fn [[row col]] (row-col->offset source-str row col))
         positions))
 
-
 ;; Base spec for our context map
 (s/def ::file-path string?)
 (s/def ::source string?)
@@ -96,8 +95,8 @@
 ;; Context map that flows through the pipeline
 (s/def ::context
   (s/keys :req [::file-path]
-          :opt [::source ::new-source-code ::top-level-def-name 
-                ::top-level-def-type ::edit-type ::error ::message 
+          :opt [::source ::new-source-code ::top-level-def-name
+                ::top-level-def-type ::edit-type ::error ::message
                 ::zloc ::offsets ::lint-result]))
 
 ;; Function specs
@@ -126,7 +125,7 @@
   :ret (s/or :success (s/keys :req [::file-path])
              :failure (s/keys :req [::error ::message])))
 
- (s/fdef save-file
+(s/fdef save-file
   :args (s/cat :ctx (s/keys :req [::file-path ::zloc]))
   :ret (s/or :success (s/keys :req [::offsets])
              :failure (s/keys :req [::error ::message])))
@@ -172,14 +171,14 @@
   [ctx]
   (let [zloc (z/of-string (::source ctx) {:track-position? true})
         form-zloc
-        (find-top-level-form zloc 
-                                 (::top-level-def-type ctx) 
-                                 (::top-level-def-name ctx))]
+        (find-top-level-form zloc
+                             (::top-level-def-type ctx)
+                             (::top-level-def-name ctx))]
     (if form-zloc
       (assoc ctx ::zloc form-zloc)
       {::error :form-not-found
-       ::message (str "Could not find form '" (::top-level-def-name ctx) 
-                      "' of type '" (::top-level-def-type ctx) 
+       ::message (str "Could not find form '" (::top-level-def-name ctx)
+                      "' of type '" (::top-level-def-type ctx)
                       "' in file " (::file-path ctx))})))
 
 (defn edit-form
@@ -189,19 +188,21 @@
   (let [edit-type (::edit-type ctx)
         form-zloc (::zloc ctx)
         content-str (::new-source-code ctx)
-        updated-zloc (edit-top-level-form 
-                       form-zloc
-                       (::top-level-def-type ctx)
-                       (::top-level-def-name ctx)
-                       content-str
-                       edit-type)]
+        updated-zloc (edit-top-level-form
+                      form-zloc
+                      (::top-level-def-type ctx)
+                      (::top-level-def-name ctx)
+                      content-str
+                      edit-type)]
     (if updated-zloc
       (assoc ctx ::zloc updated-zloc)
       {::error :edit-failed
        ::message (str "Failed to " (name edit-type) " form.")})))
 
+;; Removed aggressive-whitespace-cleanup function as we're only using cljfmt
+
 (defn format-source
-  "Formats the entire source string using cljfmt.
+  "Formats the entire source string using cljfmt with comprehensive formatting options.
    
    Arguments:
    - ctx: The context map with the zipper location in ::zloc
@@ -212,7 +213,18 @@
   (try
     (let [zloc (::zloc ctx)
           root-str (z/root-string zloc)
-          formatted-str (fmt/reformat-string root-str)
+          ;; Use all available cljfmt formatting options
+          formatting-options {:indentation? true
+                              :remove-surrounding-whitespace? true
+                              :remove-trailing-whitespace? true
+                              :insert-missing-whitespace? true
+                              :remove-consecutive-blank-lines? true
+                              :remove-multiple-non-indenting-spaces? true
+                              :split-keypairs-over-multiple-lines? false
+                              :sort-ns-references? false
+                              :function-arguments-indentation :community
+                              :indents fmt/default-indents}
+          formatted-str (fmt/reformat-string root-str formatting-options)
           formatted-zloc (z/of-string formatted-str {:track-position? true})]
       (assoc ctx ::zloc formatted-zloc))
     (catch Exception e
@@ -242,7 +254,7 @@
       {::error :auto-revert-exception
        ::message (str "Exception setting auto-revert mode: " (.getMessage e))})))
 
- (defn save-file
+(defn save-file
   "Saves the updated source to the file and calculates offsets.
    Adds ::offsets to the context."
   [ctx]
@@ -263,7 +275,7 @@
   [ctx]
   (try
     (let [[start end] (::offsets ctx)]
-      (emacs/temporary-highlight 
+      (emacs/temporary-highlight
        (::file-path ctx) start end 2.0)
       ctx)
     (catch Exception e
@@ -301,7 +313,7 @@
    Returns:
    - A context map with the result or error information"
   [name file-path tag content-str edit-type]
-  (thread-ctx 
+  (thread-ctx
    {::file-path file-path
     ::top-level-def-name name
     ::top-level-def-type tag
@@ -356,8 +368,7 @@
       (:offsets formatted) (::offsets result)
       :else false)))
 
-
-(defn top-level-form-edit-tool 
+(defn top-level-form-edit-tool
   "Returns a tool map for replacing top-level forms in Clojure files.
    
    Arguments:
@@ -399,14 +410,14 @@
       :form_type {:type :string
                   :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
       :new_implementation {:type :string
-                 :description "String with the new form implementation"}}
+                           :description "String with the new form implementation"}}
      :required [:form_name :file_path :form_type :new_implementation]})
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [form-name (get arg-map "form_name")
                     file-path (get arg-map "file_path")
                     form-type (get arg-map "form_type")
                     content (get arg-map "new_implementation")
-                    result (edit-top-level-form-pipeline 
+                    result (edit-top-level-form-pipeline
                             form-name file-path form-type content :replace)
                     formatted (format-result result)]
                 (if (:error formatted)
@@ -417,11 +428,11 @@
                       (catch Exception _
                         ;; Ignore highlight errors
                         nil))
-                    (clj-result-k 
+                    (clj-result-k
                      [(format "Successfully updated form '%s' in file %s" form-name file-path)]
                      false)))))})
 
-(defn top-level-form-insert-before-tool 
+(defn top-level-form-insert-before-tool
   "Returns a tool map for inserting before top-level forms in Clojure files.
    
    Arguments:
@@ -447,20 +458,20 @@
     {:type :object
      :properties
      {:before_form_name {:type :string
-                  :description "The name of the form before which to insert (e.g., function name, var name, namespace name)"}
+                         :description "The name of the form before which to insert (e.g., function name, var name, namespace name)"}
       :file_path {:type :string
                   :description "Path to the file containing the form"}
       :form_type {:type :string
                   :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
       :new_form_str {:type :string
-                 :description "String with the new form to insert"}}
+                     :description "String with the new form to insert"}}
      :required [:before_form_name :file_path :form_type :new_form_str]})
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [form-name (get arg-map "before_form_name")
                     file-path (get arg-map "file_path")
                     form-type (get arg-map "form_type")
                     content (get arg-map "new_form_str")
-                    result (edit-top-level-form-pipeline 
+                    result (edit-top-level-form-pipeline
                             form-name file-path form-type content :before)
                     formatted (format-result result)]
                 (if (:error formatted)
@@ -471,11 +482,11 @@
                       (catch Exception _
                         ;; Ignore highlight errors
                         nil))
-                    (clj-result-k 
+                    (clj-result-k
                      [(format "Successfully inserted form before '%s' in file %s" form-name file-path)]
                      false)))))})
 
-(defn top-level-form-insert-after-tool 
+(defn top-level-form-insert-after-tool
   "Returns a tool map for inserting after top-level forms in Clojure files.
    
    Arguments:
@@ -501,20 +512,20 @@
     {:type :object
      :properties
      {:after_form_name {:type :string
-                  :description "The name of the form after which to insert (e.g., function name, var name, namespace name)"}
+                        :description "The name of the form after which to insert (e.g., function name, var name, namespace name)"}
       :file_path {:type :string
                   :description "Path to the file containing the form"}
       :form_type {:type :string
                   :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
       :new_form_str {:type :string
-                 :description "String with the new form to insert"}}
+                     :description "String with the new form to insert"}}
      :required [:after_form_name :file_path :form_type :new_form_str]})
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [form-name (get arg-map "after_form_name")
                     file-path (get arg-map "file_path")
                     form-type (get arg-map "form_type")
                     content (get arg-map "new_form_str")
-                    result (edit-top-level-form-pipeline 
+                    result (edit-top-level-form-pipeline
                             form-name file-path form-type content :after)
                     formatted (format-result result)]
                 (if (:error formatted)
@@ -525,9 +536,9 @@
                       (catch Exception _
                         ;; Ignore highlight errors
                         nil))
-                    (clj-result-k 
+                    (clj-result-k
                      [(format "Successfully inserted form after '%s' in file %s" form-name file-path)]
-                     false)))))}) 
+                     false)))))})
 
 (defn get-form-summary
   "Get a summarized representation of a Clojure form showing only up to the argument list"
@@ -540,18 +551,18 @@
                           (let [second-item (second sexpr)]
                             (when (symbol? second-item)
                               (name second-item))))]
-          
+
           (case form-type
             "defn" (let [vector-pos (count (take-while #(not (vector? %)) sexpr))
                          args (when (> (count sexpr) vector-pos)
                                 (nth sexpr vector-pos))]
                      (str "(defn " form-name " " args " ...)"))
-            
+
             "defmacro" (let [vector-pos (count (take-while #(not (vector? %)) sexpr))
                              args (when (> (count sexpr) vector-pos)
                                     (nth sexpr vector-pos))]
                          (str "(defmacro " form-name " " args " ...)"))
-            
+
             "def" (str "(def " form-name " ...)")
             "deftest" (str "(deftest " form-name " ...)")
             "ns" (z/string zloc) ; Always show the full namespace
@@ -574,31 +585,31 @@
     (let [file-content (slurp file-path)
           zloc (z/of-string file-content)
           expand-set (set (map name expand-symbols))]
-      
+
       (loop [loc zloc
              forms []]
         (if (nil? loc)
           ;; Return the final string with all forms
           (str/join "\n\n" forms)
-          
+
           ;; Process current form
           (let [current-sexpr (try (z/sexpr loc) (catch Exception _ nil))
                 next-loc (try (z/right loc) (catch Exception _ nil))
-                form-name (when (and (seq? current-sexpr) 
-                                    (> (count current-sexpr) 1)
-                                    (symbol? (second current-sexpr)))
-                           (name (second current-sexpr)))
+                form-name (when (and (seq? current-sexpr)
+                                     (> (count current-sexpr) 1)
+                                     (symbol? (second current-sexpr)))
+                            (name (second current-sexpr)))
                 should-expand (contains? expand-set form-name)
                 form-str (if should-expand
-                          (z/string loc)
-                          (get-form-summary loc))]
+                           (z/string loc)
+                           (get-form-summary loc))]
             (if form-str
               (recur next-loc (conj forms form-str))
               (recur next-loc forms))))))
     (catch java.io.FileNotFoundException _
       (str "Error: File not found: " file-path))
     (catch Exception e
-      (str "Error generating file view: " (.getMessage e))))) 
+      (str "Error generating file view: " (.getMessage e)))))
 
 (defn clojure-file-outline-tool
   "Returns a tool map for generating a collapsed file outline.
@@ -648,16 +659,15 @@
                "defn"
                "(defn example-function [x y]\n  (+ x y))"
                :replace))
-  
+
   ;; Check for errors
   (::error result)
   (::message result)
-  
+
   ;; Get formatted result
   (format-result result)
-  
+
   ;; Example of tool creation with pipeline
   (def edit-tool (top-level-form-edit-tool (atom {})))
   (def before-tool (top-level-form-insert-before-tool (atom {})))
-  (def after-tool (top-level-form-insert-after-tool (atom {})))
-)
+  (def after-tool (top-level-form-insert-after-tool (atom {}))))
