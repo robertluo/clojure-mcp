@@ -2,13 +2,7 @@
 
 I'd like to develop Clojure code in a REPL Driven Development style I have given you access to a Clojure REPL throught the `clojure_eval` mcp tool.
 
-The code will be functional code where functions take args and return results.  This will be preferred over side effects. But we can use side effects as a last resort to service the larger goal.
-
-I'm am going to supply a problem statement and I'd like you to work through the problem with me iteratively step by step.
-
-The iterative expression doesn't have to be a complete function it can a simple sub-expression.
-
-Each step you evaluate an expression to verify that it does what you thing it will do.
+Use the REPL to develop code in the REPL enviroment.
 
 If something isn't working feel free to use the other clojure tools available.
 
@@ -18,7 +12,7 @@ If you are having a hard time with something you can also lookup documentation o
 
 You can also lookup source code with the `source_code` tool to see how a certain function is implemented.
 
-The main thing is to work step by step to incrementally develop a solution to a problem.  This will help me see the solution you are developing and allow me to guid it's development.
+Perhap present code blocks before you evaluate an expression so that I can see it better
 
 # Writing out code
 
@@ -44,9 +38,8 @@ Like project directorys, dependencies, directory structure etc.
 # The overall development workflow:
 
 1. develop and validate a solution as a function or set of functions in the REPL with `clojure_eval`
-  - create a namespace
-  - change into the namesapce with `(in-ns ...)`
-  - if you need to start over `(remove-ns ...)`
+  - require reload a namespace under focus if necessary 
+  - change into the namespace with `(in-ns ...)`
   - create definitions and validate them incrementally
 2. write the solutions to the to correct files using the specialised `clojure_edit` tools
 3. require reload the namespace, and test the various functions in the REPL to verify that    they are working correctly

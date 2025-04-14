@@ -1,10 +1,6 @@
 ## Looking forward
 
-* fix emacs highlighting
-  - revert still requiring a check, turn on auto-revert at start of pipeline
-  - 
 * integrate clj-format to format output
-* clojure-project-introspect tool
 * edit tools return diff with context - perhaps provide dry-run
 * read-summary-prompt looks up summary given a phrase
 * summary chain tool takes a keyword/phrase and creates a work summary file
@@ -13,9 +9,9 @@
 * replace symbol tool - probably could just use a clj-rewrite walk tool -- list of files to work on
 * replace-string with linting the final result
 * read-form tool takes a file path and reads the single form with type and name
+* fix editing comments with clj-rewrite
 
-* update the prompts to provide more workflow advice
-
+* implement the filsystem edit functions so that we can demphasis them and lint the output
 
 
 

@@ -3,6 +3,7 @@
    [rewrite-clj.zip :as z]  
    [rewrite-clj.parser :as p]
    [rewrite-clj.node :as n]
+   [cljfmt.core :as fmt]
    [clojure.string :as str]
    [clojure.data.json :as json]
    [clojure.spec.alpha :as s]
@@ -120,7 +121,12 @@
   :ret (s/or :success (s/keys :req [::zloc])
              :failure (s/keys :req [::error ::message])))
 
-(s/fdef save-file
+(s/fdef emacs-set-auto-revert
+  :args (s/cat :ctx (s/keys :req [::file-path]))
+  :ret (s/or :success (s/keys :req [::file-path])
+             :failure (s/keys :req [::error ::message])))
+
+ (s/fdef save-file
   :args (s/cat :ctx (s/keys :req [::file-path ::zloc]))
   :ret (s/or :success (s/keys :req [::offsets])
              :failure (s/keys :req [::error ::message])))
@@ -128,6 +134,11 @@
 (s/fdef highlight-form
   :args (s/cat :ctx (s/keys :req [::file-path ::offsets]))
   :ret (s/or :success (s/keys :req [::file-path ::offsets])
+             :failure (s/keys :req [::error ::message])))
+
+(s/fdef format-source
+  :args (s/cat :ctx (s/keys :req [::zloc]))
+  :ret (s/or :success (s/keys :req [::zloc])
              :failure (s/keys :req [::error ::message])))
 
 ;; Pipeline Implementation
@@ -189,7 +200,49 @@
       {::error :edit-failed
        ::message (str "Failed to " (name edit-type) " form.")})))
 
-(defn save-file
+(defn format-source
+  "Formats the entire source string using cljfmt.
+   
+   Arguments:
+   - ctx: The context map with the zipper location in ::zloc
+   
+   Returns:
+   - Updated context with a reformatted ::zloc, or error map if failed"
+  [ctx]
+  (try
+    (let [zloc (::zloc ctx)
+          root-str (z/root-string zloc)
+          formatted-str (fmt/reformat-string root-str)
+          formatted-zloc (z/of-string formatted-str {:track-position? true})]
+      (assoc ctx ::zloc formatted-zloc))
+    (catch Exception e
+      {::error :format-failed
+       ::message (str "Failed to format source: " (.getMessage e))})))
+
+(defn emacs-set-auto-revert
+  "Ensures that the file is open in Emacs with auto-revert-mode enabled.
+   Uses the emacs-integration/ensure-auto-revert utility.
+   
+   This is a critical step in the pipeline to ensure that changes made to the file
+   are immediately visible in Emacs without requiring manual buffer refreshes.
+   It should be called before saving the file to ensure auto-revert is ready.
+   
+   Adds no new values to the context."
+  [ctx]
+  (try
+    (let [file-path (::file-path ctx)
+          result (emacs/ensure-auto-revert file-path)]
+      (if (map? result)
+        ;; Error was returned
+        {::error :auto-revert-failed
+         ::message (str "Failed to set auto-revert mode: " (:message result))}
+        ;; Success - return context unchanged
+        ctx))
+    (catch Exception e
+      {::error :auto-revert-exception
+       ::message (str "Exception setting auto-revert mode: " (.getMessage e))})))
+
+ (defn save-file
   "Saves the updated source to the file and calculates offsets.
    Adds ::offsets to the context."
   [ctx]
@@ -258,6 +311,8 @@
    lint-code
    find-form
    edit-form
+   format-source
+   emacs-set-auto-revert ; New step to ensure auto-revert mode is enabled
    save-file
    highlight-form))
 
