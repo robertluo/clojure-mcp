@@ -6,7 +6,8 @@
    [clojure-mcp.repl-tools.history :as history-tools]
    [clojure-mcp.repl-tools.namespace :as namespace-tools]
    [clojure-mcp.repl-tools.symbol :as symbol-tools]
-   [clojure-mcp.repl-tools.top-level-form-edit-pipeline :as edit-tools]))
+   [clojure-mcp.repl-tools.top-level-form-edit-pipeline :as edit-tools]
+   [clojure-mcp.repl-tools.project.inspect :as project-inspect]))
 
 ;; Re-export all tool functions
 
@@ -41,7 +42,11 @@
   edit-tools/top-level-form-insert-after-tool) 
 
 (def clojure-file-outline
-  edit-tools/clojure-file-outline-tool)
+  edit-tools/clojure-file-outline-tool) 
+
+;; Project inspection tool
+(def clojure-inspect-project
+  project-inspect/inspect-project-tool)
 
 (comment
   (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))

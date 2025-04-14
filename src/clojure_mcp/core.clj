@@ -250,6 +250,7 @@
     (add-tool mcp (repl-tools/clojure-edit-insert-before-form nrepl-client-atom)) ;; Add the top-level-form-edit tool
     (add-tool mcp (repl-tools/clojure-edit-insert-after-form nrepl-client-atom)) ;; Add the top-level-form-edit tool
     (add-tool mcp (repl-tools/clojure-file-outline nrepl-client-atom)) ;; Add the file outline tool
+    (add-tool mcp (repl-tools/clojure-inspect-project nrepl-client-atom)) ;; Add the project inspection tool
 
         #_(do
             (add-tool mcp (file-api/emacs-flash-file-tool))
