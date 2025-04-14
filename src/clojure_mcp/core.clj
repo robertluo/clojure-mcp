@@ -249,6 +249,7 @@
     (add-tool mcp (repl-tools/clojure-edit-replace-form nrepl-client-atom)) ;; Add the top-level-form-edit tool
     (add-tool mcp (repl-tools/clojure-edit-insert-before-form nrepl-client-atom)) ;; Add the top-level-form-edit tool
     (add-tool mcp (repl-tools/clojure-edit-insert-after-form nrepl-client-atom)) ;; Add the top-level-form-edit tool
+    (add-tool mcp (repl-tools/clojure-file-outline nrepl-client-atom)) ;; Add the file outline tool
 
         #_(do
             (add-tool mcp (file-api/emacs-flash-file-tool))

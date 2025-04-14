@@ -38,7 +38,10 @@
   edit-tools/top-level-form-insert-before-tool)
 
 (def clojure-edit-insert-after-form
-  edit-tools/top-level-form-insert-after-tool)
+  edit-tools/top-level-form-insert-after-tool) 
+
+(def clojure-file-outline
+  edit-tools/clojure-file-outline-tool)
 
 (comment
   (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
