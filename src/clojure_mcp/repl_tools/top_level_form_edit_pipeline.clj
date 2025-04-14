@@ -231,54 +231,67 @@
       (:offsets formatted) (::offsets result)
       :else false)))
 
+
+(defn top-level-form-edit-tool 
+  "Returns a tool map for editing top-level forms in Clojure files.
+   
+   Arguments:
+   - service-atom: Service atom (required for tool registration but not used in this implementation)
+   
+   Returns a map with :name, :description, :schema and :tool-fn keys"
+  [_]
+  {:name "top_level_form_edit"
+   :description
+   (str "Edits any top-level form in a Clojure file, replacing it with a new implementation.\n   \n"
+        "This tool allows you to modify any top-level form (def, defn, ns, deftest etc.) in source files without manually editing the files. "
+        "It preserves formatting and whitespace in the rest of the file.")
+   :schema
+   (json/write-str
+    {:type :object
+     :properties
+     {:form_name {:type :string
+                  :description "The name of the form to edit (e.g., function name, var name, namespace name)"}
+      :file_path {:type :string
+                  :description "Path to the file containing the form"}
+      :form_type {:type :string
+                  :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
+      :new_implementation {:type :string
+                 :description "String with the new form implementation"}}
+     :required [:form_name :file_path :form_type :new_implementation]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [form-name (get arg-map "form_name")
+                    file-path (get arg-map "file_path")
+                    form-type (get arg-map "form_type")
+                    content (get arg-map "new_implementation")
+                    result (edit-top-level-form-pipeline 
+                            form-name file-path form-type content :replace)
+                    formatted (format-result result)]
+                (if (:error formatted)
+                  (clj-result-k [(::message result)] true)
+                  (let [[start end] (::offsets result)]
+                    (try
+                      (emacs/temporary-highlight file-path start end 2.0)
+                      (catch Exception _
+                        ;; Ignore highlight errors
+                        nil))
+                    (clj-result-k 
+                     [(format "Successfully updated form '%s' in file %s" form-name file-path)]
+                     false)))))})
+
+
 ;; Tool Factory for creating edit tools using the pipeline
 (defn create-form-edit-tool
   "Creates a tool function using the pipeline pattern.
+   This function is now deprecated and kept for reference only.
    
    Arguments:
-   - tool-config: A map with the following keys:
-     - :name - The name of the tool
-     - :description - A description of what the tool does
-     - :schema - JSON schema for the tool's input parameters (string or map)
-     - :param-name - The name of the parameter for the form name
-     - :param-description - Description of the form name parameter
-     - :content-param-name - The name of the parameter for the new content
-     - :content-description - Description of the content parameter
-     - :action-prefix - Prefix for action messages (e.g., 'before', 'after')
-     - :success-message - Format string for success message
-     - :edit-type - Keyword indicating the edit type (:replace, :before, or :after)
+   - tool-config: A map with tool configuration
    - service-atom: Service atom
    
    Returns:
    - A tool map with name, description, schema and tool-fn"
-  [tool-config service-atom]
-  (let [{:keys [name description schema param-name param-description
-                content-param-name content-description 
-                action-prefix success-message edit-type]} tool-config
-        schema-str (if (string? schema) schema (json/write-str schema))]
-    
-    {:name name
-     :description description
-     :schema schema-str
-     :tool-fn (fn [_ arg-map clj-result-k]
-                (let [form-name (get arg-map param-name)
-                      file-path (get arg-map "file_path")
-                      form-type (get arg-map "form_type")
-                      content (get arg-map content-param-name)
-                      result (edit-top-level-form-pipeline 
-                              form-name file-path form-type content edit-type)
-                      formatted (format-result result)]
-                  (if (:error formatted)
-                    (clj-result-k [(::message result)] true)
-                    (let [[start end] (::offsets result)]
-                      (try
-                        (emacs/temporary-highlight file-path start end 2.0)
-                        (catch Exception _
-                          ;; Ignore highlight errors
-                          nil))
-                      (clj-result-k 
-                       [(format success-message form-name file-path)]
-                       false)))))}))
+  [_ _]
+  nil)
 
 ;; Tool functions using the pipeline
 (defn top-level-form-edit-tool [service-atom]
@@ -311,65 +324,97 @@
       :edit-type :replace}
      service-atom)))
 
-(defn top-level-form-insert-before-tool [service-atom]
-  (let [config (get tfe/edit-type-config :before)
-        {:keys [tool-name short-description intro param-name param-description
-                content-param-name content-description action-prefix success-message]} config
-        description (str short-description "\n   \n" intro
-                        " It preserves formatting and whitespace in the rest of the file.")
-        schema {:type :object
-                :properties
-                {param-name {:type :string
-                             :description param-description}
-                 :file_path {:type :string
-                             :description "Path to the file containing the form"}
-                 :form_type {:type :string
-                             :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
-                 content-param-name {:type :string
-                                     :description content-description}}
-                :required [param-name :file_path :form_type content-param-name]}]
-    (create-form-edit-tool 
-     {:name tool-name
-      :description description
-      :schema schema
-      :param-name param-name
-      :param-description param-description
-      :content-param-name content-param-name
-      :content-description content-description
-      :action-prefix action-prefix
-      :success-message success-message
-      :edit-type :before}
-     service-atom)))
+(defn top-level-form-insert-before-tool 
+  "Returns a tool map for inserting before top-level forms in Clojure files.
+   
+   Arguments:
+   - service-atom: Service atom (required for tool registration but not used in this implementation)
+   
+   Returns a map with :name, :description, :schema and :tool-fn keys"
+  [_]
+  {:name "insert_before_top_level_form"
+   :description
+   (str "Inserts new content before a top-level form in a Clojure file.\n   \n"
+        "This tool allows you to insert new code (such as a new function or definition) before an existing top-level form "
+        "(def, defn, ns, deftest etc.) in source files. It preserves formatting and whitespace in the rest of the file.")
+   :schema
+   (json/write-str
+    {:type :object
+     :properties
+     {:before_form_name {:type :string
+                  :description "The name of the form before which to insert (e.g., function name, var name, namespace name)"}
+      :file_path {:type :string
+                  :description "Path to the file containing the form"}
+      :form_type {:type :string
+                  :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
+      :new_form_str {:type :string
+                 :description "String with the new form to insert"}}
+     :required [:before_form_name :file_path :form_type :new_form_str]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [form-name (get arg-map "before_form_name")
+                    file-path (get arg-map "file_path")
+                    form-type (get arg-map "form_type")
+                    content (get arg-map "new_form_str")
+                    result (edit-top-level-form-pipeline 
+                            form-name file-path form-type content :before)
+                    formatted (format-result result)]
+                (if (:error formatted)
+                  (clj-result-k [(::message result)] true)
+                  (let [[start end] (::offsets result)]
+                    (try
+                      (emacs/temporary-highlight file-path start end 2.0)
+                      (catch Exception _
+                        ;; Ignore highlight errors
+                        nil))
+                    (clj-result-k 
+                     [(format "Successfully inserted form before '%s' in file %s" form-name file-path)]
+                     false)))))})
 
-(defn top-level-form-insert-after-tool [service-atom]
-  (let [config (get tfe/edit-type-config :after)
-        {:keys [tool-name short-description intro param-name param-description
-                content-param-name content-description action-prefix success-message]} config
-        description (str short-description "\n   \n" intro
-                        " It preserves formatting and whitespace in the rest of the file.")
-        schema {:type :object
-                :properties
-                {param-name {:type :string
-                             :description param-description}
-                 :file_path {:type :string
-                             :description "Path to the file containing the form"}
-                 :form_type {:type :string
-                             :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
-                 content-param-name {:type :string
-                                     :description content-description}}
-                :required [param-name :file_path :form_type content-param-name]}]
-    (create-form-edit-tool 
-     {:name tool-name
-      :description description
-      :schema schema
-      :param-name param-name
-      :param-description param-description
-      :content-param-name content-param-name
-      :content-description content-description
-      :action-prefix action-prefix
-      :success-message success-message
-      :edit-type :after}
-     service-atom)))
+(defn top-level-form-insert-after-tool 
+  "Returns a tool map for inserting after top-level forms in Clojure files.
+   
+   Arguments:
+   - service-atom: Service atom (required for tool registration but not used in this implementation)
+   
+   Returns a map with :name, :description, :schema and :tool-fn keys"
+  [_]
+  {:name "insert_after_top_level_form"
+   :description
+   (str "Inserts new content after a top-level form in a Clojure file.\n   \n"
+        "This tool allows you to insert new code (such as a new function or definition) after an existing top-level form "
+        "(def, defn, ns, deftest etc.) in source files. It preserves formatting and whitespace in the rest of the file.")
+   :schema
+   (json/write-str
+    {:type :object
+     :properties
+     {:after_form_name {:type :string
+                  :description "The name of the form after which to insert (e.g., function name, var name, namespace name)"}
+      :file_path {:type :string
+                  :description "Path to the file containing the form"}
+      :form_type {:type :string
+                  :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
+      :new_form_str {:type :string
+                 :description "String with the new form to insert"}}
+     :required [:after_form_name :file_path :form_type :new_form_str]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [form-name (get arg-map "after_form_name")
+                    file-path (get arg-map "file_path")
+                    form-type (get arg-map "form_type")
+                    content (get arg-map "new_form_str")
+                    result (edit-top-level-form-pipeline 
+                            form-name file-path form-type content :after)
+                    formatted (format-result result)]
+                (if (:error formatted)
+                  (clj-result-k [(::message result)] true)
+                  (let [[start end] (::offsets result)]
+                    (try
+                      (emacs/temporary-highlight file-path start end 2.0)
+                      (catch Exception _
+                        ;; Ignore highlight errors
+                        nil))
+                    (clj-result-k 
+                     [(format "Successfully inserted form after '%s' in file %s" form-name file-path)]
+                     false)))))})
 
 (comment
   ;; Examples of using the pipeline
