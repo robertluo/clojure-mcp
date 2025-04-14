@@ -9,9 +9,9 @@
 (defn dummy-function []
   "Just a placeholder function")
 
-;; FINAL TEST BLOCK
-;; This is the final test content
-;; using the refactored pipeline
+;; FINAL ZIPPER TEST
+;; This is the final test with zipper-based editing
+;; fully integrated with the pipeline architecture
 
 ;; Another comment block
 ;; for testing multiple comment blocks

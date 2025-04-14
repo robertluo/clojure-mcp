@@ -773,25 +773,46 @@
             (str/join "\n" result)))))))
 
 (defn find-and-edit-comment
-  "Finds and edits a comment block in the source.
+  "Find and edit a comment block in the source, working directly with zippers.
    
    Arguments:
    - ctx: Context map with ::source, ::comment-substring, and ::new-content
    
    Returns:
-   - Updated context with ::updated-source and ::new-source-code, or error map if comment not found"
+   - Updated context with ::zloc for the pipeline, or error map if comment not found"
   [ctx]
   (let [source (::source ctx)
         comment-substring (::comment-substring ctx)
         new-content (::new-content ctx)
-        updated-source (edit-comment-block source comment-substring new-content)]
-    (if (= updated-source source)
+        block (find-comment-block source comment-substring)]
+
+    (if (nil? block)
       {::error :comment-not-found
        ::message (str "Could not find comment containing: " comment-substring)}
-      (assoc ctx ::updated-source updated-source ::new-source-code updated-source))))
+
+      (case (:type block)
+        ;; For comment forms, use zipper replacement
+        :comment-form
+        (let [zloc (:zloc block)
+              updated-zloc (z/replace zloc (p/parse-string new-content))]
+          (assoc ctx ::zloc updated-zloc))
+
+        ;; For line comments, create a new zipper with the edited content
+        :line-comments
+        (let [lines (str/split-lines source)
+              start (:start block)
+              end (:end block)
+              new-lines (str/split-lines new-content)
+              replaced-lines (concat
+                              (take start lines)
+                              new-lines
+                              (drop (inc end) lines))
+              updated-source (str/join "\n" replaced-lines)
+              updated-zloc (z/of-string updated-source {:track-position? true})]
+          (assoc ctx ::zloc updated-zloc))))))
 
 (defn comment-block-edit-pipeline
-  "Edit a comment block in a file, using the existing pipeline functions.
+  "Edit a comment block in a file, working directly with zippers.
    
    Arguments:
    - file-path: Path to the file
@@ -808,26 +829,8 @@
    ;; Load the file content
    load-source
 
-   ;; Find and edit the comment block
+   ;; Find and edit the comment block, creating a zipper
    find-and-edit-comment
-
-   ;; Lint the result
-   (fn [ctx]
-     (let [lint-result (linting/lint (::updated-source ctx))]
-       (if (and lint-result (:error? lint-result))
-         {::error :lint-failure
-          ::message (str "Linting issues in code:\n" (:report lint-result))}
-         (assoc ctx ::lint-result lint-result))))
-
-   ;; Put the edited source in the zloc format for the rest of the pipeline
-   (fn [ctx]
-     (try
-       (let [updated-source (::updated-source ctx)
-             zloc (z/of-string updated-source {:track-position? true})]
-         (assoc ctx ::zloc zloc))
-       (catch Exception e
-         {::error :zloc-creation-failed
-          ::message (str "Failed to create zipper: " (.getMessage e))})))
 
    ;; Format the source
    format-source
