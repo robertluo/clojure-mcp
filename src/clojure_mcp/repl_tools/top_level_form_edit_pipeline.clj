@@ -772,8 +772,26 @@
                         (drop (inc end) lines))]
             (str/join "\n" result)))))))
 
+(defn find-and-edit-comment
+  "Finds and edits a comment block in the source.
+   
+   Arguments:
+   - ctx: Context map with ::source, ::comment-substring, and ::new-content
+   
+   Returns:
+   - Updated context with ::updated-source and ::new-source-code, or error map if comment not found"
+  [ctx]
+  (let [source (::source ctx)
+        comment-substring (::comment-substring ctx)
+        new-content (::new-content ctx)
+        updated-source (edit-comment-block source comment-substring new-content)]
+    (if (= updated-source source)
+      {::error :comment-not-found
+       ::message (str "Could not find comment containing: " comment-substring)}
+      (assoc ctx ::updated-source updated-source ::new-source-code updated-source))))
+
 (defn comment-block-edit-pipeline
-  "Edit a comment block in a file.
+  "Edit a comment block in a file, using the existing pipeline functions.
    
    Arguments:
    - file-path: Path to the file
@@ -788,24 +806,10 @@
     ::new-content new-content}
 
    ;; Load the file content
-   (fn [ctx]
-     (try
-       (assoc ctx ::source (slurp (::file-path ctx)))
-       (catch java.io.FileNotFoundException _
-         {::error :file-not-found
-          ::message (str "File not found: " (::file-path ctx))})))
+   load-source
 
    ;; Find and edit the comment block
-   (fn [ctx]
-     (let [updated-source (edit-comment-block
-                           (::source ctx)
-                           (::comment-substring ctx)
-                           (::new-content ctx))]
-       (if (= updated-source (::source ctx))
-         {::error :comment-not-found
-          ::message (str "Could not find comment containing: "
-                         (::comment-substring ctx))}
-         (assoc ctx ::updated-source updated-source))))
+   find-and-edit-comment
 
    ;; Lint the result
    (fn [ctx]
@@ -815,23 +819,27 @@
           ::message (str "Linting issues in code:\n" (:report lint-result))}
          (assoc ctx ::lint-result lint-result))))
 
-   ;; Save the file
+   ;; Put the edited source in the zloc format for the rest of the pipeline
    (fn [ctx]
      (try
-       (spit (::file-path ctx) (::updated-source ctx))
-       (assoc ctx ::success true)
+       (let [updated-source (::updated-source ctx)
+             zloc (z/of-string updated-source {:track-position? true})]
+         (assoc ctx ::zloc zloc))
        (catch Exception e
-         {::error :save-failed
-          ::message (str "Failed to save file: " (.getMessage e))})))
+         {::error :zloc-creation-failed
+          ::message (str "Failed to create zipper: " (.getMessage e))})))
 
-   ;; Attempt to highlight the change
-   (fn [ctx]
-     (try
-       (emacs/highlight-region (::file-path ctx) 0 100)
-       ctx
-       (catch Exception _
-         ;; Ignore highlight errors
-         ctx)))))
+   ;; Format the source
+   format-source
+
+   ;; Ensure Emacs auto-revert is enabled
+   emacs-set-auto-revert
+
+   ;; Save the file
+   save-file
+
+   ;; Highlight the edited region
+   highlight-form))
 
 (defn comment-block-edit-tool
   "Returns a tool map for editing comment blocks in Clojure files.

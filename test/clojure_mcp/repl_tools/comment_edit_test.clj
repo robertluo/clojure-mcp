@@ -9,11 +9,9 @@
 (defn dummy-function []
   "Just a placeholder function")
 
-(comment
-  ;; UPDATED: Example test usage
-  (dummy-function)
-  (println "Updated comment block")
-  (+ 1 2 3))
+;; FINAL TEST BLOCK
+;; This is the final test content
+;; using the refactored pipeline
 
 ;; Another comment block
 ;; for testing multiple comment blocks
