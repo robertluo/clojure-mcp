@@ -152,7 +152,7 @@ in the rest of the file."
                       (vector? result)
                       (do
                         (try
-                          (emacs/highlight-region file-path (first result) (second result))
+                          (emacs/temporary-highlight file-path (first result) (second result) 2.0)
                           (catch Exception e
                             (println "Warning: Failed to highlight form in Emacs:" (.getMessage e))))
                         
