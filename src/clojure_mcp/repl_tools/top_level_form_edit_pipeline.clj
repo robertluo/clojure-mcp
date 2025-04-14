@@ -387,7 +387,113 @@
                         nil))
                     (clj-result-k 
                      [(format "Successfully inserted form after '%s' in file %s" form-name file-path)]
-                     false)))))})
+                     false)))))}) 
+
+(defn get-form-summary
+  "Get a summarized representation of a Clojure form showing only up to the argument list"
+  [zloc]
+  (try
+    (let [sexpr (z/sexpr zloc)]
+      (when (and (seq? sexpr) (symbol? (first sexpr)))
+        (let [form-type (name (first sexpr))
+              form-name (when (> (count sexpr) 1)
+                          (let [second-item (second sexpr)]
+                            (when (symbol? second-item)
+                              (name second-item))))]
+          
+          (case form-type
+            "defn" (let [vector-pos (count (take-while #(not (vector? %)) sexpr))
+                         args (when (> (count sexpr) vector-pos)
+                                (nth sexpr vector-pos))]
+                     (str "(defn " form-name " " args " ...)"))
+            
+            "defmacro" (let [vector-pos (count (take-while #(not (vector? %)) sexpr))
+                             args (when (> (count sexpr) vector-pos)
+                                    (nth sexpr vector-pos))]
+                         (str "(defmacro " form-name " " args " ...)"))
+            
+            "def" (str "(def " form-name " ...)")
+            "deftest" (str "(deftest " form-name " ...)")
+            "ns" (z/string zloc) ; Always show the full namespace
+            (str "(" form-type " " (or form-name "") " ...)")))))
+    (catch Exception e
+      (println "Error in get-form-summary:" (.getMessage e))
+      nil)))
+
+(defn generate-collapsed-file-view
+  "Generates a collapsed view of all top-level forms in a Clojure file.
+   
+   Arguments:
+   - file-path: Path to the Clojure file
+   - expand-symbols: Optional sequence of symbol names to show in expanded form
+   
+   Returns:
+   - A string containing the collapsed representation of the file"
+  [file-path expand-symbols]
+  (try
+    (let [file-content (slurp file-path)
+          zloc (z/of-string file-content)
+          expand-set (set (map name expand-symbols))]
+      
+      (loop [loc zloc
+             forms []]
+        (if (nil? loc)
+          ;; Return the final string with all forms
+          (str/join "\n\n" forms)
+          
+          ;; Process current form
+          (let [current-sexpr (try (z/sexpr loc) (catch Exception _ nil))
+                next-loc (try (z/right loc) (catch Exception _ nil))
+                form-name (when (and (seq? current-sexpr) 
+                                    (> (count current-sexpr) 1)
+                                    (symbol? (second current-sexpr)))
+                           (name (second current-sexpr)))
+                should-expand (contains? expand-set form-name)
+                form-str (if should-expand
+                          (z/string loc)
+                          (get-form-summary loc))]
+            (if form-str
+              (recur next-loc (conj forms form-str))
+              (recur next-loc forms))))))
+    (catch java.io.FileNotFoundException _
+      (str "Error: File not found: " file-path))
+    (catch Exception e
+      (str "Error generating file view: " (.getMessage e))))) 
+
+(defn clojure-file-outline-tool
+  "Returns a tool map for generating a collapsed file outline.
+   
+   Arguments:
+   - service-atom: Service atom (required for tool registration but not used in this implementation)
+   
+   Returns a map with :name, :description, :schema and :tool-fn keys"
+  [_]
+  {:name "clojure_file_outline"
+   :description
+   (str "Generates a collapsed outline view of a Clojure file with only function/var names and argument lists. "
+        "Optionally expands specific forms to show their full implementation.\n\n"
+        "# Example:\n"
+        "# clojure_file_outline(\n"
+        "#   file_path: \"src/my_ns/core.clj\",\n"
+        "#   expand: [\"main-function\", \"process-data\"] # Optional list of forms to show expanded\n"
+        "# )")
+   :schema
+   (json/write-str
+    {:type :object
+     :properties
+     {:file_path {:type :string
+                  :description "Path to the Clojure file to outline"}
+      :expand {:type :array
+               :description "Optional list of form names to show in expanded form"
+               :items {:type :string}}}
+     :required [:file_path]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [file-path (get arg-map "file_path")
+                    expand-forms (or (get arg-map "expand") [])
+                    result (generate-collapsed-file-view file-path expand-forms)]
+                (if (str/starts-with? result "Error")
+                  (clj-result-k [result] true)
+                  (clj-result-k [result] false))))})
 
 (comment
   ;; Examples of using the pipeline
