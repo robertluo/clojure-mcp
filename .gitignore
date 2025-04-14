@@ -34,10 +34,8 @@
 package-lock.json
 package.json
 test/tmp/
-resources/prompts/
-resources/configs/
+
 src/user.clj
-doc/
 
 # OS specific
 .DS_Store
