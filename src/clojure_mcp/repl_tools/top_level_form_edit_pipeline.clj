@@ -245,6 +245,8 @@
    (str "Replaces a top-level Clojure form with new implementation. Use this to modify existing functions, vars, "
         "or other forms while preserving surrounding code formatting. Example: Update a function's implementation "
         "or signature without rewriting the entire file.\n\n"
+        "Tip: To effectively remove a form, replace it with a comment like \";; Removed form-name\" - "
+        "this maintains file structure while making the intention clear.\n\n"
         "Tip: Use clojure_file_outline before and after editing to confirm the structure of the file "
         "and verify your changes appear in the expected location.\n\n"
         "# Example:\n"
@@ -253,6 +255,13 @@
         "#   form_name: \"process-data\",\n"
         "#   form_type: \"defn\",\n"
         "#   new_implementation: \"(defn process-data [x] (+ x 10))\"\n"
+        "# )\n\n"
+        "# Example (removing a form):\n"
+        "# clojure_edit_replace_form(\n"
+        "#   file_path: \"src/my_ns/core.clj\",\n"
+        "#   form_name: \"obsolete-function\",\n"
+        "#   form_type: \"defn\",\n"
+        "#   new_implementation: \";; Removed obsolete-function\"\n"
         "# )")
    :schema
    (json/write-str
