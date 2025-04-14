@@ -245,6 +245,8 @@
    (str "Replaces a top-level Clojure form with new implementation. Use this to modify existing functions, vars, "
         "or other forms while preserving surrounding code formatting. Example: Update a function's implementation "
         "or signature without rewriting the entire file.\n\n"
+        "Tip: Use clojure_file_outline before and after editing to confirm the structure of the file "
+        "and verify your changes appear in the expected location.\n\n"
         "# Example:\n"
         "# clojure_edit_replace_form(\n"
         "#   file_path: \"src/my_ns/core.clj\",\n"
@@ -297,6 +299,8 @@
    :description
    (str "Inserts new Clojure code immediately before a specified top-level form. Perfect for adding helper functions, "
         "imports, or configuration before existing code. Maintains proper formatting and whitespace in the file.\n\n"
+        "Tip: Use clojure_file_outline before and after inserting to confirm the order of forms "
+        "and ensure your new code appears in the expected location.\n\n"
         "# Example:\n"
         "# clojure_edit_insert_before_form(\n"
         "#   file_path: \"src/my_ns/core.clj\",\n"
@@ -349,6 +353,8 @@
    :description
    (str "Inserts new Clojure code immediately after a specified top-level form. Ideal for extending existing functionality "
         "with new functions or adding dependent code. Preserves all formatting in the file.\n\n"
+        "Tip: Use clojure_file_outline before and after inserting to visualize the structure of the file "
+        "and confirm your new code appears in the correct position.\n\n"
         "# Example:\n"
         "# clojure_edit_insert_after_form(\n"
         "#   file_path: \"src/my_ns/core.clj\",\n"
