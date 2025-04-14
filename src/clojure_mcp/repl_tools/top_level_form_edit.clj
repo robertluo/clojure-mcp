@@ -55,24 +55,19 @@
   (when-let [form-zloc (find-top-level-form zloc tag name)]
     (z/replace form-zloc (p/parse-string replacement-str))))
 
-(defn edit-form-in-file
-  "Edit a top-level form in a file, replacing it with a new implementation.
-   
-   Arguments:
-   - file-path: Path to the file containing the form
-   - tag: The type of the form (defn, def, ns, etc.)
-   - name: Name of the form to replace
-   - new-form-str: String with the new form implementation
-   
-   Returns the updated file content as a string."
-  [file-path tag name new-form-str]
-  (let [file-content (slurp file-path)
-        zloc (z/of-string file-content)
-        updated-zloc (replace-top-level-form zloc tag name new-form-str)]
-    (if updated-zloc
-      (z/root-string updated-zloc)
-      file-content)))
+(defn row-col->offset [s target-row target-col]
+  (loop [lines (clojure.string/split-lines s)
+         current-row 1
+         offset 0]
+    (if (or (empty? lines) (>= current-row target-row))
+      (+ offset target-col) ; Add (col - 1) for 0-based index
+      (recur (next lines)
+             (inc current-row)
+             (+ offset (count (first lines)) 1)))))
 
+(defn zloc-offsets [source-str positions]
+  (mapv (fn [[row col]] (row-col->offset source-str row col))
+        positions))
 
 (defn replace-form-in-file
   "Replace a top-level form in a file with a new implementation.
@@ -84,7 +79,7 @@
    - new-form-str: String with the new form implementation
    
    Returns:
-   - true if the form was replaced successfully
+   - [start end] offsets if the form was replaced successfully
    - false if the form was not found
    - A map with :error and :message keys if there were errors"
   [name file-path tag new-form-str]
@@ -93,7 +88,6 @@
           tag (if (string? tag) tag (str tag))
           ;; Lint the code first
           lint-result (linting/lint new-form-str)]
-      
       ;; Fail early if there are linting issues
       (if lint-result
         {:error :lint-failure 
@@ -102,12 +96,14 @@
         ;; Continue with replacement if no linting issues
         (try
           (let [file-content (slurp file-path)
-                zloc (z/of-string file-content)
+                zloc (z/of-string file-content {:track-position? true})
                 updated-zloc (replace-top-level-form zloc tag name new-form-str)]
             (if updated-zloc
-              (do
+              (let [positions (z/position-span updated-zloc)
+                    final-source (z/root-string updated-zloc)
+                    offsets (zloc-offsets final-source positions)]
                 (spit file-path (z/root-string updated-zloc))
-                true)
+                offsets)
               false))
           (catch java.io.FileNotFoundException _
             {:error :file-not-found
@@ -126,46 +122,37 @@
 This tool allows you to modify any top-level form (def, defn, ns, deftest etc.) 
 in source files without manually editing the files. It preserves formatting and whitespace 
 in the rest of the file."
-   :schema (json/write-str {:type :object
-                            :properties {:form_name {:type :string
-                                                     :description "The name of the form to edit (e.g., function name, var name, namespace name)"}
-                                         :file_path {:type :string
-                                                     :description "Path to the file containing the form"}
-                                         :form_type {:type :string
-                                                     :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
-                                         :new_implementation {:type :string
-                                                              :description "String with the new form implementation"}}
-                            :required [:form_name :file_path :form_type :new_implementation]})
+   :schema
+   (json/write-str
+    {:type :object
+     :properties
+     {:form_name {:type :string
+                  :description "The name of the form to edit (e.g., function name, var name, namespace name)"}
+      :file_path {:type :string
+                  :description "Path to the file containing the form"}
+      :form_type {:type :string
+                  :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
+      :new_implementation {:type :string
+                           :description "String with the new form implementation"}}
+     :required [:form_name :file_path :form_type :new_implementation]})
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [form-name (get arg-map "form_name")
                     file-path (get arg-map "file_path")
                     form-type (get arg-map "form_type")
-                    new-impl (get arg-map "new_implementation")
-                    ;; Perform linting first
-                    lint-result (linting/lint new-impl)]
-                
-                ;; Check for linting issues before proceeding
-                (if lint-result
-                  ;; If there are linting issues, fail with error message
-                  (let [formatted-lint (linting/format-lint-warnings lint-result)
-                        formatted-report (str "Cannot update form '" form-name "' of type '" form-type "':\n\n" 
-                                             formatted-lint 
-                                             "\n\nPlease fix these issues before updating the form.")]
+                    new-impl (get arg-map "new_implementation")]
+                (if-let [lint-result (linting/lint new-impl)]
+                  (let [formatted-report
+                        (str "Cannot update form '" form-name "' of type '"
+                             form-type "':\n\n" 
+                             (linting/format-lint-warnings lint-result) 
+                             "\n\nPlease fix these issues before updating the form.")]
                     (clj-result-k [formatted-report] true))
-                  
-                  ;; If no linting issues, proceed with the update
-                  (let [result (replace-form-in-file
-                                 form-name
-                                 file-path
-                                 form-type
-                                 new-impl)]
+                  (let [result (replace-form-in-file form-name file-path form-type new-impl)]
                     (cond
-                      ;; Success case
-                      (true? result)
+                      (vector? result)
                       (do
-                        ;; Try to highlight the updated form in Emacs
                         (try
-                          (emacs/highlight-form file-path form-type form-name)
+                          (emacs/highlight-region file-path (first result) (second result))
                           (catch Exception e
                             (println "Warning: Failed to highlight form in Emacs:" (.getMessage e))))
                         
@@ -174,8 +161,9 @@ in the rest of the file."
                       
                       ;; Form not found
                       (false? result)
-                      (clj-result-k [(str "Could not find form '" form-name "' of type '" form-type "' in file " file-path)]
-                                    true)
+                      (clj-result-k
+                       [(str "Could not find form '" form-name "' of type '" form-type "' in file " file-path)]
+                       true)
                       
                       ;; Map result indicates specific error
                       (map? result)
@@ -189,10 +177,32 @@ in the rest of the file."
                       (clj-result-k [(str "Error updating form: " result)]
                                     true))))))})
 
+
+#_(let [result (replace-form-in-file "square-plus"
+                            "/Users/bruce/workspace/llempty/clojure-mcp/src/user.clj"
+                            "defn"
+                            "(defn square-plus [n consta & [multiplier]]
+  (+ (* n n (or multiplier 1)) consta))"
+                            )
+      ]
+
+  (if (vector? result)
+      (emacs/highlight-region "/Users/bruce/workspace/llempty/clojure-mcp/src/user.clj"
+                              (first result)
+                              (second result))
+      result)
+  
+  )
+
 (comment
   ;; Example usage
-  
-(def sample "(defn foo [x y]
+
+
+  (count   "(defn foo [x y]
+    (println \"Original foo was called!\")
+    (+ x y (helper 5)))
+")
+  (def sample "(defn foo [x y]
     (println \"Original foo was called!\")
     (+ x y (helper 5)))
 
@@ -201,9 +211,20 @@ in the rest of the file."
 (ns test.namespace
   (:require [clojure.string :as str]))")
 
-;; Test finding a function
-(find-top-level-form (z/of-string sample) "defn" "foo")
-  
+  ;; Test finding a function
+  (z/position-span (find-top-level-form (z/of-string user/sample {:track-position? true}) "def" "test-var"))
+
+  (z/position-span
+   (replace-top-level-form (z/of-string user/sample {:track-position? true}) "def" "test-var"
+
+                           "(defn)"))
+
+
+
+
+
+  (row-col->offset user/sample 5 1)
+
   ;; Test replacing a function
   (z/root-string 
    (replace-top-level-form 
