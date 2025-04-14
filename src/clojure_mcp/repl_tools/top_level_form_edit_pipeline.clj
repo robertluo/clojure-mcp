@@ -58,12 +58,12 @@
   (when-let [form-zloc (find-top-level-form zloc tag name)]
     (case edit-type
       :replace (z/replace form-zloc (p/parse-string content-str))
-      :before  (-> form-zloc
-                   (z/insert-left (p/parse-string-all (str content-str "\n\n")))
-                   z/up)
-      :after   (-> form-zloc
-                   (z/insert-right (p/parse-string-all (str "\n\n" content-str)))
-                   z/up))))
+      :before (-> form-zloc
+                  (z/insert-left (p/parse-string-all (str content-str "\n\n")))
+                  z/up)
+      :after (-> form-zloc
+                 (z/insert-right (p/parse-string-all (str "\n\n" content-str)))
+                 z/up))))
 
 (defn row-col->offset [s target-row target-col]
   (loop [lines (clojure.string/split-lines s)
@@ -294,7 +294,7 @@
   [ctx & fns]
   (reduce (fn [c f]
             (if (::error c)
-              (reduced c)  ; Short-circuit on error using reduced
+              (reduced c) ; Short-circuit on error using reduced
               (f c)))
           ctx
           fns))
@@ -650,6 +650,238 @@
                 (if (str/starts-with? result "Error")
                   (clj-result-k [result] true)
                   (clj-result-k [result] false))))})
+
+(defn is-comment-form?
+  "Check if a zloc is a (comment ...) form."
+  [zloc]
+  (try
+    (and (z/seq? zloc)
+         (let [first-child (z/down zloc)]
+           (and first-child
+                (= (z/sexpr first-child) 'comment))))
+    (catch Exception _ false)))
+
+(defn is-line-comment?
+  "Check if a zloc is a line comment."
+  [zloc]
+  (try
+    (= (-> zloc z/node n/tag) :comment)
+    (catch Exception _ false)))
+
+(defn find-comment-block
+  "Find a comment block (either a 'comment' form or consecutive comment lines)
+   that contains a specific substring.
+   
+   Arguments:
+   - source: The source string to search in
+   - comment-substring: The substring to look for
+   
+   Returns a map with :type, :start, :end, and :content keys,
+   or nil if no matching comment block is found."
+  [source comment-substring]
+  (let [zloc (z/of-string source {:track-position? true})
+        lines (str/split-lines source)]
+
+    ;; First, try to find a comment form
+    (loop [loc zloc]
+      (cond
+        ;; No more forms
+        (nil? loc)
+        (let [;; Find consecutive comment lines
+              consecutive-comments
+              (->> (map-indexed vector lines)
+                   (reduce
+                    (fn [[blocks current-block] [idx line]]
+                      (cond
+                        ;; If we're already tracking a block and the line is a comment
+                        (and current-block
+                             (str/starts-with? (str/trim line) ";;"))
+                        [blocks (update current-block :lines conj line)]
+
+                        ;; If we're tracking a block and hit a non-comment line
+                        current-block
+                        [(conj blocks (assoc current-block :end (dec idx))) nil]
+
+                        ;; If this is a new comment line
+                        (str/starts-with? (str/trim line) ";;")
+                        [blocks {:start idx
+                                 :lines [line]}]
+
+                        ;; Otherwise, continue
+                        :else
+                        [blocks nil]))
+                    [[] nil])
+                   first)]
+
+          ;; Find the first consecutive comment block containing the substring
+          (when-let [matching-block
+                     (first (filter #(some (fn [line]
+                                             (str/includes? line comment-substring))
+                                           (:lines %))
+                                    consecutive-comments))]
+            {:type :line-comments
+             :start (:start matching-block)
+             :end (or (:end matching-block) (+ (:start matching-block)
+                                               (dec (count (:lines matching-block)))))
+             :content (str/join "\n" (:lines matching-block))}))
+
+        ;; Check if current form is a comment form
+        (is-comment-form? loc)
+        (let [comment-str (z/string loc)]
+          (if (str/includes? comment-str comment-substring)
+            (let [pos (z/position-span loc)]
+              {:type :comment-form
+               :start (first pos) ;; [row col]
+               :end (second pos) ;; [row col]
+               :content comment-str
+               :zloc loc})
+            (recur (z/right loc))))
+
+        ;; Move to the next form
+        :else (recur (z/right loc))))))
+
+(defn edit-comment-block
+  "Edit a comment block in the source code.
+   
+   Arguments:
+   - source: The source string
+   - comment-substring: Substring to identify the comment block
+   - new-content: New content to replace the comment block with
+   
+   Returns the updated source code string, or the original if no matching block was found."
+  [source comment-substring new-content]
+  (let [block (find-comment-block source comment-substring)]
+    (if (nil? block)
+      source ;; No matching block found
+      (let [lines (str/split-lines source)]
+        (case (:type block)
+          ;; For comment forms, use zloc to replace
+          :comment-form
+          (-> (:zloc block)
+              (z/replace (p/parse-string new-content))
+              z/root-string)
+
+          ;; For line comments, replace the relevant lines
+          :line-comments
+          (let [start (:start block)
+                end (:end block)
+                new-lines (str/split-lines new-content)
+                result (concat
+                        (take start lines)
+                        new-lines
+                        (drop (inc end) lines))]
+            (str/join "\n" result)))))))
+
+(defn comment-block-edit-pipeline
+  "Edit a comment block in a file.
+   
+   Arguments:
+   - file-path: Path to the file
+   - comment-substring: Substring to identify the comment block
+   - new-content: New content to replace the comment block with
+   
+   Returns a context map with result information."
+  [file-path comment-substring new-content]
+  (thread-ctx
+   {::file-path file-path
+    ::comment-substring comment-substring
+    ::new-content new-content}
+
+   ;; Load the file content
+   (fn [ctx]
+     (try
+       (assoc ctx ::source (slurp (::file-path ctx)))
+       (catch java.io.FileNotFoundException _
+         {::error :file-not-found
+          ::message (str "File not found: " (::file-path ctx))})))
+
+   ;; Find and edit the comment block
+   (fn [ctx]
+     (let [updated-source (edit-comment-block
+                           (::source ctx)
+                           (::comment-substring ctx)
+                           (::new-content ctx))]
+       (if (= updated-source (::source ctx))
+         {::error :comment-not-found
+          ::message (str "Could not find comment containing: "
+                         (::comment-substring ctx))}
+         (assoc ctx ::updated-source updated-source))))
+
+   ;; Lint the result
+   (fn [ctx]
+     (let [lint-result (linting/lint (::updated-source ctx))]
+       (if (and lint-result (:error? lint-result))
+         {::error :lint-failure
+          ::message (str "Linting issues in code:\n" (:report lint-result))}
+         (assoc ctx ::lint-result lint-result))))
+
+   ;; Save the file
+   (fn [ctx]
+     (try
+       (spit (::file-path ctx) (::updated-source ctx))
+       (assoc ctx ::success true)
+       (catch Exception e
+         {::error :save-failed
+          ::message (str "Failed to save file: " (.getMessage e))})))
+
+   ;; Attempt to highlight the change
+   (fn [ctx]
+     (try
+       (emacs/highlight-region (::file-path ctx) 0 100)
+       ctx
+       (catch Exception _
+         ;; Ignore highlight errors
+         ctx)))))
+
+(defn comment-block-edit-tool
+  "Returns a tool map for editing comment blocks in Clojure files.
+   
+   Arguments:
+   - service-atom: Service atom (required for tool registration but not used in this implementation)
+   
+   Returns a map with :name, :description, :schema and :tool-fn keys"
+  [_]
+  {:name "clojure_edit_comment_block"
+   :description
+   (str "Finds and replaces a comment block in a Clojure file. Works with both `(comment ...)` forms "
+        "and consecutive lines of comments starting with ';;'. The comment block is identified by "
+        "a substring that it contains.\n\n"
+        "Use this when you want to update documentation, test code in comment blocks, or replace "
+        "example code.\n\n"
+        "# Example:\n"
+        "# clojure_edit_comment_block(\n"
+        "#   file_path: \"src/my_ns/core.clj\",\n"
+        "#   comment_substring: \"Example usage:\",\n"
+        "#   new_content: \";; Example usage:\\n;; (my-function 42)\"\n"
+        "# )\n\n"
+        "# Another example:\n"
+        "# clojure_edit_comment_block(\n"
+        "#   file_path: \"src/my_ns/core.clj\",\n"
+        "#   comment_substring: \"Test with fixtures\",\n"
+        "#   new_content: \"(comment\\n  (let [fixture {:id 1}]\\n    (test-fn fixture)))\"\n"
+        "# )")
+   :schema
+   (json/write-str
+    {:type :object
+     :properties
+     {:file_path {:type :string
+                  :description "Path to the file containing the comment block"}
+      :comment_substring {:type :string
+                          :description "A substring to identify the target comment block"}
+      :new_content {:type :string
+                    :description "New content to replace the comment block with"}}
+     :required [:file_path :comment_substring :new_content]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [file-path (get arg-map "file_path")
+                    comment-substring (get arg-map "comment_substring")
+                    new-content (get arg-map "new_content")
+                    result (comment-block-edit-pipeline
+                            file-path comment-substring new-content)]
+                (if (::error result)
+                  (clj-result-k [(::message result)] true)
+                  (clj-result-k
+                   [(format "Successfully updated comment block in file %s" file-path)]
+                   false))))})
 
 (comment
   ;; Examples of using the pipeline
