@@ -300,6 +300,78 @@
           fns))
 
 ;; Full pipeline function
+(defn find-docstring
+  "Finds the docstring node of a top-level form.
+   
+   Arguments:
+   - zloc: The zipper location to start searching from
+   - tag: The form type (e.g., 'defn, 'def)
+   - name: The name of the form
+   
+   Returns the zipper positioned at the docstring node, or nil if:
+   - The form was not found
+   - The form doesn't have a docstring"
+  [zloc tag name]
+  (when-let [form-zloc (find-top-level-form zloc tag name)]
+    (let [tag-zloc (z/down form-zloc) ;; Move to the tag (defn, def, etc.)
+          name-zloc (z/right tag-zloc) ;; Move to the name
+          docstring-candidate (z/right name-zloc)] ;; Move to potential docstring
+      (when (and docstring-candidate
+                 (= (z/tag docstring-candidate) :token)
+                 (string? (z/sexpr docstring-candidate)))
+        docstring-candidate))))
+
+(defn edit-docstring
+  "Edit a docstring in a top-level form.
+   
+   Arguments:
+   - zloc: The zipper location to start searching from
+   - tag: The form type (e.g., 'defn, 'def)
+   - name: The name of the form
+   - new-docstring: The new docstring content
+   
+   Returns the updated zipper, or nil if the form or docstring was not found."
+  [zloc tag name new-docstring]
+  (when-let [docstring-zloc (find-docstring zloc tag name)]
+    ;; Replace the docstring with the new one
+    (z/replace docstring-zloc (n/string-node new-docstring))))
+
+(defn docstring-edit-pipeline
+  "Pipeline for editing docstrings in a file.
+   
+   Arguments:
+   - name: Name of the form
+   - file-path: Path to the file
+   - tag: Type of form (e.g., 'defn', 'def')
+   - new-docstring: New docstring content
+   
+   Returns a context map with the result of the operation."
+  [name file-path tag new-docstring]
+  (-> {:file-path file-path
+       :form-name name
+       :form-tag tag
+       :content new-docstring
+       :edit-type :docstring}
+      (thread-ctx
+       load-source
+       lint-code
+       find-form
+       (fn [ctx]
+         (if-let [source (:source ctx)]
+           (if-let [zloc (z/of-string source)]
+             (if-let [updated-zloc (edit-docstring zloc tag name new-docstring)]
+               (assoc ctx :edited-source (z/root-string updated-zloc))
+               (assoc ctx ::error :docstring-not-found
+                      ::message (format "No docstring found in form '%s' of type '%s' in file %s"
+                                        name tag file-path)))
+             (assoc ctx ::error :parse-error
+                    ::message (format "Failed to parse source code in file %s" file-path)))
+           ctx))
+       format-source
+       emacs-set-auto-revert
+       save-file
+       highlight-form)))
+
 (defn edit-top-level-form-pipeline
   "Complete pipeline for editing a top-level form.
    
@@ -854,23 +926,29 @@
   [_]
   {:name "clojure_edit_comment_block"
    :description
-   (str "Finds and replaces a comment block in a Clojure file. Works with both `(comment ...)` forms "
-        "and consecutive lines of comments starting with ';;'. The comment block is identified by "
-        "a substring that it contains.\n\n"
-        "Use this when you want to update documentation, test code in comment blocks, or replace "
-        "example code.\n\n"
-        "# Example:\n"
-        "# clojure_edit_comment_block(\n"
-        "#   file_path: \"src/my_ns/core.clj\",\n"
-        "#   comment_substring: \"Example usage:\",\n"
-        "#   new_content: \";; Example usage:\\n;; (my-function 42)\"\n"
-        "# )\n\n"
-        "# Another example:\n"
-        "# clojure_edit_comment_block(\n"
-        "#   file_path: \"src/my_ns/core.clj\",\n"
-        "#   comment_substring: \"Test with fixtures\",\n"
-        "#   new_content: \"(comment\\n  (let [fixture {:id 1}]\\n    (test-fn fixture)))\"\n"
-        "# )")
+   (str
+    "Finds and replaces a TOP-LEVEL comment block in a Clojure file. Only works with:
+ 1. Top-level `(comment ...)` forms, or
+ 2. Top-level consecutive lines of comments starting with ';;'
+ 
+ The comment block is identified by a substring that it contains. This tool will not modify comment blocks that are nested inside functions or other forms.
+ 
+ IMPORTANT: This tool only modifies entire comment blocks at the top level of the file, not individual comments within other code structures."
+    "\n\n"
+    "Use this when you want to edit and change TOP-LEVEL comment blocks"
+    "example code.\n\n"
+    "# Example:\n"
+    "# clojure_edit_comment_block(\n"
+    "#   file_path: \"src/my_ns/core.clj\",\n"
+    "#   comment_substring: \"Example usage:\",\n"
+    "#   new_content: \";; Example usage:\\n;; (my-function 42)\"\n"
+    "# )\n\n"
+    "# Another example:\n"
+    "# clojure_edit_comment_block(\n"
+    "#   file_path: \"src/my_ns/core.clj\",\n"
+    "#   comment_substring: \"Test with fixtures\",\n"
+    "#   new_content: \"(comment\\n  (let [fixture {:id 1}]\\n    (test-fn fixture)))\"\n"
+    "# )")
    :schema
    (json/write-str
     {:type :object
@@ -893,6 +971,61 @@
                   (clj-result-k
                    [(format "Successfully updated comment block in file %s" file-path)]
                    false))))})
+
+(defn docstring-edit-tool
+  "Returns a tool map for editing docstrings in Clojure files.
+   
+   Arguments:
+   - service-atom: Service atom (required for tool registration but not used in this implementation)
+   
+   Returns a map with :name, :description, :schema and :tool-fn keys"
+  [_]
+  {:name "clojure_edit_replace_docstring"
+   :description
+   (str "Replaces a docstring in a top-level Clojure form. This tool maintains all function "
+        "parameters, implementation, and metadata while updating only the docstring.\n\n"
+        "Use this tool when you want to update documentation without changing function behavior. "
+        "Works with any top-level form that contains a docstring (defn, def, ns, etc.).\n\n"
+        "# Example:\n"
+        "# clojure_edit_replace_docstring(\n"
+        "#   file_path: \"src/my_ns/core.clj\",\n"
+        "#   form_name: \"process-data\",\n"
+        "#   form_type: \"defn\",\n"
+        "#   new_docstring: \"Takes a data map and processes it.\\nReturns the transformed result.\"\n"
+        "# )\n"
+        "# Note: To include newlines in docstrings, use escaped newlines (\\n)")
+   :schema
+   (json/write-str
+    {:type :object
+     :properties
+     {:form_name {:type :string
+                  :description "The name of the form whose docstring to edit (e.g., function name, var name)"}
+      :file_path {:type :string
+                  :description "Path to the file containing the form"}
+      :form_type {:type :string
+                  :description "The type of form (e.g., 'defn', 'def', 'ns'). Required."}
+      :new_docstring {:type :string
+                      :description "String with the new docstring content"}}
+     :required [:form_name :file_path :form_type :new_docstring]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [form-name (get arg-map "form_name")
+                    file-path (get arg-map "file_path")
+                    form-type (get arg-map "form_type")
+                    new-docstring (get arg-map "new_docstring")
+                    result (docstring-edit-pipeline
+                            form-name file-path form-type new-docstring)
+                    formatted (format-result result)]
+                (if (:error formatted)
+                  (clj-result-k [(::message result)] true)
+                  (let [[start end] (::offsets result)]
+                    (try
+                      (emacs/temporary-highlight file-path start end 2.0)
+                      (catch Exception _
+                        ;; Ignore highlight errors
+                        nil))
+                    (clj-result-k
+                     [(format "Successfully updated docstring for '%s' in file %s" form-name file-path)]
+                     false)))))})
 
 (comment
   ;; Examples of using the pipeline

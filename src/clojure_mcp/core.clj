@@ -148,7 +148,7 @@
 
 (defn add-tool
   "Helper function to create an async tool from a map and add it to the server."
-  [mcp-server  tool-map]
+  [mcp-server tool-map]
   (.removeTool mcp-server (:name tool-map))
   ;; Pass the service-atom along when creating the tool
   (-> (.addTool mcp-server (create-async-tool tool-map))
@@ -172,7 +172,6 @@
    :tool-fn (fn [_ args-map clj-result-k]
               (clj-result-k [(str "ECHO: " (pr-str args-map))] false))})
 
-
 (defn mcp-server
   "Creates an basic stdio mcp server"
   []
@@ -187,13 +186,13 @@
                    (.build))]
 
     #_(-> server
-        (.level McpSchema$LoggingLevel/INFO)
-        (.logger "ClojureMCPlog")
-        (.data("Server initialized"))
-        (.build))
+          (.level McpSchema$LoggingLevel/INFO)
+          (.logger "ClojureMCPlog")
+          (.data ("Server initialized"))
+          (.build))
     ;; for development
     #_(-> (.addTool server (create-async-tool echo-tool))
-        (.subscribe))
+          (.subscribe))
 
     ;; Add Prompts
     (-> (.addPrompt server (create-async-prompt prompts/clojure-dev-prompt))
@@ -209,9 +208,7 @@
     (-> (.addPrompt server (create-async-prompt prompts/clj-sync-namespace)) ;; <-- Add sync namespace prompt
         (.subscribe))
 
-
     server))
-
 
 (defn create-and-start-nrepl-connection [config]
   (let [nrepl-client (nrepl/create config)]
@@ -223,7 +220,6 @@
                       "(require 'nrepl.util.print)")
                      identity)
     nrepl-client))
-
 
 (defn close-servers [mcp] ;; Remove :nrepl from destructuring
   (when-let [client @nrepl-client-atom] ;; Get client from atom
@@ -250,43 +246,25 @@
     (add-tool mcp (repl-tools/clojure-edit-insert-before-form nrepl-client-atom)) ;; Add the top-level-form-edit tool
     (add-tool mcp (repl-tools/clojure-edit-insert-after-form nrepl-client-atom)) ;; Add the top-level-form-edit tool
     (add-tool mcp (repl-tools/clojure-file-outline nrepl-client-atom)) ;; Add the file outline tool
+    (add-tool mcp (repl-tools/clojure-edit-comment-block nrepl-client-atom))
+    (add-tool mcp (repl-tools/clojure-edit-replace-docstring nrepl-client-atom)) ;; Add the docstring edit tool
+
     (add-tool mcp (repl-tools/clojure-inspect-project nrepl-client-atom)) ;; Add the project inspection tool
 
-        #_(do
-            (add-tool mcp (file-api/emacs-flash-file-tool))
-            (add-tool mcp (file-api/emacs-edit-file-tool))
-            (add-tool mcp (file-api/emacs-write-file-tool))
-            (add-tool mcp (file-api/emacs-append-to-file-tool))
-            (add-tool mcp (file-api/emacs-read-file-tool))
-            (add-tool mcp (file-api/emacs-file-exists-tool))
-            (add-tool mcp (file-api/emacs-read-multiple-files-tool))
-            (add-tool mcp (file-api/emacs-find-files-tool))
-        
-            (add-tool mcp (file-api/emacs-delete-file-tool))
-            (add-tool mcp (file-api/emacs-move-file-tool))
-            (add-tool mcp (file-api/emacs-copy-file-tool))
-
-            (add-tool mcp (file-api/emacs-create-directory-tool))
-            (add-tool mcp (file-api/emacs-list-directory-tool))
-            (add-tool mcp (file-api/emacs-get-file-info-tool)))
-    
     mcp))
 
 (comment
   (def mcp-serv (nrepl-mcp-server {:port 54171})) ;; Start server, sets atom
   (close-servers mcp-serv) ;; Pass the map containing the mcp server
-
   )
-
 #_(defn -main [& args]
-  (let [server (mcp-server args)]
-    (println "MCP Async Server running on STDIO transport.")
+    (let [server (mcp-server args)]
+      (println "MCP Async Server running on STDIO transport.")
     ;; Keep the process alive
-    #_(while true
-        (Thread/sleep 1000))))
+      #_(while true
+          (Thread/sleep 1000))))
 
 (comment
   ;; For REPL testing:
-  (mcp-server)
-  )
+  (mcp-server))
 

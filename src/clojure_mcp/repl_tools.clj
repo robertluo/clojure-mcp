@@ -39,10 +39,20 @@
   edit-tools/top-level-form-insert-before-tool)
 
 (def clojure-edit-insert-after-form
-  edit-tools/top-level-form-insert-after-tool) 
+  edit-tools/top-level-form-insert-after-tool)
 
 (def clojure-file-outline
-  edit-tools/clojure-file-outline-tool) 
+  edit-tools/clojure-file-outline-tool)
+
+(def clojure-edit-comment-block
+  edit-tools/comment-block-edit-tool)
+
+(def clojure-edit-replace-docstring
+  "Tool function for replacing docstrings in top-level Clojure forms.
+   
+   Takes a service-atom and returns a tool map with :name, :description, :schema and :tool-fn.
+   See edit-tools/docstring-edit-tool for details."
+  edit-tools/docstring-edit-tool)
 
 ;; Project inspection tool
 (def clojure-inspect-project
@@ -52,15 +62,14 @@
   (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
   (clojure-mcp.nrepl/start-polling @client-atom)
   (clojure-mcp.nrepl/stop-polling @client-atom)
-   
+
   (defn make-test-tool [{:keys [tool-fn] :as _tool-map}]
     (fn [arg-map]
       (let [prom (promise)]
-        (tool-fn nil arg-map 
+        (tool-fn nil arg-map
                  (fn [res error]
                    (deliver prom {:res res :error error})))
         @prom)))
 
   (def edit-tester (make-test-tool (top-level-form-edit-tool client-atom)))
-  (def eval-tester (make-test-tool (eval-code client-atom)))
-  )
+  (def eval-tester (make-test-tool (eval-code client-atom))))
