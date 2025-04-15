@@ -58,19 +58,40 @@
   (when-let [form-zloc (find-top-level-form zloc tag name)]
     (case edit-type
       :replace (z/replace form-zloc (p/parse-string content-str))
+      ;; it would be nice if this handled comments immediately preceeding the form
       :before (-> form-zloc
-                  (z/insert-left (p/parse-string-all (str content-str "\n\n")))
-                  z/up)
+                  (z/insert-left (p/parse-string-all "\n\n"))
+                  z/left
+                  (z/insert-left (p/parse-string-all content-str))
+                  z/left)
       :after (-> form-zloc
-                 (z/insert-right (p/parse-string-all (str "\n\n" content-str)))
-                 z/up))))
+                 (z/insert-right (p/parse-string-all "\n\n"))
+                 z/right
+                 (z/insert-right (p/parse-string-all content-str))
+                 z/right))))
+
+#_(let [zloc (z/of-string "(ns hey)
+
+;;before
+(defn hello [] 'heya)
+;; after
+")]
+  (-> zloc
+      z/right
+      (z/insert-left (p/parse-string-all "\n\n"))
+      z/left
+      (z/insert-left (p/parse-string-all "(def x 5)" ))
+      z/left
+
+      #_z/root-string))
+
 
 (defn row-col->offset [s target-row target-col]
   (loop [lines (clojure.string/split-lines s)
          current-row 1
          offset 0]
     (if (or (empty? lines) (>= current-row target-row))
-      (+ offset target-col) ; Add (col - 1) for 0-based index
+      (+ offset target-col)          ; Add (col - 1) for 0-based index
       (recur (next lines)
              (inc current-row)
              (+ offset (count (first lines)) 1)))))
@@ -83,6 +104,7 @@
 (s/def ::file-path string?)
 (s/def ::source string?)
 (s/def ::new-source-code string?)
+(s/def ::output-source string?)
 (s/def ::top-level-def-name string?)
 (s/def ::top-level-def-type string?)
 (s/def ::edit-type #{:replace :before :after})
@@ -126,7 +148,7 @@
              :failure (s/keys :req [::error ::message])))
 
 (s/fdef save-file
-  :args (s/cat :ctx (s/keys :req [::file-path ::zloc]))
+  :args (s/cat :ctx (s/keys :req [::file-path ::zloc ::output-source]))
   :ret (s/or :success (s/keys :req [::offsets])
              :failure (s/keys :req [::error ::message])))
 
@@ -137,7 +159,7 @@
 
 (s/fdef format-source
   :args (s/cat :ctx (s/keys :req [::zloc]))
-  :ret (s/or :success (s/keys :req [::zloc])
+  :ret (s/or :success (s/keys :req [::zloc ::output-source])
              :failure (s/keys :req [::error ::message])))
 
 ;; Pipeline Implementation
@@ -224,9 +246,8 @@
                               :sort-ns-references? false
                               :function-arguments-indentation :community
                               :indents fmt/default-indents}
-          formatted-str (fmt/reformat-string root-str formatting-options)
-          formatted-zloc (z/of-string formatted-str {:track-position? true})]
-      (assoc ctx ::zloc formatted-zloc))
+          formatted-out (fmt/reformat-string root-str formatting-options)]
+      (assoc ctx ::output-source formatted-out))
     (catch Exception e
       {::error :format-failed
        ::message (str "Failed to format source: " (.getMessage e))})))
@@ -257,13 +278,12 @@
 (defn save-file
   "Saves the updated source to the file and calculates offsets.
    Adds ::offsets to the context."
-  [ctx]
+  [{:keys [::output-source ::zloc ::file-path] :as ctx}]
   (try
-    (let [updated-zloc (::zloc ctx)
+    (let [updated-zloc zloc
           positions (z/position-span updated-zloc)
-          final-source (z/root-string updated-zloc)
-          offsets (zloc-offsets final-source positions)]
-      (spit (::file-path ctx) final-source)
+          offsets (zloc-offsets output-source positions)]
+      (spit file-path output-source)
       (assoc ctx ::offsets offsets))
     (catch Exception e
       {::error :save-failed
