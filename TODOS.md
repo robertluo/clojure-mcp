@@ -1,6 +1,6 @@
 ## Looking forward
 
-* integrate clj-format to format output
+* edit docstring tool 
 * edit tools return diff with context - perhaps provide dry-run
 * read-summary-prompt looks up summary given a phrase
 * summary chain tool takes a keyword/phrase and creates a work summary file
