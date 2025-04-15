@@ -347,20 +347,18 @@
    
    Returns a context map with the result of the operation."
   [name file-path tag new-docstring]
-  (-> {:file-path file-path
-       :form-name name
-       :form-tag tag
-       :content new-docstring
-       :edit-type :docstring}
+  (-> {::file-path file-path
+       ::top-level-def-name name
+       ::top-level-def-type tag
+       ::new-content new-docstring
+       ::edit-type :docstring}
       (thread-ctx
        load-source
-       lint-code
-       find-form
        (fn [ctx]
-         (if-let [source (:source ctx)]
-           (if-let [zloc (z/of-string source)]
+         (if-let [source (::source ctx)]
+           (if-let [zloc (z/of-string source {:track-position? true})]
              (if-let [updated-zloc (edit-docstring zloc tag name new-docstring)]
-               (assoc ctx :edited-source (z/root-string updated-zloc))
+               (assoc ctx ::zloc updated-zloc)
                (assoc ctx ::error :docstring-not-found
                       ::message (format "No docstring found in form '%s' of type '%s' in file %s"
                                         name tag file-path)))
@@ -1016,7 +1014,7 @@
                             form-name file-path form-type new-docstring)
                     formatted (format-result result)]
                 (if (:error formatted)
-                  (clj-result-k [(::message result)] true)
+                  (clj-result-k [(:message formatted)] true)
                   (let [[start end] (::offsets result)]
                     (try
                       (emacs/temporary-highlight file-path start end 2.0)
