@@ -690,20 +690,32 @@
    
    Returns a map with :name, :description, :schema and :tool-fn keys"
   [_]
-  {:name "clojure_file_outline"
+  {:name "clojure_file_structure"
    :description
-   (str "Generates a collapsed outline view of a Clojure file with only top-level function/var names and argument lists. "
-        "This tool helps you understand the structure of a file without being overwhelmed by implementation details.\n\n"
-        "Use this tool when:\n"
-        "- You want to get a quick overview of a large or unfamiliar file\n"
-        "- You need to locate specific functions or variables within a file\n"
-        "- You want to selectively examine implementations of specific forms while keeping others collapsed\n\n"
-        "The outline preserves function signatures, making it easy to understand the API without diving into implementations.\n\n"
-        "# Example:\n"
-        "# clojure_file_outline(\n"
-        "#   file_path: \"src/my_ns/core.clj\",\n"
-        "#   expand: [\"main-function\", \"process-data\"] # Optional list of forms to show expanded\n"
-        "# )")
+   (str
+"Creates a concise structural view of a Clojure file by showing only top-level forms with their signatures, collapsing implementation details. This provides a clear API overview that helps you understand how the file is organized.
+
+The 'expand' parameter lets you selectively view full implementations of specific forms while keeping others collapsed, making it ideal for focused code review.
+
+Use this tool when:
+- You need a quick overview of a large or unfamiliar file's structure
+- You want to locate specific functions or vars within a file
+- You're planning refactoring and need to understand module organization
+- You want to document a namespace's public API
+
+Example output:
+(ns example.core ...)
+(defn process-data [input options] ...)
+(def default-config ...)
+(defn format-result [data] ...)
+
+Tip: Use this tool before and after using other code editing tools to verify changes appear in the expected location.
+
+# Example:
+# clojure_file_structure(
+#   file_path: \"src/example/core.clj\",
+#   expand: [\"process-data\"]  # Optional: show full implementation of specific forms
+# )")
    :schema
    (json/write-str
     {:type :object
