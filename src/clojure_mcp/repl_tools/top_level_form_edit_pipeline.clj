@@ -317,7 +317,8 @@
           name-zloc (z/right tag-zloc) ;; Move to the name
           docstring-candidate (z/right name-zloc)] ;; Move to potential docstring
       (when (and docstring-candidate
-                 (= (z/tag docstring-candidate) :token)
+                 ;; Check for both :token (single-line) and :multi-line (multi-line) tags
+                 (contains? #{:token :multi-line} (z/tag docstring-candidate))
                  (string? (z/sexpr docstring-candidate)))
         docstring-candidate))))
 
