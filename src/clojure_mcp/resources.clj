@@ -50,7 +50,9 @@
    Now gets the working directory once and uses it for all file resources."
   [nrepl-client-atom]
   (let [nrepl-client @nrepl-client-atom
-        working-dir (mcp-nrepl/tool-eval-code nrepl-client "(System/getProperty \"user.dir\")")]
+        working-dir-raw (mcp-nrepl/tool-eval-code nrepl-client "(System/getProperty \"user.dir\")")
+        ;; Parse the working directory using edn/read-string to handle quotes and escape sequences
+        working-dir (edn/read-string working-dir-raw)]
 
     ;; List of all resources
     [(create-file-resource
@@ -77,10 +79,26 @@
      ;; Add dynamic project info resource that uses the inspect-project-code function
      (let [project-code (str (inspect/inspect-project-code))
            project-data (mcp-nrepl/tool-eval-code nrepl-client project-code)
-           project-markdown (inspect/format-project-info project-data)]
+           ;; Also need to parse this data with edn/read-string
+           project-markdown (format-project-info-markdown project-data)]
        (create-string-resource
         "custom://project-info"
-        "Project and REPL Info"
+        "Project Info"
         "Dynamic information about the current Clojure project structure and dependencies"
         "text/markdown"
-        [project-markdown]))]))
+        [project-markdown]))
+
+     ;; Add dynamic REPL Info resource using tool-eval-code for direct evaluation
+     (let [json-content (str "{\"namespace\": \""
+                             (edn/read-string (mcp-nrepl/tool-eval-code nrepl-client "(str *ns*)"))
+                             "\", \"clojure-version\": \""
+                             (edn/read-string (mcp-nrepl/tool-eval-code nrepl-client "(clojure-version)"))
+                             "\", \"working-dir\": \""
+                             working-dir
+                             "\"}")]
+       (create-string-resource
+        "custom://repl-info"
+        "REPL Info"
+        "Dynamic information about the current REPL session"
+        "application/json"
+        [json-content]))]))
