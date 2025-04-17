@@ -195,17 +195,19 @@
           (.subscribe))
 
     ;; Add Prompts
-    (-> (.addPrompt server (create-async-prompt prompts/clojure-dev-prompt))
+    #_(-> (.addPrompt server (create-async-prompt prompts/clojure-dev-prompt))
         (.subscribe))
-    (-> (.addPrompt server (create-async-prompt prompts/clojure-repl-driven-prompt))
+    #_(-> (.addPrompt server (create-async-prompt prompts/clojure-repl-driven-prompt))
         (.subscribe))
-    (-> (.addPrompt server (create-async-prompt prompts/clojure-spec-driven-modifier))
+    #_(-> (.addPrompt server (create-async-prompt prompts/clojure-spec-driven-modifier))
         (.subscribe))
-    (-> (.addPrompt server (create-async-prompt prompts/clojure-test-driven-modifier))
+    #_(-> (.addPrompt server (create-async-prompt prompts/clojure-test-driven-modifier))
         (.subscribe))
     (-> (.addPrompt server (create-async-prompt prompts/clojure-project-context-modifier))
         (.subscribe))
-    (-> (.addPrompt server (create-async-prompt prompts/clj-sync-namespace)) ;; <-- Add sync namespace prompt
+    (-> (.addPrompt server (create-async-prompt prompts/clj-sync-namespace))
+        (.subscribe))
+    (-> (.addPrompt server (create-async-prompt prompts/create-project-summary))
         (.subscribe))
 
     server))

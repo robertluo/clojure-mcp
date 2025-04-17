@@ -1,16 +1,15 @@
 {:paths ["src" "resources"]
- :deps {clj-kondo/clj-kondo {:mvn/version "2024.03.13"} ;; Added clj-kondo
+ :deps {clj-kondo/clj-kondo {:mvn/version "2024.03.13"}
         org.clojure/clojure {:mvn/version "1.11.1"}
         org.clojure/data.json {:mvn/version "2.5.1"}
-        ;; add the MCP SDK dependency (version chosen via the BOM)
         io.modelcontextprotocol.sdk/mcp {:mvn/version "0.8.1"}
-        ;; (optionally) if not already provided by your BOM, add a dependency that brings in the HttpServletSseServerTransport classes
         org.slf4j/slf4j-nop {:mvn/version "2.0.3"}
         nrepl/nrepl {:mvn/version "1.3.1"}
         com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.15.2"}
         rewrite-clj/rewrite-clj {:mvn/version "1.1.47"}
         dev.weavejester/cljfmt {:mvn/version "0.13.1"}
-        } ;; Add rewrite-clj
+        pogonos/pogonos {:mvn/version "0.2.1"}
+        }
  :aliases
  {:mcp
   {:exec-fn clojure-mcp.core/nrepl-mcp-server

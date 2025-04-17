@@ -1,6 +1,8 @@
 ## Looking forward
 
-* edit docstring tool 
+* prompt is still misbehaving, so far working without the prompt seems to be better
+- add specifics to what its doing wrong
+
 * edit tools return diff with context - perhaps provide dry-run
 * read-summary-prompt looks up summary given a phrase
 * summary chain tool takes a keyword/phrase and creates a work summary file
@@ -10,10 +12,7 @@
 * replace-string with linting the final result
 * read-form tool takes a file path and reads the single form with type and name
 * fix editing comments with clj-rewrite
-
 * implement the filsystem edit functions so that we can demphasis them and lint the output
-
-
 
 * gptel mcp integration
 * start with design session - see below

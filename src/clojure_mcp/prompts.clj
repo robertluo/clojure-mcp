@@ -1,7 +1,8 @@
 (ns clojure-mcp.prompts
   "Prompt definitions for the MCP server"
   (:require [clojure.string :as str]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io]
+            [pogonos.core :as pg]))
 
 (defn simple-content-prompt-fn
   "Returns a prompt-fn that ignores request arguments and returns
@@ -122,7 +123,29 @@ If the file get's *edited* outside and must be read to see the changes, you shou
                     :messages [{:role :user
                                 :content (sync-namespace-workflow-prompt namespace-arg)}]})))})
 
-
-
+(def create-project-summary
+  {:name "create-project-summary"
+   :description "Generates a prompt instructing the LLM to create a summary of a project."
+   :arguments [{:name "root_directory"
+                :description "The absolute path to the root directory of the project to summarize."
+                :required? true}]
+   :prompt-fn (fn [_ request-args clj-result-k]
+                (let [root-dir (get request-args "root_directory")]
+                  (if (and root-dir
+                           (let [f (io/file root-dir)]
+                             (and (.exists f)
+                                  (.isDirectory f))))
+                    (clj-result-k
+                     {:description (str "Create project summary for: " root-dir)
+                      :messages [{:role :user
+                                  :content
+                                  (pg/render-resource "prompts/create_project_summary.md"
+                                                      {:root-directory
+                                                       root-dir})}]})
+                    (clj-result-k
+                     {:description (str "Root directory not found.")
+                      :messages [#_{:role :user
+                                  :content (str "Root directory not provided So this will not be a prompt.")}]
+                      }))))})
 
 
