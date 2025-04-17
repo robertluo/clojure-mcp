@@ -92,49 +92,50 @@
                    (println "Error parsing data:" (ex-message e))
                    nil))]
       (with-out-str
-        (println "\n📦 Clojure Project Information:")
+        (println "\nClojure Project Information:")
         (println "==============================")
         
-        (println "\n🔧 Environment:")
+        (println "\nEnvironment:")
         (println "• Working Directory:" working-dir)
         (println "• Project Type:" project-type)
         (println "• Clojure Version:" clj-version)
         (println "• Java Version:" java-version)
         
-        (println "\n📂 Source Paths:")
+        (println "\nSource Paths:")
         (doseq [path source-paths]
           (println "•" path))
         
-        (println "\n🧪 Test Paths:")
+        (println "\nTest Paths:")
         (doseq [path test-paths]
           (println "•" path))
         
         (when deps
-          (println "\n🔗 Dependencies:")
+          (println "\nDependencies:")
           (doseq [[dep coord] (sort-by key (:deps deps))]
             (println "•" dep "=>" coord)))
         
         (when-let [aliases (:aliases deps)]
-          (println "\n🏷️ Aliases:")
+          (println "\nAliases:")
           (doseq [[alias config] (sort-by key aliases)]
             (println "•" alias ":" (pr-str config))))
         
         (when project-clj
-          (println "\n📋 Leiningen Project:")
+          (println "\nLeiningen Project:")
           (println "• Name:" (:name project-clj))
           (println "• Version:" (:version project-clj)))
-        
-        (println "\n🧩 Namespaces (" (count namespaces) "):")
-        (doseq [ns-name (take 15 namespaces)]
-          (println "•" ns-name))
-        (when (> (count namespaces) 15)
-          (println "• ... and" (- (count namespaces) 15) "more"))
-        
-        (println "\n📄 Project Structure (" (count sources) " files):")
-        (doseq [source-file (take 15 sources)]
-          (println "•" source-file))
-        (when (> (count sources) 15)
-          (println "• ... and" (- (count sources) 15) "more"))))))
+
+        (let [limit 25]
+          (println "\nNamespaces (" (count namespaces) "):")
+          (doseq [ns-name (take limit namespaces)]
+            (println "•" ns-name))
+          (when (> (count namespaces) limit)
+            (println "• ... and" (- (count namespaces) limit) "more"))
+          
+          (println "\nProject Structure (" (count sources) " files):")
+          (doseq [source-file (take limit sources)]
+            (println "•" source-file))
+          (when (> (count sources) limit)
+            (println "• ... and" (- (count sources) limit) "more")))))))
 
 (defn inspect-project-tool
   "Creates an MCP tool for inspecting Clojure project structure and dependencies.
