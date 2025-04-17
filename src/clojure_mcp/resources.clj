@@ -22,10 +22,10 @@
                   (try
                     (let [file (io/file file-path)]
                       (if (.exists file)
-                        (clj-result-k (file-as-string file))
-                        (clj-result-k (str "Error: File not found: " file-path))))
+                        (clj-result-k [(file-as-string file)])
+                        (clj-result-k [(str "Error: File not found: " file-path)])))
                     (catch Exception e
-                      (clj-result-k (str "Error: " (.getMessage e))))))})
+                      (clj-result-k [(str "Error: " (.getMessage e))]))))})
 
 (defn create-string-resource
   "Creates a resource specification for serving a string"
@@ -35,7 +35,7 @@
    :description description
    :mime-type mime-type
    :resource-fn (fn [_ _ clj-result-k]
-                  (clj-result-k content))})
+                  (clj-result-k [content]))})
 
 ;; Define the PROJECT_SUMMARY resource that serves the content of PROJECT_SUMMARY.md
 (def project-summary-resource
@@ -82,7 +82,7 @@
                               :java-version (System/getProperty "java.version")
                               :timestamp (str (java.util.Date.))}
                         json-str (json/write-str info)]
-                    (clj-result-k json-str)))})
+                    (clj-result-k [json-str])))})
 
 (defn get-all-resources
   "Returns a list of all defined resources for registration with the MCP server"

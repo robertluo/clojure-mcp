@@ -172,7 +172,7 @@
                     Signature: (fn [exchange request clj-result-k] ... )
                       * exchange     - The MCP exchange object
                       * request      - The request object
-                      * clj-result-k - continuation fn taking a string (or a vector of strings)"
+                      * clj-result-k - continuation fn taking a vector of strings"
   [{:keys [url name description mime-type resource-fn]}]
   (let [resource (McpSchema$Resource. url name description mime-type nil)
         mono-fn (create-mono-from-callback
@@ -180,11 +180,9 @@
                    (resource-fn
                     exchange
                     request
-                    (fn [result]
-                      ;; Convert single string to a vector if needed
-                      (let [result-strings (if (string? result) [result] result)
-                            ;; Create TextResourceContents objects with the URL and MIME type
-                            resource-contents (mapv #(McpSchema$TextResourceContents. url mime-type %)
+                    (fn [result-strings]
+                      ;; Create TextResourceContents objects with the URL and MIME type
+                      (let [resource-contents (mapv #(McpSchema$TextResourceContents. url mime-type %)
                                                     result-strings)]
                         ;; Create ReadResourceResult with the list of TextResourceContents
                         (mono-fill-k (McpSchema$ReadResourceResult. resource-contents)))))))]
@@ -336,8 +334,7 @@
      :description "An example resource that returns a simple text string"
      :mime-type "text/plain"
      :resource-fn (fn [_ _ clj-result-k]
-                    (let [content (.getBytes "Hello, this is an example resource!" "UTF-8")]
-                      (clj-result-k content)))})
+                    (clj-result-k ["Hello, this is an example resource!"]))})
 
   ;; Adding the resource to an MCP server
   (def mcp-serv (nrepl-mcp-server {:port 54171}))
@@ -350,9 +347,8 @@
      :description "A resource that serves the content of a file"
      :mime-type "text/plain"
      :resource-fn (fn [_ _ clj-result-k]
-                    (let [file-content (slurp "path/to/file.txt")
-                          content (.getBytes file-content "UTF-8")]
-                      (clj-result-k content)))})
+                    (let [file-content (slurp "path/to/file.txt")]
+                      (clj-result-k [file-content])))})
 
   ;; Adding the file resource to an MCP server
   (add-resource mcp-serv file-resource)
@@ -365,8 +361,8 @@
      :mime-type "text/plain"
      :resource-fn (fn [_ request clj-result-k]
                     (let [params (.. request parameters) ;; Access request parameters
-                          content (.getBytes (str "You requested: " params) "UTF-8")]
-                      (clj-result-k content)))})
+                          content (str "You requested: " params)]
+                      (clj-result-k [content])))})
 
   ;; Adding the dynamic resource to an MCP server
   (add-resource mcp-serv dynamic-resource)
