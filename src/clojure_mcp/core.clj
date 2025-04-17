@@ -3,11 +3,13 @@
             [clojure-mcp.nrepl :as nrepl]
             [clojure-mcp.repl-tools :as repl-tools]
             [clojure-mcp.prompts :as prompts]
+            [clojure-mcp.resources :as resources]
             #_[clojure-mcp.emacs-tools-enhanced.file-api :as file-api])
   (:gen-class)
   (:import [io.modelcontextprotocol.server.transport StdioServerTransportProvider]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
-            McpServerFeatures$AsyncToolSpecification]
+            McpServerFeatures$AsyncToolSpecification
+            McpServerFeatures$AsyncResourceSpecification]
            [io.modelcontextprotocol.spec
             McpSchema$ServerCapabilities
             McpSchema$Tool
@@ -19,7 +21,9 @@
             McpSchema$GetPromptResult
             McpSchema$PromptMessage
             McpSchema$Role
-            McpSchema$LoggingLevel]
+            McpSchema$LoggingLevel
+            McpSchema$Resource
+            McpSchema$ReadResourceResult]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
             McpServerFeatures$AsyncToolSpecification
             McpServerFeatures$AsyncPromptSpecification]
@@ -154,6 +158,48 @@
   (-> (.addTool mcp-server (create-async-tool tool-map))
       (.subscribe)))
 
+(defn create-async-resource
+  "Creates an AsyncResourceSpecification with the given parameters.
+   
+   Takes a map with the following keys:
+    :url          - The URL of the resource
+    :name         - The name of the resource
+    :description  - A description of what the resource is
+    :mime-type    - The MIME type of the resource
+    :resource-fn  - Function that implements the resource retrieval logic.
+                    Signature: (fn [exchange request clj-result-k] ... )
+                      * exchange     - The MCP exchange object
+                      * request      - The request object
+                      * clj-result-k - continuation fn taking the resource content as byte array"
+  [{:keys [url name description mime-type resource-fn]}]
+  (let [resource (McpSchema$Resource. url name description mime-type nil)
+        mono-fn (create-mono-from-callback
+                 (fn [exchange request mono-fill-k]
+                   (resource-fn
+                    exchange
+                    request
+                    (fn [contents]
+                      (mono-fill-k (McpSchema$ReadResourceResult. contents))))))]
+    (McpServerFeatures$AsyncResourceSpecification.
+     resource
+     (reify java.util.function.BiFunction
+       (apply [this exchange request]
+         (mono-fn exchange request))))))
+
+(defn add-resource
+  "Helper function to create an async resource from a map and add it to the server.
+   
+   Takes an MCP server and a resource map with:
+    :url          - The URL of the resource
+    :name         - The name of the resource
+    :description  - A description of what the resource is
+    :mime-type    - The MIME type of the resource
+    :resource-fn  - Function that implements the resource retrieval logic."
+  [mcp-server resource-map]
+  (.removeResource mcp-server (:url resource-map))
+  (-> (.addResource mcp-server (create-async-resource resource-map))
+      (.subscribe)))
+
 ;; helper tool to demonstrate how all this gets hooked together
 
 (def echo-tool
@@ -180,7 +226,8 @@
                    (.serverInfo "clojure-server" "0.1.0")
                    (.capabilities (-> (McpSchema$ServerCapabilities/builder)
                                       (.tools true)
-                                      (.prompts true) ;; <-- Ensure prompts are enabled
+                                      (.prompts true)
+                                      (.resource true) ;; <-- Enable resources
                                       #_(.logging false)
                                       (.build)))
                    (.build))]
@@ -196,13 +243,13 @@
 
     ;; Add Prompts
     #_(-> (.addPrompt server (create-async-prompt prompts/clojure-dev-prompt))
-        (.subscribe))
+          (.subscribe))
     #_(-> (.addPrompt server (create-async-prompt prompts/clojure-repl-driven-prompt))
-        (.subscribe))
+          (.subscribe))
     #_(-> (.addPrompt server (create-async-prompt prompts/clojure-spec-driven-modifier))
-        (.subscribe))
+          (.subscribe))
     #_(-> (.addPrompt server (create-async-prompt prompts/clojure-test-driven-modifier))
-        (.subscribe))
+          (.subscribe))
     (-> (.addPrompt server (create-async-prompt prompts/clojure-project-context-modifier))
         (.subscribe))
     (-> (.addPrompt server (create-async-prompt prompts/clj-sync-namespace))
@@ -253,6 +300,10 @@
 
     (add-tool mcp (repl-tools/clojure-inspect-project nrepl-client-atom)) ;; Add the project inspection tool
 
+    ;; Register all defined resources
+    (doseq [resource (resources/get-all-resources)]
+      (add-resource mcp resource))
+
     mcp))
 
 (comment
@@ -268,5 +319,50 @@
 
 (comment
   ;; For REPL testing:
-  (mcp-server))
+  (mcp-server)
+
+  ;; Example of how to create and add a resource to the MCP server
+  (def example-resource
+    {:url "custom://example-resource"
+     :name "Example Resource"
+     :description "An example resource that returns a simple text string"
+     :mime-type "text/plain"
+     :resource-fn (fn [_ _ clj-result-k]
+                    (let [content (.getBytes "Hello, this is an example resource!" "UTF-8")]
+                      (clj-result-k content)))})
+
+  ;; Adding the resource to an MCP server
+  (def mcp-serv (nrepl-mcp-server {:port 54171}))
+  (add-resource mcp-serv example-resource)
+
+  ;; Example of a file resource
+  (def file-resource
+    {:url "custom://file-resource"
+     :name "File Resource"
+     :description "A resource that serves the content of a file"
+     :mime-type "text/plain"
+     :resource-fn (fn [_ _ clj-result-k]
+                    (let [file-content (slurp "path/to/file.txt")
+                          content (.getBytes file-content "UTF-8")]
+                      (clj-result-k content)))})
+
+  ;; Adding the file resource to an MCP server
+  (add-resource mcp-serv file-resource)
+
+  ;; Example of a dynamic resource with request parameters
+  (def dynamic-resource
+    {:url "custom://dynamic-resource"
+     :name "Dynamic Resource"
+     :description "A resource that generates content based on request parameters"
+     :mime-type "text/plain"
+     :resource-fn (fn [_ request clj-result-k]
+                    (let [params (.. request parameters) ;; Access request parameters
+                          content (.getBytes (str "You requested: " params) "UTF-8")]
+                      (clj-result-k content)))})
+
+  ;; Adding the dynamic resource to an MCP server
+  (add-resource mcp-serv dynamic-resource)
+
+  ;; Closing the server
+  (close-servers mcp-serv))
 
