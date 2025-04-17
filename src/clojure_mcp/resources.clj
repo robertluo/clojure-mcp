@@ -16,15 +16,21 @@
    :description description
    :mime-type mime-type
    :resource-fn (fn [_ _ clj-result-k]
-                  (try
-                    (let [file (io/file full-path)]
-                      (if (.exists file)
-                        (clj-result-k [(slurp file)])
-                        ;; Return empty list in error case
-                        (clj-result-k [])))
-                    (catch Exception e
-                      ;; Return empty list in error case
-                      (clj-result-k []))))})
+                  (let [debug-info (str "Attempting to read file: " full-path)]
+                    (try
+                      (let [file (io/file full-path)]
+                        (if (.exists file)
+                          (try
+                            (clj-result-k [(slurp file)])
+                            (catch Exception e
+                              (clj-result-k [(str "Error reading file: " full-path
+                                                  "\nException: " (.getMessage e))])))
+                          (clj-result-k [(str "Error: File not found: " full-path
+                                              "\nAbsolute path: " (.getAbsolutePath file))])))
+                      (catch Exception e
+                        (clj-result-k [(str "Error in resource function: "
+                                            (.getMessage e)
+                                            "\nFor file: " full-path)])))))})
 
 (defn create-string-resource
   "Creates a resource specification for serving a string.
