@@ -659,7 +659,8 @@
             "ns" (z/string zloc) ; Always show the full namespace
             (str "(" form-type " " (or form-name "") " ...)")))))
     (catch Exception e
-      (println "Error in get-form-summary:" (.getMessage e))
+      (str "Error in get-form-summary: "  (pr-str (z/sexpr zloc))
+           " - " (.getMessage e))
       nil)))
 
 (defn generate-collapsed-file-view
