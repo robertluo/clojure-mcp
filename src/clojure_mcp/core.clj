@@ -170,7 +170,7 @@
                     Signature: (fn [exchange request clj-result-k] ... )
                       * exchange     - The MCP exchange object
                       * request      - The request object
-                      * clj-result-k - continuation fn taking the resource content as byte array"
+                      * clj-result-k - continuation fn taking a string (or a vector of strings)"
   [{:keys [url name description mime-type resource-fn]}]
   (let [resource (McpSchema$Resource. url name description mime-type nil)
         mono-fn (create-mono-from-callback
@@ -178,8 +178,12 @@
                    (resource-fn
                     exchange
                     request
-                    (fn [contents]
-                      (mono-fill-k (McpSchema$ReadResourceResult. contents))))))]
+                    (fn [result]
+                      ;; Convert single string to a vector if needed
+                      (let [result-strings (if (string? result) [result] result)]
+                        ;; Wrap each string in a TextContent object
+                        (mono-fill-k (McpSchema$ReadResourceResult.
+                                      (mapv #(McpSchema$TextContent. %) result-strings))))))))]
     (McpServerFeatures$AsyncResourceSpecification.
      resource
      (reify java.util.function.BiFunction
