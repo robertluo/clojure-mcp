@@ -10,6 +10,7 @@ Clojure MCP is a Model Context Protocol (MCP) server that enables LLM assistants
 - **`src/clojure_mcp/core.clj`**: Main entry point and server setup, creates the MCP server and registers tools
 - **`src/clojure_mcp/nrepl.clj`**: Manages communication with nREPL server
 - **`src/clojure_mcp/repl_tools.clj`**: Centralizes and exports all REPL tool functions
+- **`src/clojure_mcp/resources.clj`**: Provides resource definitions for the MCP server
 
 ### Tool Implementations
 - **`src/clojure_mcp/repl_tools/eval.clj`**: Code evaluation tools
@@ -103,12 +104,54 @@ The project relies on the following key dependencies (from `deps.edn`):
 - **`clojure_inspect_project`**: Analyzes project structure and dependencies
   - Implementation: `src/clojure_mcp/repl_tools/project/inspect.clj`
 
+## Available MCP Resources
+
+The MCP server provides several resources that can be accessed by clients:
+
+- **`custom://project-summary`**: Serves the PROJECT_SUMMARY.md file
+  - MIME Type: text/markdown
+  - Implementation: `src/clojure_mcp/resources.clj`
+
+- **`custom://readme`**: Serves the README.md file
+  - MIME Type: text/markdown
+  - Implementation: `src/clojure_mcp/resources.clj`
+
+- **`custom://big-ideas`**: Serves the BIG_IDEAS.md file
+  - MIME Type: text/markdown
+  - Implementation: `src/clojure_mcp/resources.clj`
+
+- **`custom://repl-info`**: Provides dynamic information about the REPL session
+  - MIME Type: application/json
+  - Content: JSON with current namespace, Clojure version, current directory, loaded libraries, etc.
+  - Implementation: `src/clojure_mcp/resources.clj`
+
+### Resource Implementation
+
+Resources in the MCP server are implemented using:
+
+1. **Resource Definition**:
+   ```clojure
+   {:url "custom://resource-name"
+    :name "Human-readable Name"
+    :description "Resource description"
+    :mime-type "text/plain"
+    :resource-fn (fn [_ _ callback] (callback ["Content as vector of strings"]))}
+   ```
+
+2. **Resource Registration**:
+   - Resources are registered in the `nrepl-mcp-server` function using `add-resource`
+   - The server must have resources enabled in its capabilities
+
+3. **Resource Utility Functions**:
+   - `create-file-resource`: Creates a resource that serves a file's contents
+   - `create-string-resource`: Creates a resource that serves a static string
+
 ## Architecture
 
 1. **MCP Server Layer**:
    - Implemented in `src/clojure_mcp/core.clj`
    - Handles MCP protocol communication via `io.modelcontextprotocol.sdk/mcp`
-   - Creates and registers tools and prompts
+   - Creates and registers tools, prompts, and resources
    - Uses `StdioServerTransportProvider` for communication
 
 2. **nREPL Client Layer**:
@@ -121,18 +164,18 @@ The project relies on the following key dependencies (from `deps.edn`):
    - Each tool handles specific functionality like evaluation, symbol lookup, etc.
    - Uses `rewrite-clj` for code parsing and manipulation
 
+4. **Resource Layer**:
+   - Implemented in `src/clojure_mcp/resources.clj`
+   - Defines resources that can be served by the MCP server
+   - Provides utility functions for creating different types of resources
+
 ## Development Workflow
 
 1. The `nrepl-mcp-server` function in `core.clj` is the main entry point
 2. It creates both an nREPL client and MCP server
 3. Tools are registered with the MCP server using `add-tool`
-4. Each tool has a standard structure:
-   ```clojure
-   {:name "tool_name"
-    :description "What the tool does"
-    :schema "JSON schema for parameters"
-    :tool-fn (fn [_ args-map clj-result-k] ...)}
-   ```
+4. Resources are registered with the MCP server using `add-resource`
+5. Each tool and resource has a standard structure using continuation functions
 
 ## Recommended REPL-Driven Development Pattern
 
@@ -143,6 +186,7 @@ When developing with this tool:
 3. **Build up solutions**: Chain successful evaluations into complete solutions
 4. **Edit with care**: Use the specialized editing tools that maintain correct syntax
 5. **Verify saved code**: After editing files, re-evaluate to ensure correctness
+6. **Access documentation**: Use resource URLs to access project documentation when needed
 
 ## Important Implementation Notes
 
@@ -151,6 +195,7 @@ When developing with this tool:
 3. **File Editing**: The file editing tools are designed to maintain correct Clojure syntax
 4. **Async Tools**: All tool implementations use a callback continuation style for async results
 5. **Prompts**: The system includes several built-in prompts for guiding development
+6. **Resources**: Resources should return vectors of strings, which are wrapped in TextResourceContents
 
 ## Project Goals
 
@@ -160,6 +205,7 @@ The primary goal is to enable high-quality collaborative development between hum
 2. Incremental development with step-by-step verification
 3. Human oversight for maintaining code quality
 4. Functional programming patterns that produce more maintainable code
+5. Access to contextual project information via resources
 
 ## Extension Points
 
@@ -168,3 +214,4 @@ If you need to extend this project:
 1. New tools can be added in `src/clojure_mcp/repl_tools/`
 2. Register tools in `nrepl-mcp-server` function in `core.clj`
 3. New prompts can be added in `src/clojure_mcp/prompts.clj`
+4. New resources can be added in `src/clojure_mcp/resources.clj`
