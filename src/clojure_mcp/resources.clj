@@ -19,10 +19,10 @@
                   (try
                     (let [file (io/file full-path)]
                       (if (.exists file)
-                        (clj-result-k [(slurp file)] false)
-                        (clj-result-k [(str "Error: File not found: " full-path)] true)))
+                        (clj-result-k [(slurp file)])
+                        (clj-result-k [(str "Error: File not found: " full-path)])))
                     (catch Exception e
-                      (clj-result-k [(str "Error: " (.getMessage e))] true))))})
+                      (clj-result-k [(str "Error: " (.getMessage e))]))))})
 
 (defn create-string-resource
   "Creates a resource specification for serving a string.
@@ -33,7 +33,7 @@
    :description description
    :mime-type mime-type
    :resource-fn (fn [_ _ clj-result-k]
-                  (clj-result-k contents false))})
+                  (clj-result-k contents))})
 
 ;; This function is no longer needed as we handle resource creation directly in get-all-resources
 
