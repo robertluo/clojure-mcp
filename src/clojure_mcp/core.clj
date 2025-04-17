@@ -306,8 +306,8 @@
 
     (add-tool mcp (repl-tools/clojure-inspect-project nrepl-client-atom)) ;; Add the project inspection tool
 
-    ;; Register all defined resources
-    (doseq [resource (resources/get-all-resources)]
+    ;; Register all defined resources - now pass nrepl-client-atom to get-all-resources
+    (doseq [resource (resources/get-all-resources nrepl-client-atom)]
       (add-resource mcp resource))
 
     mcp))

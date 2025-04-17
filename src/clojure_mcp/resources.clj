@@ -1,93 +1,78 @@
 (ns clojure-mcp.resources
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.data.json :as json])
+            [clojure.data.json :as json]
+            [clojure.edn :as edn]
+            [clojure-mcp.nrepl :as mcp-nrepl]
+            [clojure-mcp.repl-tools.project.inspect :as inspect])
   (:import [io.modelcontextprotocol.spec McpSchema$Resource McpSchema$ReadResourceResult]))
 
-(defn file-as-string
-  "Read a file and return its contents as a string"
-  [file]
-  (slurp file))
-
-;; No longer needed as we're working with strings directly
-
 (defn create-file-resource
-  "Creates a resource specification for serving a file"
-  [url name description mime-type file-path]
+  "Creates a resource specification for serving a file.
+   Takes a full file path resolved with the correct working directory."
+  [url name description mime-type full-path]
   {:url url
    :name name
    :description description
    :mime-type mime-type
    :resource-fn (fn [_ _ clj-result-k]
                   (try
-                    (let [file (io/file file-path)]
+                    (let [file (io/file full-path)]
                       (if (.exists file)
-                        (clj-result-k [(file-as-string file)])
-                        (clj-result-k [(str "Error: File not found: " file-path)])))
+                        (clj-result-k [(slurp file)] false)
+                        (clj-result-k [(str "Error: File not found: " full-path)] true)))
                     (catch Exception e
-                      (clj-result-k [(str "Error: " (.getMessage e))]))))})
+                      (clj-result-k [(str "Error: " (.getMessage e))] true))))})
 
 (defn create-string-resource
-  "Creates a resource specification for serving a string"
-  [url name description mime-type content]
+  "Creates a resource specification for serving a string.
+   Accepts nrepl-client-atom for consistency with create-file-resource, but doesn't use it."
+  [url name description mime-type contents & [nrepl-client-atom]]
   {:url url
    :name name
    :description description
    :mime-type mime-type
    :resource-fn (fn [_ _ clj-result-k]
-                  (clj-result-k [content]))})
+                  (clj-result-k contents false))})
 
-;; Define the PROJECT_SUMMARY resource that serves the content of PROJECT_SUMMARY.md
-(def project-summary-resource
-  (create-file-resource
-   "custom://project-summary"
-   "Project Summary"
-   "The Clojure MCP project summary document"
-   "text/markdown"
-   "/Users/bruce/workspace/llempty/clojure-mcp/PROJECT_SUMMARY.md"))
-
-;; Function to get all defined resources for registration
- ;; Define a README resource
-(def readme-resource
-  (create-file-resource
-   "custom://readme"
-   "README"
-   "The Clojure MCP README file"
-   "text/markdown"
-   "/Users/bruce/workspace/llempty/clojure-mcp/README.md"))
-
-;; Define a BIG_IDEAS resource
-(def big-ideas-resource
-  (create-file-resource
-   "custom://big-ideas"
-   "Big Ideas"
-   "The Clojure MCP big ideas document"
-   "text/markdown"
-   "/Users/bruce/workspace/llempty/clojure-mcp/BIG_IDEAS.md"))
-
-;; Define a dynamic resource for REPL session information
-;; Define a dynamic resource for REPL session information
-
-;; Define a dynamic resource for REPL session information
-(def repl-info-resource
-  {:url "custom://repl-info"
-   :name "REPL Info"
-   :description "Information about the current REPL session"
-   :mime-type "application/json"
-   :resource-fn (fn [_ _ clj-result-k]
-                  (let [info {:current-ns (str *ns*)
-                              :clojure-version (clojure-version)
-                              :current-directory (System/getProperty "user.dir")
-                              :loaded-libs (into [] (map str (loaded-libs)))
-                              :java-version (System/getProperty "java.version")
-                              :timestamp (str (java.util.Date.))}
-                        json-str (json/write-str info)]
-                    (clj-result-k [json-str])))})
+;; This function is no longer needed as we handle resource creation directly in get-all-resources
 
 (defn get-all-resources
-  "Returns a list of all defined resources for registration with the MCP server"
-  []
-  [project-summary-resource
-   readme-resource
-   big-ideas-resource
-   repl-info-resource])
+  "Returns a list of all defined resources for registration with the MCP server.
+   Now gets the working directory once and uses it for all file resources."
+  [nrepl-client-atom]
+  (let [nrepl-client @nrepl-client-atom
+        working-dir (mcp-nrepl/tool-eval-code nrepl-client "(System/getProperty \"user.dir\")")]
+
+    ;; List of all resources
+    [(create-file-resource
+      "custom://project-summary"
+      "Project Summary"
+      "The Clojure MCP project summary document"
+      "text/markdown"
+      (str working-dir "/PROJECT_SUMMARY.md"))
+
+     (create-file-resource
+      "custom://readme"
+      "README"
+      "The Clojure MCP README file"
+      "text/markdown"
+      (str working-dir "/README.md"))
+
+     (create-file-resource
+      "custom://claude"
+      "Claude Instructions"
+      "The Clojure MCP Claude instructions document"
+      "text/markdown"
+      (str working-dir "/CLAUDE.md"))
+
+     ;; Add dynamic project info resource that uses the inspect-project-code function
+     (let [project-code (str (inspect/inspect-project-code))
+           project-data (mcp-nrepl/tool-eval-code nrepl-client project-code)
+           project-markdown (inspect/format-project-info project-data)]
+       (create-string-resource
+        "custom://project-info"
+        "Project and REPL Info"
+        "Dynamic information about the current Clojure project structure and dependencies"
+        "text/markdown"
+        [project-markdown]))]))
