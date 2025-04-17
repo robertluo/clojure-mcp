@@ -7,6 +7,20 @@
             [clojure-mcp.repl-tools.project.inspect :as inspect])
   (:import [io.modelcontextprotocol.spec McpSchema$Resource McpSchema$ReadResourceResult]))
 
+(defn read-file [full-path]
+  (let [file (io/file full-path)]
+    (if (.exists file)
+      (try
+        (slurp file)
+        (catch Exception e
+          (throw (ex-info (str "reading file- " full-path
+                               "\nException- " (.getMessage e))
+                          {:path full-path}
+                          e))))
+      (throw (ex-info (str "File not found- " full-path
+                           "\nAbsolute path- " (.getAbsolutePath file))
+                      {:path full-path})))))
+
 (defn create-file-resource
   "Creates a resource specification for serving a file.
    Takes a full file path resolved with the correct working directory."
@@ -15,22 +29,15 @@
    :name name
    :description description
    :mime-type mime-type
-   :resource-fn (fn [_ _ clj-result-k]
-                  (let [debug-info (str "Attempting to read file: " full-path)]
-                    (try
-                      (let [file (io/file full-path)]
-                        (if (.exists file)
-                          (try
-                            (clj-result-k [(slurp file)])
-                            (catch Exception e
-                              (clj-result-k [(str "Error reading file: " full-path
-                                                  "\nException: " (.getMessage e))])))
-                          (clj-result-k [(str "Error: File not found: " full-path
-                                              "\nAbsolute path: " (.getAbsolutePath file))])))
-                      (catch Exception e
-                        (clj-result-k [(str "Error in resource function: "
-                                            (.getMessage e)
-                                            "\nFor file: " full-path)])))))})
+   :resource-fn
+   (fn [_ _ clj-result-k]
+     (try
+       (let [result (read-file full-path)]
+         (clj-result-k [result]))
+       (catch Exception e
+         (clj-result-k [(str "Error in resource function: "
+                             (ex-message e)
+                             "\nFor file: " full-path)]))))})
 
 (defn create-string-resource
   "Creates a resource specification for serving a string.
@@ -58,21 +65,21 @@
     [(create-file-resource
       "custom://project-summary"
       "Project Summary"
-      "The Clojure MCP project summary document"
+      "A Clojure project summary document for the current"
       "text/markdown"
       (str working-dir "/PROJECT_SUMMARY.md"))
 
      (create-file-resource
       "custom://readme"
       "README"
-      "The Clojure MCP README file"
+      "A README document for the current project"
       "text/markdown"
       (str working-dir "/README.md"))
 
      (create-file-resource
       "custom://claude"
       "Claude Instructions"
-      "The Clojure MCP Claude instructions document"
+      "The Claude instructions document for the current project"
       "text/markdown"
       (str working-dir "/CLAUDE.md"))
 
@@ -80,25 +87,10 @@
      (let [project-code (str (inspect/inspect-project-code))
            project-data (mcp-nrepl/tool-eval-code nrepl-client project-code)
            ;; Also need to parse this data with edn/read-string
-           project-markdown (format-project-info-markdown project-data)]
+           project-markdown (inspect/format-project-info project-data)]
        (create-string-resource
         "custom://project-info"
         "Project Info"
-        "Dynamic information about the current Clojure project structure and dependencies"
+        "Dynamic information about the current Clojure project structure, attached REPL environment and dependencies"
         "text/markdown"
-        [project-markdown]))
-
-     ;; Add dynamic REPL Info resource using tool-eval-code for direct evaluation
-     (let [json-content (str "{\"namespace\": \""
-                             (edn/read-string (mcp-nrepl/tool-eval-code nrepl-client "(str *ns*)"))
-                             "\", \"clojure-version\": \""
-                             (edn/read-string (mcp-nrepl/tool-eval-code nrepl-client "(clojure-version)"))
-                             "\", \"working-dir\": \""
-                             working-dir
-                             "\"}")]
-       (create-string-resource
-        "custom://repl-info"
-        "REPL Info"
-        "Dynamic information about the current REPL session"
-        "application/json"
-        [json-content]))]))
+        [project-markdown]))]))
