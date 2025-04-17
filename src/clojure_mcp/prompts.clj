@@ -123,29 +123,27 @@ If the file get's *edited* outside and must be read to see the changes, you shou
                     :messages [{:role :user
                                 :content (sync-namespace-workflow-prompt namespace-arg)}]})))})
 
-(def create-project-summary
+(defn create-project-summary [working-dir]
   {:name "create-project-summary"
    :description "Generates a prompt instructing the LLM to create a summary of a project."
-   :arguments [{:name "root_directory"
-                :description "The absolute path to the root directory of the project to summarize."
-                :required? true}]
-   :prompt-fn (fn [_ request-args clj-result-k]
-                (let [root-dir (get request-args "root_directory")]
-                  (if (and root-dir
-                           (let [f (io/file root-dir)]
-                             (and (.exists f)
-                                  (.isDirectory f))))
-                    (clj-result-k
-                     {:description (str "Create project summary for: " root-dir)
-                      :messages [{:role :user
-                                  :content
-                                  (pg/render-resource "prompts/create_project_summary.md"
-                                                      {:root-directory
-                                                       root-dir})}]})
-                    (clj-result-k
-                     {:description (str "Root directory not found.")
-                      :messages [#_{:role :user
-                                    :content (str "Root directory not provided So this will not be a prompt.")}]}))))})
+   :arguments []
+   :prompt-fn (fn [_ _ clj-result-k]
+                (if (and working-dir
+                         (let [f (io/file working-dir)]
+                           (and (.exists f)
+                                (.isDirectory f))))
+                  (clj-result-k
+                   {:description (str "Create project summary for: " working-dir)
+                    :messages [{:role :user
+                                :content
+                                (pg/render-resource "prompts/create_project_summary.md"
+                                                    {:root-directory
+                                                     working-dir})}]})
+                  (clj-result-k
+                   {:description (str "Root directory not found.")
+                    :messages [{:role :user
+                                :content
+                                (str "Root directory not provided So this will not be a prompt." "::" working-dir "::")}]})))})
 
 ;; Function to get all prompts for registration with the MCP server
 (defn get-all-prompts
@@ -153,13 +151,14 @@ If the file get's *edited* outside and must be read to see the changes, you shou
    Takes an nrepl-client-atom for consistency with other similar functions,
    though current prompts don't use it."
   [nrepl-client-atom]
-  [clojure-project-context-modifier
+  [
    clj-sync-namespace
-   create-project-summary
+   (create-project-summary (:clojure-mcp.core/nrepl-user-dir @nrepl-client-atom))
    ;; Commented out prompts can be uncommented if needed
    #_clojure-dev-prompt
    #_clojure-repl-driven-prompt
    #_clojure-spec-driven-modifier
-   #_clojure-test-driven-modifier])
+   #_clojure-test-driven-modifier
+   #_clojure-project-context-modifier])
 
 
