@@ -23,7 +23,9 @@
             McpSchema$Role
             McpSchema$LoggingLevel
             McpSchema$Resource
-            McpSchema$ReadResourceResult]
+            McpSchema$ReadResourceResult
+            McpSchema$TextResourceContents
+            McpSchema$ResourceContents]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
             McpServerFeatures$AsyncToolSpecification
             McpServerFeatures$AsyncPromptSpecification]
@@ -180,10 +182,12 @@
                     request
                     (fn [result]
                       ;; Convert single string to a vector if needed
-                      (let [result-strings (if (string? result) [result] result)]
-                        ;; Wrap each string in a TextContent object
-                        (mono-fill-k (McpSchema$ReadResourceResult.
-                                      (mapv #(McpSchema$TextContent. %) result-strings))))))))]
+                      (let [result-strings (if (string? result) [result] result)
+                            ;; Create TextResourceContents objects with the URL and MIME type
+                            resource-contents (mapv #(McpSchema$TextResourceContents. url mime-type %)
+                                                    result-strings)]
+                        ;; Create ReadResourceResult with the list of TextResourceContents
+                        (mono-fill-k (McpSchema$ReadResourceResult. resource-contents)))))))]
     (McpServerFeatures$AsyncResourceSpecification.
      resource
      (reify java.util.function.BiFunction
