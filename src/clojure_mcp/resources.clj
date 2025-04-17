@@ -57,9 +57,7 @@
    Now gets the working directory once and uses it for all file resources."
   [nrepl-client-atom]
   (let [nrepl-client @nrepl-client-atom
-        working-dir-raw (mcp-nrepl/tool-eval-code nrepl-client "(System/getProperty \"user.dir\")")
-        ;; Parse the working directory using edn/read-string to handle quotes and escape sequences
-        working-dir (edn/read-string working-dir-raw)]
+        working-dir (:clojure-mcp.core/nrepl-user-dir nrepl-client)]
 
     ;; List of all resources
     [(create-file-resource

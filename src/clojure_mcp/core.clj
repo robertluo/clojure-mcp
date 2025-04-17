@@ -4,7 +4,7 @@
             [clojure-mcp.repl-tools :as repl-tools]
             [clojure-mcp.prompts :as prompts]
             [clojure-mcp.resources :as resources]
-            #_[clojure-mcp.emacs-tools-enhanced.file-api :as file-api])
+            [clojure.edn :as edn])
   (:gen-class)
   (:import [io.modelcontextprotocol.server.transport StdioServerTransportProvider]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
@@ -208,22 +208,6 @@
 
 ;; helper tool to demonstrate how all this gets hooked together
 
-(def echo-tool
-  {:name "echo"
-   :description "Echos back the arguments"
-   :schema (json/write-str {:type :object
-                            :properties {:firstarg {:type :string}}
-                            :required []})
-   ;; The tool-fn processes the request and passes the clojure
-   ;; result to the clj-result-k continuation
-   ;; Arguments 
-   ;; * exchange - ignored
-   ;; * arg-map - map with string keys representing the mcp tool call args
-   ;; * clj-result-k - a function that takes a vector of strings and boolean
-   ;;                  that represents wether an error occured during evaluation
-   :tool-fn (fn [_ args-map clj-result-k]
-              (clj-result-k [(str "ECHO: " (pr-str args-map))] false))})
-
 (defn mcp-server
   "Creates an basic stdio mcp server"
   []
@@ -243,9 +227,6 @@
           (.logger "ClojureMCPlog")
           (.data ("Server initialized"))
           (.build))
-    ;; for development
-    #_(-> (.addTool server (create-async-tool echo-tool))
-          (.subscribe))
 
     ;; Add Prompts
     #_(-> (.addPrompt server (create-async-prompt prompts/clojure-dev-prompt))
@@ -274,7 +255,15 @@
                       "(require 'clojure.repl)"
                       "(require 'nrepl.util.print)")
                      identity)
-    nrepl-client))
+    (let [user-dir (try
+                     (edn/read-string
+                      (nrepl/tool-eval-code
+                       nrepl-client
+                       "(System/getProperty \"user.dir\")"))
+                     (catch Exception _
+                       nil))]
+      (cond-> nrepl-client
+        user-dir (assoc ::nrepl-user-dir user-dir)))))
 
 (defn close-servers [mcp] ;; Remove :nrepl from destructuring
   (when-let [client @nrepl-client-atom] ;; Get client from atom

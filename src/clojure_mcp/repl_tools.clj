@@ -13,11 +13,11 @@
 
 ;; Eval tools
 (def eval-code eval-tools/eval-code)
-(def eval-history-push eval-tools/eval-history-push)
-(def eval-history-reset eval-tools/eval-history-reset)
+#_(def eval-history-push eval-tools/eval-history-push)
+#_(def eval-history-reset eval-tools/eval-history-reset)
 
 ;; History tools
-(def eval-history history-tools/eval-history)
+#_(def eval-history history-tools/eval-history)
 
 ;; Namespace tools
 (def current-namespace namespace-tools/current-namespace)
@@ -48,10 +48,6 @@
   edit-tools/comment-block-edit-tool)
 
 (def clojure-edit-replace-docstring
-  "Tool function for replacing docstrings in top-level Clojure forms.
-   
-   Takes a service-atom and returns a tool map with :name, :description, :schema and :tool-fn.
-   See edit-tools/docstring-edit-tool for details."
   edit-tools/docstring-edit-tool)
 
 ;; Project inspection tool
