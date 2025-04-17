@@ -62,22 +62,22 @@
     ;; List of all resources
     [(create-file-resource
       "custom://project-summary"
-      "Project Summary"
-      "A Clojure project summary document for the current"
+      "Clojure Project Summary"
+      "A Clojure project summary document for the project hosting the REPL, this is intended to provide the LLM with important context to start."
       "text/markdown"
       (str working-dir "/PROJECT_SUMMARY.md"))
 
      (create-file-resource
       "custom://readme"
       "README"
-      "A README document for the current project"
+      "A README document for the current Clojure project hosting the REPL"
       "text/markdown"
       (str working-dir "/README.md"))
 
      (create-file-resource
       "custom://claude"
       "Claude Instructions"
-      "The Claude instructions document for the current project"
+      "The Claude instructions document for the current project hosting the REPL"
       "text/markdown"
       (str working-dir "/CLAUDE.md"))
 
@@ -88,7 +88,7 @@
            project-markdown (inspect/format-project-info project-data)]
        (create-string-resource
         "custom://project-info"
-        "Project Info"
-        "Dynamic information about the current Clojure project structure, attached REPL environment and dependencies"
+        "Clojure Project Info"
+        "Information about the current Clojure project structure, attached REPL environment and dependencies"
         "text/markdown"
         [project-markdown]))]))

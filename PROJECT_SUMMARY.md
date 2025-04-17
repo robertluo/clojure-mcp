@@ -9,8 +9,9 @@ Clojure MCP is a Model Context Protocol (MCP) server that enables LLM assistants
 ### Core Implementation
 - **`src/clojure_mcp/core.clj`**: Main entry point and server setup, creates the MCP server and registers tools
 - **`src/clojure_mcp/nrepl.clj`**: Manages communication with nREPL server
-- **`src/clojure_mcp/repl_tools.clj`**: Centralizes and exports all REPL tool functions
+- **`src/clojure_mcp/repl_tools.clj`**: Centralizes tool registration via the `get-all-tools` function
 - **`src/clojure_mcp/resources.clj`**: Provides resource definitions for the MCP server
+- **`src/clojure_mcp/prompts.clj`**: Defines prompts and centralizes prompt registration
 
 ### Tool Implementations
 - **`src/clojure_mcp/repl_tools/eval.clj`**: Code evaluation tools
@@ -116,13 +117,8 @@ The MCP server provides several resources that can be accessed by clients:
   - MIME Type: text/markdown
   - Implementation: `src/clojure_mcp/resources.clj`
 
-- **`custom://big-ideas`**: Serves the BIG_IDEAS.md file
+- **`custom://project-info`**: Provides dynamic information about the project structure
   - MIME Type: text/markdown
-  - Implementation: `src/clojure_mcp/resources.clj`
-
-- **`custom://repl-info`**: Provides dynamic information about the REPL session
-  - MIME Type: application/json
-  - Content: JSON with current namespace, Clojure version, current directory, loaded libraries, etc.
   - Implementation: `src/clojure_mcp/resources.clj`
 
 ### Resource Implementation
@@ -139,7 +135,8 @@ Resources in the MCP server are implemented using:
    ```
 
 2. **Resource Registration**:
-   - Resources are registered in the `nrepl-mcp-server` function using `add-resource`
+   - All resources are defined in the `get-all-resources` function in `resources.clj`
+   - Resources are registered in the `nrepl-mcp-server` function using a doseq loop with `add-resource`
    - The server must have resources enabled in its capabilities
 
 3. **Resource Utility Functions**:
@@ -169,13 +166,36 @@ Resources in the MCP server are implemented using:
    - Defines resources that can be served by the MCP server
    - Provides utility functions for creating different types of resources
 
+5. **Prompt Layer**:
+   - Implemented in `src/clojure_mcp/prompts.clj`
+   - Defines prompts for the MCP server
+   - Provides access to template-based prompts
+
+## Registration Pattern
+
+The project uses a consistent pattern for registering tools, prompts, and resources:
+
+1. **Centralized Collection Functions**:
+   - `repl-tools/get-all-tools`: Returns a list of all tool instances
+   - `prompts/get-all-prompts`: Returns a list of all prompt definitions
+   - `resources/get-all-resources`: Returns a list of all resource definitions
+
+2. **Helper Functions**:
+   - `add-tool`: Registers a tool with the MCP server
+   - `add-prompt`: Registers a prompt with the MCP server
+   - `add-resource`: Registers a resource with the MCP server
+
+3. **Registration Process**:
+   - All registration happens in the `nrepl-mcp-server` function
+   - Each category uses a doseq loop to iterate over the collection
+   - This pattern makes it easy to add new items without modifying core.clj
+
 ## Development Workflow
 
 1. The `nrepl-mcp-server` function in `core.clj` is the main entry point
 2. It creates both an nREPL client and MCP server
-3. Tools are registered with the MCP server using `add-tool`
-4. Resources are registered with the MCP server using `add-resource`
-5. Each tool and resource has a standard structure using continuation functions
+3. Tools, prompts, and resources are registered using their respective collection functions
+4. Each tool, prompt, and resource has a standard structure using continuation functions
 
 ## Recommended REPL-Driven Development Pattern
 
@@ -211,7 +231,8 @@ The primary goal is to enable high-quality collaborative development between hum
 
 If you need to extend this project:
 
-1. New tools can be added in `src/clojure_mcp/repl_tools/`
-2. Register tools in `nrepl-mcp-server` function in `core.clj`
-3. New prompts can be added in `src/clojure_mcp/prompts.clj`
-4. New resources can be added in `src/clojure_mcp/resources.clj`
+1. Add new tools in `src/clojure_mcp/repl_tools/` and include them in `get-all-tools`
+2. Add new prompts in `src/clojure_mcp/prompts.clj` and include them in `get-all-prompts`
+3. Add new resources in `src/clojure_mcp/resources.clj` and include them in `get-all-resources`
+
+This centralized pattern makes it easy to extend the system without modifying the core server setup code.
