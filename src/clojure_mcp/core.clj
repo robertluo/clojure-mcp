@@ -227,7 +227,7 @@
                    (.capabilities (-> (McpSchema$ServerCapabilities/builder)
                                       (.tools true)
                                       (.prompts true)
-                                      (.resource true) ;; <-- Enable resources
+                                      (.resources true true) ;; Fixed: resources method takes two boolean parameters
                                       #_(.logging false)
                                       (.build)))
                    (.build))]
