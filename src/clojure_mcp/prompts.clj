@@ -97,7 +97,7 @@ Filesystem writes, saves, edits and other interactions should use the `filesyste
                                   :content (str "Working directory set to " working-directory "\n all filesytem interactions will be focused here.")}]})))})
 
 (defn sync-namespace-workflow-prompt [namesp]
- (format "I'm currently working on a Clojure namespace `%s`  
+  (format "I'm currently working on a Clojure namespace `%s`  
 
 Can you:
 
@@ -107,8 +107,8 @@ Can you:
 4. and make an artifact for it
 
 If the file get's *edited* outside and must be read to see the changes, you should `require` :reload the file into the REPL enviromnent."
-  namesp
-  namesp))
+          namesp
+          namesp))
 
 (def clj-sync-namespace
   {:name "clj-sync-namespace"
@@ -145,7 +145,21 @@ If the file get's *edited* outside and must be read to see the changes, you shou
                     (clj-result-k
                      {:description (str "Root directory not found.")
                       :messages [#_{:role :user
-                                  :content (str "Root directory not provided So this will not be a prompt.")}]
-                      }))))})
+                                    :content (str "Root directory not provided So this will not be a prompt.")}]}))))})
+
+;; Function to get all prompts for registration with the MCP server
+(defn get-all-prompts
+  "Returns a list of all defined prompts for registration with the MCP server.
+   Takes an nrepl-client-atom for consistency with other similar functions,
+   though current prompts don't use it."
+  [nrepl-client-atom]
+  [clojure-project-context-modifier
+   clj-sync-namespace
+   create-project-summary
+   ;; Commented out prompts can be uncommented if needed
+   #_clojure-dev-prompt
+   #_clojure-repl-driven-prompt
+   #_clojure-spec-driven-modifier
+   #_clojure-test-driven-modifier])
 
 

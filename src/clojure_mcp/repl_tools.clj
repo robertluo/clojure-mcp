@@ -54,6 +54,28 @@
 (def clojure-inspect-project
   project-inspect/inspect-project-tool)
 
+ ;; Function to get all tools for registration with the MCP server
+(defn get-all-tools
+  "Returns a list of all defined tools for registration with the MCP server."
+  [nrepl-client-atom]
+  [(eval-code nrepl-client-atom)
+   (current-namespace nrepl-client-atom)
+   (symbol-completions nrepl-client-atom)
+   (symbol-metadata nrepl-client-atom)
+   (symbol-documentation nrepl-client-atom)
+   (source-code nrepl-client-atom)
+   (symbol-search nrepl-client-atom)
+   (list-namespaces nrepl-client-atom)
+   (list-vars-in-namespace nrepl-client-atom)
+   (history-tools/eval-history nrepl-client-atom) ;; Using history-tools directly since it's not re-exported
+   (clojure-edit-replace-form nrepl-client-atom)
+   (clojure-edit-insert-before-form nrepl-client-atom)
+   (clojure-edit-insert-after-form nrepl-client-atom)
+   (clojure-file-outline nrepl-client-atom)
+   (clojure-edit-comment-block nrepl-client-atom)
+   (clojure-edit-replace-docstring nrepl-client-atom)
+   (clojure-inspect-project nrepl-client-atom)])
+
 (comment
   (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
   (clojure-mcp.nrepl/start-polling @client-atom)

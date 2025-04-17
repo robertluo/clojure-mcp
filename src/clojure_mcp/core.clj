@@ -206,10 +206,23 @@
   (-> (.addResource mcp-server (create-async-resource resource-map))
       (.subscribe)))
 
+(defn add-prompt
+  "Helper function to create an async prompt from a map and add it to the server.
+   
+   Takes an MCP server and a prompt map with:
+    :name        - The name (ID) of the prompt
+    :description - A description of the prompt
+    :arguments   - A vector of maps, each defining an argument
+    :prompt-fn   - Function that implements the prompt logic."
+  [mcp-server prompt-map]
+  (.removePrompt mcp-server (:name prompt-map))
+  (-> (.addPrompt mcp-server (create-async-prompt prompt-map))
+      (.subscribe)))
+
 ;; helper tool to demonstrate how all this gets hooked together
 
 (defn mcp-server
-  "Creates an basic stdio mcp server"
+  "Creates a basic stdio mcp server"
   []
   (let [transport-provider (StdioServerTransportProvider. (ObjectMapper.))
         server (-> (McpServer/async transport-provider)
@@ -228,21 +241,7 @@
           (.data ("Server initialized"))
           (.build))
 
-    ;; Add Prompts
-    #_(-> (.addPrompt server (create-async-prompt prompts/clojure-dev-prompt))
-          (.subscribe))
-    #_(-> (.addPrompt server (create-async-prompt prompts/clojure-repl-driven-prompt))
-          (.subscribe))
-    #_(-> (.addPrompt server (create-async-prompt prompts/clojure-spec-driven-modifier))
-          (.subscribe))
-    #_(-> (.addPrompt server (create-async-prompt prompts/clojure-test-driven-modifier))
-          (.subscribe))
-    (-> (.addPrompt server (create-async-prompt prompts/clojure-project-context-modifier))
-        (.subscribe))
-    (-> (.addPrompt server (create-async-prompt prompts/clj-sync-namespace))
-        (.subscribe))
-    (-> (.addPrompt server (create-async-prompt prompts/create-project-summary))
-        (.subscribe))
+    ;; Prompts will be registered in nrepl-mcp-server function
 
     server))
 
@@ -275,27 +274,16 @@
   (let [nrepl-client (create-and-start-nrepl-connection args)
         mcp (mcp-server)] ;; Get only mcp server
     (reset! nrepl-client-atom nrepl-client)
-    ;; Use the top-level nrepl-client-atom directly
-    (add-tool mcp (repl-tools/eval-code nrepl-client-atom))
-    (add-tool mcp (repl-tools/current-namespace nrepl-client-atom))
-    (add-tool mcp (repl-tools/symbol-completions nrepl-client-atom))
-    (add-tool mcp (repl-tools/symbol-metadata nrepl-client-atom))
-    (add-tool mcp (repl-tools/symbol-documentation nrepl-client-atom))
-    (add-tool mcp (repl-tools/source-code nrepl-client-atom))
-    (add-tool mcp (repl-tools/symbol-search nrepl-client-atom))
-    (add-tool mcp (repl-tools/list-namespaces nrepl-client-atom))
-    (add-tool mcp (repl-tools/list-vars-in-namespace nrepl-client-atom))
-    (add-tool mcp (repl-tools/eval-history nrepl-client-atom)) ;; Add the eval-history tool
-    (add-tool mcp (repl-tools/clojure-edit-replace-form nrepl-client-atom)) ;; Add the top-level-form-edit tool
-    (add-tool mcp (repl-tools/clojure-edit-insert-before-form nrepl-client-atom)) ;; Add the top-level-form-edit tool
-    (add-tool mcp (repl-tools/clojure-edit-insert-after-form nrepl-client-atom)) ;; Add the top-level-form-edit tool
-    (add-tool mcp (repl-tools/clojure-file-outline nrepl-client-atom)) ;; Add the file outline tool
-    (add-tool mcp (repl-tools/clojure-edit-comment-block nrepl-client-atom))
-    (add-tool mcp (repl-tools/clojure-edit-replace-docstring nrepl-client-atom)) ;; Add the docstring edit tool
 
-    (add-tool mcp (repl-tools/clojure-inspect-project nrepl-client-atom)) ;; Add the project inspection tool
+    ;; Register all defined tools
+    (doseq [tool (repl-tools/get-all-tools nrepl-client-atom)]
+      (add-tool mcp tool))
 
-    ;; Register all defined resources - now pass nrepl-client-atom to get-all-resources
+    ;; Register all defined prompts
+    (doseq [prompt (prompts/get-all-prompts nrepl-client-atom)]
+      (add-prompt mcp prompt))
+
+    ;; Register all defined resources
     (doseq [resource (resources/get-all-resources nrepl-client-atom)]
       (add-resource mcp resource))
 
