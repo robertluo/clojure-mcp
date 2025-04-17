@@ -20,9 +20,11 @@
                     (let [file (io/file full-path)]
                       (if (.exists file)
                         (clj-result-k [(slurp file)])
-                        (clj-result-k [(str "Error: File not found: " full-path)])))
+                        ;; Return empty list in error case
+                        (clj-result-k [])))
                     (catch Exception e
-                      (clj-result-k [(str "Error: " (.getMessage e))]))))})
+                      ;; Return empty list in error case
+                      (clj-result-k []))))})
 
 (defn create-string-resource
   "Creates a resource specification for serving a string.
