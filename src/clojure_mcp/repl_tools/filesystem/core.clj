@@ -140,7 +140,7 @@
 
 ;; Removed search-files function (replaced by glob-files)
 
-(defn glob-pattern->regex
+#_(defn glob-pattern->regex
   "Convert glob pattern to regex pattern.
    Simple implementation supporting common glob features:
    - * matches any sequence except /
@@ -162,7 +162,48 @@
       (str/replace #"SINGLE_STAR" "\\*") ; Restore escaped *
       (str/replace #"SINGLE_QMARK" "\\?")))
 
+
 (defn glob-files
+  [dir pattern & {:keys [max-results] :or {max-results 1000}}]
+  (let [start (System/currentTimeMillis)
+        dir-file (io/file dir)]
+    (if (and (.exists dir-file) (.isDirectory dir-file))
+      (try
+        (let [path (Paths/get (.getAbsolutePath dir-file) (into-array String []))
+              matcher (.getPathMatcher (FileSystems/getDefault) (str "glob:" pattern))
+              matches (atom [])
+              truncated (atom false)]
+
+          (Files/walkFileTree
+            path
+            (proxy [SimpleFileVisitor] []
+              (visitFile [file _attrs]
+                (when (and (< (count @matches) max-results)
+                           (-> file .getFileName matcher .matches))
+                  (swap! matches conj {:path (str file)
+                                       :mtime (.lastModified (.toFile file))}))
+                (when (>= (count @matches) max-results)
+                  (reset! truncated true))
+                FileVisitResult/CONTINUE)))
+
+          (let [end (System/currentTimeMillis)
+                duration (- end start)
+                sorted-results (->> @matches
+                                    (sort-by :mtime >)
+                                    (map :path)
+                                    vec)]
+            {:filenames sorted-results
+             :numFiles (count sorted-results)
+             :durationMs duration
+             :truncated @truncated}))
+
+        (catch Exception e
+          {:error (.getMessage e)
+           :durationMs (- (System/currentTimeMillis) start)}))
+      {:error (str dir " is not a valid directory")
+       :durationMs 0})))
+
+#_(defn glob-files
   "Fast file pattern matching using glob patterns.
    
    Arguments:
