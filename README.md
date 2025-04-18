@@ -109,6 +109,29 @@ To connect Claude to your project:
 6. Start a conversation initiating
 7. Guide the development process
 
+## Project Summary Management
+
+This project includes a workflow for maintaining an LLM-friendly project summary that helps assistants quickly understand the codebase structure.
+
+### How It Works
+
+1. **Creating the Summary**: To generate or update the PROJECT_SUMMARY.md file, use the MCP prompt `create-project-summary`. This prompt will:
+   - Analyze the codebase structure
+   - Document key files, dependencies, and available tools
+   - Generate comprehensive documentation in a format optimized for LLM assistants
+
+2. **Using the Summary**: When starting a new conversation with an assistant:
+   - The "Project Summary" resource automatically loads PROJECT_SUMMARY.md
+   - This gives the assistant immediate context about the project structure
+   - The assistant can provide more accurate help without lengthy exploration
+
+3. **Keeping It Updated**: At the end of a productive session where new features or components were added:
+   - Invoke the `create-project-summary` prompt again
+   - The system will update the PROJECT_SUMMARY.md with newly added functionality
+   - This ensures the summary stays current with ongoing development
+
+This workflow creates a virtuous cycle where each session builds on the accumulated knowledge of previous sessions, making the assistant increasingly effective as your project evolves.
+
 ## Learning Curve
 
 > This tool has a learning curve. You may in practice have to remind
