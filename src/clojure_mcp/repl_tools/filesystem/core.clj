@@ -2,7 +2,10 @@
   "Core filesystem operations for Clojure REPL tools.
    Provides file listing, reading, searching, and information gathering functions."
   (:require [clojure.java.io :as io]
-            [clojure.string :as str]))
+            [clojure.string :as str])
+  (:import
+    (java.nio.file FileVisitResult FileSystems Files Path Paths SimpleFileVisitor)
+    (java.nio.file.attribute BasicFileAttributes)))
 
 (defn list-directory
   "Lists files and directories at the specified path.
