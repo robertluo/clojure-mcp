@@ -1,8 +1,7 @@
 (ns clojure-mcp.repl-tools.utils
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [clojure.java.shell :as shell]
-            [clojure-mcp.core :as core]))
+            [clojure.java.shell :as shell]))
 
 (defn validate-path
   "Validates that a path is within allowed directories.
@@ -66,8 +65,8 @@
    - The normalized absolute path if valid
    - Throws an exception if the path is invalid or if required settings are missing"
   [path nrepl-client]
-  (let [current-dir (::core/nrepl-user-dir nrepl-client)
-        allowed-dirs (::core/allowed-directories nrepl-client)]
+  (let [current-dir (:clojure-mcp.core/nrepl-user-dir nrepl-client)
+        allowed-dirs (:clojure-mcp.core/allowed-directories nrepl-client)]
 
     (when-not current-dir
       (throw (ex-info "Missing ::nrepl-user-dir in nREPL client"
