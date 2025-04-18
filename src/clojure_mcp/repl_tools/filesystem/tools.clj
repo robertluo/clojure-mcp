@@ -5,7 +5,6 @@
             [clojure-mcp.repl-tools.filesystem.grep :as grep]
             [clojure-mcp.repl-tools.filesystem.file-write :as fw]
             [clojure-mcp.repl-tools.utils :as utils]
-            [clojure-mcp.core :as core]
             [clojure.data.json :as json]
             [clojure-mcp.nrepl :as mcp-nrepl]
             [clojure.string :as str]
@@ -266,11 +265,11 @@ Use this tool when you need to find files by name patterns."
   [nrepl-client-atom]
   (let [nrepl-client @nrepl-client-atom]
     ;; Validate that required settings are present
-    (when-not (::core/nrepl-user-dir nrepl-client)
+    (when-not (:clojure-mcp.core/nrepl-user-dir nrepl-client)
       (throw (ex-info "Missing ::nrepl-user-dir in nREPL client"
                       {:client-keys (keys nrepl-client)})))
 
-    (when-not (::core/allowed-directories nrepl-client)
+    (when-not (:clojure-mcp.core/allowed-directories nrepl-client)
       (throw (ex-info "Missing ::allowed-directories in nREPL client"
                       {:client-keys (keys nrepl-client)})))
 
