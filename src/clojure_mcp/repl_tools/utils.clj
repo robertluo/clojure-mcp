@@ -1,7 +1,8 @@
 (ns clojure-mcp.repl-tools.utils
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [clojure.java.shell :as shell]))
+            [clojure.java.shell :as shell]
+            [clojure-mcp.core :as core]))
 
 (defn validate-path
   "Validates that a path is within allowed directories.
@@ -17,40 +18,66 @@
   [path current-working-directory allowed-directories]
   (let [cwd-file (io/file current-working-directory)
         path-file (io/file path)]
-    
+
     ;; Validate current working directory is absolute
     (when-not (.isAbsolute cwd-file)
-      (throw (ex-info "Current working directory must be absolute" 
-                     {:cwd current-working-directory})))
-    
+      (throw (ex-info "Current working directory must be absolute"
+                      {:cwd current-working-directory})))
+
     ;; Validate all allowed directories are absolute
     (let [non-absolute (filter #(not (.isAbsolute (io/file %))) allowed-directories)]
       (when (seq non-absolute)
-        (throw (ex-info "All allowed directories must be absolute paths" 
-                       {:non-absolute-dirs non-absolute}))))
-    
+        (throw (ex-info "All allowed directories must be absolute paths"
+                        {:non-absolute-dirs non-absolute}))))
+
     ;; Normalize the allowed directories upfront
-    (let [canonical-allowed-dirs (map #(.getCanonicalPath (io/file %)) allowed-directories)
-    
+    (let [canonical-allowed-dirs (map #(.getCanonicalPath (io/file %))
+                                      (filter identity allowed-directories))
+
           ;; Normalize the path (resolve relative paths against CWD)
           abs-path-file (if (.isAbsolute path-file)
                           path-file
                           (io/file cwd-file path))
           normalized-path (.getCanonicalPath abs-path-file)]
-      
+
       ;; Check if path is within any allowed directory
-      (if (some (fn [allowed-canonical]
-                  ;; Check if normalized path starts with allowed dir plus separator
-                  ;; or if it equals the allowed dir exactly
-                  (or (= normalized-path allowed-canonical)
-                      (str/starts-with? normalized-path 
-                                        (str allowed-canonical 
-                                             (System/getProperty "file.separator")))))
-                canonical-allowed-dirs)
+      (if (or (empty? canonical-allowed-dirs) ;; If no allowed directories, accept all paths
+              (some (fn [allowed-canonical]
+                      ;; Check if normalized path starts with allowed dir plus separator
+                      ;; or if it equals the allowed dir exactly
+                      (or (= normalized-path allowed-canonical)
+                          (str/starts-with? normalized-path
+                                            (str allowed-canonical
+                                                 (System/getProperty "file.separator")))))
+                    canonical-allowed-dirs))
         normalized-path
-        (throw (ex-info "Path outside allowed directories" 
-                       {:path normalized-path
-                        :allowed-dirs allowed-directories}))))))
+        (throw (ex-info "Path outside allowed directories"
+                        {:path normalized-path
+                         :allowed-dirs allowed-directories}))))))
+
+(defn validate-path-with-client
+  "Validates a path using settings from the nrepl-client-atom.
+   
+   Parameters:
+   - path: The path to validate (can be relative or absolute)
+   - nrepl-client: The nREPL client map containing ::nrepl-user-dir and ::allowed-directories keys
+   
+   Returns:
+   - The normalized absolute path if valid
+   - Throws an exception if the path is invalid or if required settings are missing"
+  [path nrepl-client]
+  (let [current-dir (::core/nrepl-user-dir nrepl-client)
+        allowed-dirs (::core/allowed-directories nrepl-client)]
+
+    (when-not current-dir
+      (throw (ex-info "Missing ::nrepl-user-dir in nREPL client"
+                      {:client-keys (keys nrepl-client)})))
+
+    (when-not allowed-dirs
+      (throw (ex-info "Missing ::allowed-directories in nREPL client"
+                      {:client-keys (keys nrepl-client)})))
+
+    (validate-path path current-dir allowed-dirs)))
 
 (defn generate-diff-via-shell
   "Generates a unified diff between two strings using the external diff command.
@@ -75,8 +102,8 @@
           ;; Exit code 1 is normal for differences, so we still return the output.
           ;; Handle other errors specifically if needed.
           (if (= 1 (:exit diff-result))
-             (:out diff-result)
-             (throw (ex-info "Diff command failed" {:result diff-result})))))
+            (:out diff-result)
+            (throw (ex-info "Diff command failed" {:result diff-result})))))
       (finally
         ;; Ensure temporary files are deleted
         (.delete file1)

@@ -5,6 +5,7 @@
             [clojure-mcp.repl-tools.filesystem.grep :as grep]
             [clojure-mcp.repl-tools.filesystem.file-write :as fw]
             [clojure-mcp.repl-tools.utils :as utils]
+            [clojure-mcp.core :as core]
             [clojure.data.json :as json]
             [clojure-mcp.nrepl :as mcp-nrepl]
             [clojure.string :as str]
@@ -39,7 +40,7 @@
 
 (defn create-fs-list-directory-tool
   "Creates a tool that lists files and directories at a specified path"
-  []
+  [nrepl-client-atom]
   {:name "fs_list_directory"
    :description "Lists all files and directories at the specified path. 
 Returns a formatted directory listing with files and subdirectories clearly labeled."
@@ -48,10 +49,9 @@ Returns a formatted directory listing with files and subdirectories clearly labe
                             :required [:path]})
    :tool-fn (fn [_ params clj-result-k]
               (let [path (get params "path")
-                    current-dir (System/getProperty "user.dir")
-                    allowed-dirs [current-dir]]
+                    nrepl-client @nrepl-client-atom]
                 (try
-                  (let [validated-path (utils/validate-path path current-dir allowed-dirs)
+                  (let [validated-path (utils/validate-path-with-client path nrepl-client)
                         result (fs/list-directory validated-path)
                         formatted (format-directory-listing result)
                         error? (boolean (:error result))]
@@ -61,8 +61,8 @@ Returns a formatted directory listing with files and subdirectories clearly labe
 
 (defn create-fs-read-file-tool
   "Creates a tool that reads the contents of a file"
-  [{:keys [max-lines max-line-length]
-    :or {max-lines 2000 max-line-length 1000}}]
+  [nrepl-client-atom {:keys [max-lines max-line-length]
+                      :or {max-lines 2000 max-line-length 1000}}]
   {:name "fs_read_file"
    :description (str "Reads a file from the local filesystem. The file_path parameter must be an absolute path, not a relative path. "
                      "By default, it reads up to " max-lines " lines starting from the beginning of the file. "
@@ -80,10 +80,9 @@ Returns a formatted directory listing with files and subdirectories clearly labe
               (let [path (get params "path")
                     offset (get params "offset" 0)
                     limit (get params "limit" max-lines)
-                    current-dir (System/getProperty "user.dir")
-                    allowed-dirs [current-dir]]
+                    nrepl-client @nrepl-client-atom]
                 (try
-                  (let [validated-path (utils/validate-path path current-dir allowed-dirs)
+                  (let [validated-path (utils/validate-path-with-client path nrepl-client)
                         result (fs/read-file-contents validated-path
                                                       :max-lines limit
                                                       :offset offset
@@ -121,7 +120,7 @@ Returns a formatted directory listing with files and subdirectories clearly labe
 
 (defn create-directory-tree-tool
   "Creates a tool that displays a recursive tree view of directory structure"
-  []
+  [nrepl-client-atom]
   {:name "directory_tree"
    :description "Returns a recursive tree view of files and directories starting from the specified path.
 Formats the output as an indented tree structure showing the hierarchy of files and folders."
@@ -133,10 +132,9 @@ Formats the output as an indented tree structure showing the hierarchy of files 
    :tool-fn (fn [_ params clj-result-k]
               (let [path (get params "path")
                     max-depth (get params "max_depth")
-                    current-dir (System/getProperty "user.dir")
-                    allowed-dirs [current-dir]]
+                    nrepl-client @nrepl-client-atom]
                 (try
-                  (let [validated-path (utils/validate-path path current-dir allowed-dirs)
+                  (let [validated-path (utils/validate-path-with-client path nrepl-client)
                         result (fs/directory-tree validated-path :max-depth max-depth)]
                     (clj-result-k [result] false))
                   (catch Exception e
@@ -144,7 +142,7 @@ Formats the output as an indented tree structure showing the hierarchy of files 
 
 (defn create-glob-files-tool
   "Creates a tool for fast file pattern matching using glob patterns"
-  []
+  [nrepl-client-atom]
   {:name "glob_files"
    :description "Fast file pattern matching tool that works with any codebase size.
 Supports glob patterns like \"**/*.clj\" or \"src/**/*.cljs\".
@@ -162,10 +160,9 @@ Use this tool when you need to find files by name patterns."
               (let [path (get params "path")
                     pattern (get params "pattern")
                     max-results (get params "max_results" 1000)
-                    current-dir (System/getProperty "user.dir")
-                    allowed-dirs [current-dir]]
+                    nrepl-client @nrepl-client-atom]
                 (try
-                  (let [validated-path (utils/validate-path path current-dir allowed-dirs)
+                  (let [validated-path (utils/validate-path-with-client path nrepl-client)
                         result (fs/glob-files validated-path pattern :max-results max-results)
                         output (json/write-str
                                 (select-keys result [:filenames :numFiles :durationMs :truncated])
@@ -178,7 +175,7 @@ Use this tool when you need to find files by name patterns."
 
 (defn create-grep-tool
   "Creates a tool for searching file contents using regular expressions"
-  []
+  [nrepl-client-atom]
   {:name "fs_grep"
    :description "Fast content search tool that works with any codebase size.\nSearches file contents using regular expressions.\nSupports full regex syntax (eg. \"log.*Error\", \"function\\s+\\w+\", etc.).\nFilter files by pattern with the include parameter (eg. \"*.js\", \"*.{ts,tsx}\").\nReturns matching file paths sorted by modification time.\nUse this tool when you need to find files containing specific patterns."
    :schema (json/write-str {:type :object
@@ -196,10 +193,9 @@ Use this tool when you need to find files by name patterns."
                     pattern (get params "pattern")
                     include (get params "include")
                     max-results (get params "max_results" 1000)
-                    current-dir (System/getProperty "user.dir")
-                    allowed-dirs [current-dir]]
+                    nrepl-client @nrepl-client-atom]
                 (try
-                  (let [validated-path (utils/validate-path path current-dir allowed-dirs)
+                  (let [validated-path (utils/validate-path-with-client path nrepl-client)
                         result (grep/grep-files validated-path pattern :include include :max-results max-results)
                         output (json/write-str
                                 {:filenames (:filenames result)
@@ -214,10 +210,10 @@ Use this tool when you need to find files by name patterns."
   "Returns a tool map for writing files to the filesystem.
    
    Arguments:
-   - service-atom: Service atom (required for tool registration but not used in this implementation)
+   - nrepl-client-atom: Atom containing the nREPL service connection
    
    Returns a map with :name, :description, :schema and :tool-fn keys"
-  [_]
+  [nrepl-client-atom]
   {:name "file_write"
    :description
    (str "Write a file to the local filesystem. Overwrites the existing file if there is one. "
@@ -245,10 +241,9 @@ Use this tool when you need to find files by name patterns."
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [file-path (get arg-map "file_path")
                     content (get arg-map "content")
-                    current-dir (System/getProperty "user.dir")
-                    allowed-dirs [current-dir]]
+                    nrepl-client @nrepl-client-atom]
                 (try
-                  (let [validated-path (utils/validate-path file-path current-dir allowed-dirs)
+                  (let [validated-path (utils/validate-path-with-client file-path nrepl-client)
                         result (fw/write-file validated-path content)]
                     (if (:error result)
                       (clj-result-k [(:message result)] true)
@@ -265,14 +260,26 @@ Use this tool when you need to find files by name patterns."
    Arguments:
    - nrepl-client-atom: Atom containing the nREPL service connection
    
-   Returns a vector of tool instances ready for MCP registration"
+   Returns a vector of tool instances ready for MCP registration
+   
+   Throws an exception if the required nREPL client settings are missing."
   [nrepl-client-atom]
-  [(create-fs-list-directory-tool)
-   (create-fs-read-file-tool {:max-lines 2000 :max-line-length 1000})
-   (create-directory-tree-tool)
-   (create-glob-files-tool)
-   (create-grep-tool)
-   (create-file-write-tool nrepl-client-atom)])
+  (let [nrepl-client @nrepl-client-atom]
+    ;; Validate that required settings are present
+    (when-not (::core/nrepl-user-dir nrepl-client)
+      (throw (ex-info "Missing ::nrepl-user-dir in nREPL client"
+                      {:client-keys (keys nrepl-client)})))
+
+    (when-not (::core/allowed-directories nrepl-client)
+      (throw (ex-info "Missing ::allowed-directories in nREPL client"
+                      {:client-keys (keys nrepl-client)})))
+
+    [(create-fs-list-directory-tool nrepl-client-atom)
+     (create-fs-read-file-tool nrepl-client-atom {:max-lines 2000 :max-line-length 1000})
+     (create-directory-tree-tool nrepl-client-atom)
+     (create-glob-files-tool nrepl-client-atom)
+     (create-grep-tool nrepl-client-atom)
+     (create-file-write-tool nrepl-client-atom)]))
 
 (comment
   ;; === Examples of using the filesystem tools ===
