@@ -31,7 +31,6 @@
     (edit-tools/clojure-file-outline-tool nrepl-client-atom)
     (edit-tools/comment-block-edit-tool nrepl-client-atom)
     (edit-tools/docstring-edit-tool nrepl-client-atom)
-    (edit-tools/file-write-tool nrepl-client-atom)
     (project-inspect/inspect-project-tool nrepl-client-atom)]
    (filesystem-tools/get-all-filesystem-tools nrepl-client-atom)))
 

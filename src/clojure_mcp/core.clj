@@ -262,7 +262,8 @@
                      (catch Exception _
                        nil))]
       (cond-> nrepl-client
-        user-dir (assoc ::nrepl-user-dir user-dir)))))
+        user-dir (assoc ::nrepl-user-dir user-dir
+                        ::allowed-directories [user-dir])))))
 
 (defn close-servers [mcp] ;; Remove :nrepl from destructuring
   (when-let [client @nrepl-client-atom] ;; Get client from atom
