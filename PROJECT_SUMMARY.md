@@ -18,6 +18,7 @@ Clojure MCP is a Model Context Protocol (MCP) server that enables LLM assistants
 - **`src/clojure_mcp/repl_tools/history.clj`**: Evaluation history management
 - **`src/clojure_mcp/repl_tools/namespace.clj`**: Namespace exploration and management
 - **`src/clojure_mcp/repl_tools/symbol.clj`**: Symbol documentation, metadata and search
+- **`src/clojure_mcp/repl_tools/utils.clj`**: Common utility functions like path validation and diff generation
 - **`src/clojure_mcp/repl_tools/top_level_form_edit_pipeline.clj`**: Code editing tools
 - **`src/clojure_mcp/repl_tools/project/inspect.clj`**: Project inspection tools
 - **`src/clojure_mcp/repl_tools/filesystem/core.clj`**: Core filesystem operations
@@ -157,6 +158,24 @@ The project relies on the following key dependencies (from `deps.edn`):
 - **`clojure_inspect_project`**: Analyzes project structure and dependencies
   - Implementation: `src/clojure_mcp/repl_tools/project/inspect.clj`
 
+## Common Utility Functions
+
+The project provides several utility functions in `src/clojure_mcp/repl_tools/utils.clj`:
+
+- **`validate-path`**: Validates that a given path is within allowed directories
+  - Normalizes relative paths to absolute paths
+  - Uses Java File APIs for proper path resolution and canonicalization
+  - Prevents directory traversal attacks and unauthorized access
+  
+- **`validate-path-with-client`**: Higher-level path validation using nREPL client settings
+  - Uses the ::nrepl-user-dir and ::allowed-directories from the nREPL client
+  - Throws clear exceptions when validation fails or settings are missing
+  
+- **`generate-diff-via-shell`**: Generates a unified diff between two strings
+  - Uses the system diff command for accurate, detailed diffs
+  - Provides configurable context lines around changes
+  - Handles temporary file creation and cleanup automatically
+
 ## Available MCP Resources
 
 The MCP server provides several resources that can be accessed by clients:
@@ -202,6 +221,7 @@ Resources in the MCP server are implemented using:
    - Handles MCP protocol communication via `io.modelcontextprotocol.sdk/mcp`
    - Creates and registers tools, prompts, and resources
    - Uses `StdioServerTransportProvider` for communication
+   - Maintains the nREPL client atom with ::nrepl-user-dir and ::allowed-directories settings
 
 2. **nREPL Client Layer**:
    - Implemented in `src/clojure_mcp/nrepl.clj`
@@ -226,6 +246,7 @@ Resources in the MCP server are implemented using:
 6. **Filesystem Layer**:
    - Implemented in `src/clojure_mcp/repl_tools/filesystem/` directory
    - Provides file and directory operations with configurable limits
+   - Implements secure path validation to prevent unauthorized access
    - Supports XML-wrapped output format for file contents with metadata
    - Features glob pattern matching and directory tree visualization
 
@@ -273,8 +294,9 @@ The project uses a consistent pattern for registering tools, prompts, and resour
 
 1. The `nrepl-mcp-server` function in `core.clj` is the main entry point
 2. It creates both an nREPL client and MCP server
-3. Tools, prompts, and resources are registered using their respective collection functions
-4. Each tool, prompt, and resource has a standard structure using continuation functions
+3. It initializes the nREPL client with ::nrepl-user-dir and ::allowed-directories settings
+4. Tools, prompts, and resources are registered using their respective collection functions
+5. Each tool, prompt, and resource has a standard structure using continuation functions
 
 ## Recommended REPL-Driven Development Pattern
 
@@ -295,13 +317,17 @@ When developing with this tool:
 3. **File Editing**: The file editing tools are designed to maintain correct Clojure syntax
    - All editing tools now support multiple forms in a single operation
    - The `file_write` tool provides linting, formatting, and diffing
-4. **Async Tools**: All tool implementations use a callback continuation style for async results
-5. **Prompts**: The system includes several built-in prompts for guiding development
-6. **Resources**: Resources should return vectors of strings, which are wrapped in TextResourceContents
-7. **File Reading**: The `fs_read_file` tool handles large files with configurable limits and offset to avoid memory issues
-8. **Directory Traversal**: The `directory_tree` tool provides a clean, LLM-friendly view of file hierarchies
-9. **Pattern Matching**: The `glob_files` tool enables efficient file searching with standard glob patterns
-10. **Content Searching**: The `fs_grep` tool provides fast content searching with regular expression support
+4. **Path Validation**: All filesystem operations enforce path validation
+   - The nREPL client maintains ::nrepl-user-dir and ::allowed-directories settings
+   - Use validate-path-with-client for secure path handling
+5. **Async Tools**: All tool implementations use a callback continuation style for async results
+6. **Prompts**: The system includes several built-in prompts for guiding development
+7. **Resources**: Resources should return vectors of strings, which are wrapped in TextResourceContents
+8. **File Reading**: The `fs_read_file` tool handles large files with configurable limits and offset to avoid memory issues
+9. **Directory Traversal**: The `directory_tree` tool provides a clean, LLM-friendly view of file hierarchies
+10. **Pattern Matching**: The `glob_files` tool enables efficient file searching with standard glob patterns
+11. **Content Searching**: The `fs_grep` tool provides fast content searching with regular expression support
+12. **Diff Generation**: The utils.clj provides a robust shell-based diff generator for showing changes
 
 ## Project Goals
 
@@ -313,7 +339,8 @@ The primary goal is to enable high-quality collaborative development between hum
 4. Functional programming patterns that produce more maintainable code
 5. Access to contextual project information via resources
 6. Efficient file and directory navigation and manipulation
-7. Pattern-based file searching for quickly locating relevant code
+7. Secure file access with proper path validation
+8. Pattern-based file searching for quickly locating relevant code
 
 ## Extension Points
 
@@ -323,6 +350,7 @@ If you need to extend this project:
 2. Add new prompts in `src/clojure_mcp/prompts.clj` and include them in `get-all-prompts`
 3. Add new resources in `src/clojure_mcp/resources.clj` and include them in `get-all-resources`
 4. Add new filesystem operations in `src/clojure_mcp/repl_tools/filesystem/core.clj`
-5. Create new pipeline components for the editing pipeline in `top_level_form_edit_pipeline.clj`
+5. Add new utility functions in `src/clojure_mcp/repl_tools/utils.clj`
+6. Create new pipeline components for the editing pipeline in `top_level_form_edit_pipeline.clj`
 
 This centralized pattern makes it easy to extend the system without modifying the core server setup code.
