@@ -263,7 +263,8 @@
                        nil))]
       (cond-> nrepl-client
         user-dir (assoc ::nrepl-user-dir user-dir
-                        ::allowed-directories [user-dir])))))
+                        ::allowed-directories [user-dir]
+                        ::emacs-notify true)))))
 
 (defn close-servers [mcp] ;; Remove :nrepl from destructuring
   (when-let [client @nrepl-client-atom] ;; Get client from atom
