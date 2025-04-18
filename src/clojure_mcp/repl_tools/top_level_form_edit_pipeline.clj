@@ -71,21 +71,6 @@
                  (z/insert-right (p/parse-string-all content-str))
                  z/right))))
 
-#_(let [zloc (z/of-string "(ns hey)
-
-;;before
-(defn hello [] 'heya)
-;; after
-")]
-    (-> zloc
-        z/right
-        (z/insert-left (p/parse-string-all "\n\n"))
-        z/left
-        (z/insert-left (p/parse-string-all "(def x 5)"))
-        z/left
-
-        #_z/root-string))
-
 (defn row-col->offset [s target-row target-col]
   (loop [lines (clojure.string/split-lines s)
          current-row 1
@@ -1083,7 +1068,7 @@ Tip: Use this tool before and after using other code editing tools to verify cha
                      [(format "Successfully updated docstring for '%s' in file %s" form-name file-path)]
                      false)))))})
 
-(defn generate-diff
+(defn generate-diff-string
   "Generate a diff between old and new content, showing a few lines of context.
    
    Arguments:
@@ -1142,22 +1127,88 @@ Tip: Use this tool before and after using other code editing tools to verify cha
 
       (str/join "\n" changes))))
 
-(defn generate-diff-and-type
-  "Generate diff between old and new content and determine file operation type.
+(defn determine-file-type
+  "Determine if the file operation is a create or update.
    
    Arguments:
-   - ctx: Context map containing ::old-content, ::output-source, and an optional file-exists? flag
+   - ctx: Context map containing ::file-path
    
    Returns:
-   - Updated context with ::diff and ::type added"
+   - Updated context with ::type added"
+  [ctx]
+  (let [file-exists? (get ctx ::file-exists? (.exists (io/file (::file-path ctx))))]
+    (assoc ctx ::type (if file-exists? "update" "create"))))
+
+(s/fdef determine-file-type
+  :args (s/cat :ctx (s/keys :req [::file-path]))
+  :ret (s/keys :req [::file-path ::type]))
+
+(defn generate-diff
+  "Generate diff between old and new content as a pipeline function.
+   
+   Arguments:
+   - ctx: Context map containing ::old-content and ::output-source
+   
+   Returns:
+   - Updated context with ::diff added"
   [ctx]
   (let [old-content (::old-content ctx)
         new-content (::output-source ctx)
-        file-exists? (get ctx ::file-exists? (.exists (io/file (::file-path ctx))))
-        diff (generate-diff old-content new-content)]
-    (assoc ctx
-           ::diff diff
-           ::type (if file-exists? "update" "create"))))
+        diff (generate-diff-string old-content new-content)]
+    (assoc ctx ::diff diff)))
+
+(s/fdef generate-diff
+  :args (s/cat :ctx (s/keys :req [::old-content ::output-source]))
+  :ret (s/keys :req [::old-content ::output-source ::diff]))
+
+;; Not needed - using save-file pipeline function instead
+
+(defn write-file
+  "Write content to a file, with linting, formatting, and diffing,
+   using the existing pipeline components.
+   
+   Arguments:
+   - file-path: Absolute path to the file to write
+   - content: Content to write to the file
+   
+   Returns:
+   - A map with :error, :type, :file-path, and :diff keys"
+  [file-path content]
+  (let [file (io/file file-path)
+        file-exists? (.exists file)
+        old-content (if file-exists? (slurp file) "")
+
+        ;; Create a context map for the pipeline
+        initial-ctx {::file-path file-path
+                     ::source old-content
+                     ::new-source-code content
+                     ::old-content old-content
+                     ::file-exists? file-exists?}
+
+        ;; Use thread-ctx to run the pipeline
+        result (thread-ctx
+                initial-ctx
+                lint-code ;; Lint the content
+                (fn [ctx] ;; Prepare for formatting
+                  (assoc ctx ::zloc (z/of-string (::new-source-code ctx))))
+                format-source ;; Format the content
+                generate-diff ;; Generate diff between old and new content
+                determine-file-type ;; Determine if creating or updating
+                ;; Use the save-file function instead of custom write logic
+                (fn [ctx] ;; Modify context for save-file compatibility
+                  (let [output-source (::output-source ctx)
+                        zloc (z/of-string output-source {:track-position? true})]
+                    (assoc ctx ::zloc zloc)))
+                save-file)] ;; Save the file and get offsets
+
+    ;; Format the result for tool consumption
+    (if (::error result)
+      {:error true
+       :message (::message result)}
+      {:error false
+       :type (::type result)
+       :file-path (::file-path result)
+       :diff (::diff result)})))
 
 (defn file-write-tool
   "Returns a tool map for writing files to the filesystem.
@@ -1173,6 +1224,10 @@ Tip: Use this tool before and after using other code editing tools to verify cha
         "The content will be linted and formatted according to Clojure standards before writing.\n\n"
         "Returns information about whether the file was created or updated, along with a diff "
         "showing the changes made.\n\n"
+        "Before using this tool:\n"
+        "1. Use the read_file tool to understand the file's contents and context\n"
+        "2. Directory Verification (only applicable when creating new files):\n"
+        "   - Use the list_directory tool to verify the parent directory exists and is the correct location\n\n"
         "# Example:\n"
         "# file_write(\n"
         "#   file_path: \"/absolute/path/to/file.clj\",\n"
