@@ -150,15 +150,20 @@
           (Files/walkFileTree
             path
             (proxy [SimpleFileVisitor] []
+              (preVisitDirectory [dir _attrs]
+                (let [dirName (str (.getFileName dir))]
+                  (if (.startsWith dirName ".")
+                    FileVisitResult/SKIP_SUBTREE
+                    FileVisitResult/CONTINUE)))
               (visitFile [file _attrs]
                 (let [rel (.relativize path file)]
                   (when (and (< (count @matches) max-results)
                              (.matches matcher rel))
-                  (swap! matches conj {:path (str file)
-                                       :mtime (.lastModified (.toFile file))}))
-                (when (>= (count @matches) max-results)
-                  (reset! truncated true))
-                FileVisitResult/CONTINUE))))
+                    (swap! matches conj {:path (str file)
+                                         :mtime (.lastModified (.toFile file))}))
+                  (when (>= (count @matches) max-results)
+                    (reset! truncated true))
+                  FileVisitResult/CONTINUE))))
 
           (let [end (System/currentTimeMillis)
                 duration (- end start)
