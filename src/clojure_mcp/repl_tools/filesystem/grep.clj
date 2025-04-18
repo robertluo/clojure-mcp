@@ -25,7 +25,7 @@
                                (map #(str "*." %) (clojure.string/split (second pattern-match) #","))))
                            [include])
         ;; Build command with multiple --include flags if needed
-        cmd-args (as-> ["grep" "-E" "-l" "-r"] args
+        cmd-args (as-> ["grep" "-E" "-l" "-r" "--exclude-dir=.*"] args
                    (if (and include (> (count include-patterns) 1))
                      (concat args (mapv #(str "--include=" %) include-patterns))
                      (if include
@@ -96,7 +96,8 @@
                 (doseq [file (.listFiles dir)]
                   (when (< (count @matches) max-results)
                     (cond
-                      (.isDirectory file)
+                      (and (.isDirectory file)
+                           (not (str/starts-with? (.getName file) ".")))
                       (search-directory file)
 
                       (.isFile file)
