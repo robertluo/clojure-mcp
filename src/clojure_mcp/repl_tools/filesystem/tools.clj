@@ -169,6 +169,38 @@ Formats the output as an indented tree structure showing the hierarchy of files 
                              result)]
                 (clj-result-k [output] error?)))})
 
+(defn create-glob-files-tool
+  "Creates a tool for fast file pattern matching using glob patterns"
+  []
+  {:name "glob_files"
+   :description "Fast file pattern matching tool that works with any codebase size.
+Supports glob patterns like \"**/*.js\" or \"src/**/*.ts\".
+Returns matching file paths sorted by modification time (most recent first).
+Use this tool when you need to find files by name patterns."
+   :schema (json/write-str {:type :object
+                            :properties {:path {:type :string
+                                                :description "Root directory to start the search from"}
+                                         :pattern {:type :string
+                                                   :description "Glob pattern (e.g. \"**/*.clj\", \"src/**/*.tsx\")"}
+                                         :max_results {:type :integer
+                                                       :description "Maximum number of results to return (default: 1000)"}}
+                            :required [:path :pattern]})
+   :tool-fn (fn [_ params clj-result-k]
+              (let [path (get params "path")
+                    pattern (get params "pattern")
+                    max-results (get params "max_results" 1000)
+                    result (try
+                             (fs/glob-files path pattern :max-results max-results)
+                             (catch Exception e
+                               {:error (.getMessage e)}))
+                    error? (boolean (:error result))
+                    output (if error?
+                             (:error result)
+                             (json/write-str
+                              (select-keys result [:filenames :numFiles :durationMs :truncated])
+                              :escape-slash false))]
+                (clj-result-k [output] error?)))})
+
 ;; Removed create-directory-tree-json-tool function
 
 (defn get-all-filesystem-tools
@@ -182,7 +214,8 @@ Formats the output as an indented tree structure showing the hierarchy of files 
   [(create-fs-list-directory-tool)
    (create-fs-read-file-tool {:max-lines 2000 :max-line-length 1000})
    (create-fs-search-files-tool)
-   (create-directory-tree-tool)])
+   (create-directory-tree-tool)
+   (create-glob-files-tool)])
 
 (comment
   ;; === Examples of using the filesystem tools ===
@@ -215,6 +248,10 @@ Formats the output as an indented tree structure showing the hierarchy of files 
   ;; Test directory tree
   (def directory-tree-tester (make-test-tool (create-directory-tree-tool)))
   (directory-tree-tester {"path" "src" "max_depth" 2})
+
+  ;; Test glob pattern matching
+  (def glob-files-tester (make-test-tool (create-glob-files-tool)))
+  (glob-files-tester {"path" "src" "pattern" "**/*.clj"})
 
   ;; Cleanup
   (clojure-mcp.nrepl/stop-polling @client-atom))
