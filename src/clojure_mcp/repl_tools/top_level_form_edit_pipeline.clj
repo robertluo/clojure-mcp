@@ -9,6 +9,7 @@
    [clojure.spec.alpha :as s]
    [clojure.java.io :as io]
    [clojure-mcp.linting :as linting]
+   [clojure-mcp.repl-tools.utils :as utils]
    [clojure-mcp.utils.emacs-integration :as emacs]))
 
 (defn is-top-level-form?
@@ -1068,64 +1069,7 @@ Tip: Use this tool before and after using other code editing tools to verify cha
                      [(format "Successfully updated docstring for '%s' in file %s" form-name file-path)]
                      false)))))})
 
-(defn generate-diff-string
-  "Generate a diff between old and new content, showing a few lines of context.
-   
-   Arguments:
-   - old-content: The original content string
-   - new-content: The updated content string
-   
-   Returns:
-   - A string containing a unified diff with context, or an empty string if no changes"
-  [old-content new-content]
-  (if (= old-content new-content)
-    ""
-    (let [old-lines (str/split-lines old-content)
-          new-lines (str/split-lines new-content)
-          max-context 3 ; Number of context lines before and after changes
-
-          ;; Simple diff algorithm to show changes with context
-          changes (loop [i 0
-                         j 0
-                         result []
-                         in-diff false]
-                    (cond
-                      ;; Both sequences exhausted
-                      (and (>= i (count old-lines)) (>= j (count new-lines)))
-                      result
-
-                      ;; Old sequence exhausted, remaining are additions
-                      (>= i (count old-lines))
-                      (concat result (map #(str "+ " %) (subvec new-lines j)))
-
-                      ;; New sequence exhausted, remaining are deletions
-                      (>= j (count new-lines))
-                      (concat result (map #(str "- " %) (subvec old-lines i)))
-
-                      ;; Lines match
-                      (= (nth old-lines i) (nth new-lines j))
-                      (let [context-line (str "  " (nth old-lines i))]
-                        (recur (inc i) (inc j)
-                               (if in-diff
-                                 (conj result context-line)
-                                 result)
-                               false))
-
-                      ;; Lines don't match - show both old and new
-                      :else
-                      (let [start-context (max 0 (- i max-context))
-                            context-before (when (and (not in-diff) (> i 0))
-                                             (map #(str "  " %)
-                                                  (subvec old-lines start-context i)))
-                            deletion (str "- " (nth old-lines i))
-                            addition (str "+ " (nth new-lines j))]
-                        (recur (inc i) (inc j)
-                               (cond-> result
-                                 (and (not in-diff) (> i 0)) (concat context-before)
-                                 true (conj deletion addition))
-                               true))))]
-
-      (str/join "\n" changes))))
+;; Removed generate-diff-string, now using utils/generate-diff-via-shell instead
 
 (defn determine-file-type
   "Determine if the file operation is a create or update.
@@ -1145,6 +1089,7 @@ Tip: Use this tool before and after using other code editing tools to verify cha
 
 (defn generate-diff
   "Generate diff between old and new content as a pipeline function.
+   Uses the shell-based diff generator from utils.clj.
    
    Arguments:
    - ctx: Context map containing ::old-content and ::output-source
@@ -1154,7 +1099,14 @@ Tip: Use this tool before and after using other code editing tools to verify cha
   [ctx]
   (let [old-content (::old-content ctx)
         new-content (::output-source ctx)
-        diff (generate-diff-string old-content new-content)]
+        diff (if (= old-content new-content)
+               "" ;; No diff if content is identical
+               (try
+                 ;; Use 3 lines of context
+                 (utils/generate-diff-via-shell old-content new-content 3)
+                 (catch Exception e
+                   ;; If shell diff fails, return a fallback message
+                   (str "Changes made, but diff generation failed: " (.getMessage e)))))]
     (assoc ctx ::diff diff)))
 
 (s/fdef generate-diff
