@@ -32,29 +32,7 @@
         (when (and (empty? directories) (empty? files))
           (println "Directory is empty"))))))
 
-(defn format-search-results
-  "Format file search results into a readable string.
-   
-   Arguments:
-   - result: Result map from search-files function
-   
-   Returns a formatted string with search results"
-  [result]
-  (if (:error result)
-    (:error result)
-    (let [{:keys [matches count search-root pattern]} result]
-      (with-out-str
-        (println "Search Results:")
-        (println "===============================")
-        (println "Pattern:" pattern)
-        (println "Search Root:" search-root)
-        (println "Found:" count "matches")
-        (if (seq matches)
-          (do
-            (println "\nMatching Files:")
-            (doseq [match matches]
-              (println "-" match)))
-          (println "\nNo matching files found"))))))
+;; Removed format-search-results function (replaced by glob-files)
 
 (defn create-fs-list-directory-tool
   "Creates a tool that lists files and directories at a specified path"
@@ -124,26 +102,7 @@ Returns a formatted directory listing with files and subdirectories clearly labe
 
 ;; Removed create-fs-file-info-tool function
 
-(defn create-fs-search-files-tool
-  "Creates a tool that searches for files matching a pattern"
-  []
-  {:name "fs_search_files"
-   :description "Searches for files matching a pattern in a directory and its subdirectories.
-Results include full paths to matching files, sorted alphabetically."
-   :schema (json/write-str {:type :object
-                            :properties {:directory {:type :string}
-                                         :pattern {:type :string}
-                                         :exclude-patterns {:type :array
-                                                            :items {:type :string}}}
-                            :required [:directory :pattern]})
-   :tool-fn (fn [_ params clj-result-k]
-              (let [directory (get params "directory")
-                    pattern (get params "pattern")
-                    exclude-patterns (get params "exclude-patterns" [])
-                    result (fs/search-files directory pattern :exclude-patterns exclude-patterns)
-                    formatted (format-search-results result)
-                    error? (boolean (:error result))]
-                (clj-result-k [formatted] error?)))})
+;; Removed create-fs-search-files-tool function (replaced by create-glob-files-tool)
 
 (defn create-directory-tree-tool
   "Creates a tool that displays a recursive tree view of directory structure"
@@ -174,7 +133,7 @@ Formats the output as an indented tree structure showing the hierarchy of files 
   []
   {:name "glob_files"
    :description "Fast file pattern matching tool that works with any codebase size.
-Supports glob patterns like \"**/*.js\" or \"src/**/*.ts\".
+Supports glob patterns like \"**/*.clj\" or \"src/**/*.cljs\".
 Returns matching file paths sorted by modification time (most recent first).
 Use this tool when you need to find files by name patterns."
    :schema (json/write-str {:type :object
@@ -213,7 +172,6 @@ Use this tool when you need to find files by name patterns."
   [nrepl-client-atom]
   [(create-fs-list-directory-tool)
    (create-fs-read-file-tool {:max-lines 2000 :max-line-length 1000})
-   (create-fs-search-files-tool)
    (create-directory-tree-tool)
    (create-glob-files-tool)])
 
@@ -240,10 +198,6 @@ Use this tool when you need to find files by name patterns."
   ;; Test file reading
   (def read-file-tester (make-test-tool (create-fs-read-file-tool {:max-lines 2000 :max-line-length 1000})))
   (read-file-tester {"path" "deps.edn"})
-
-  ;; Test file search
-  (def search-files-tester (make-test-tool (create-fs-search-files-tool)))
-  (search-files-tester {"directory" "src" "pattern" "eval"})
 
   ;; Test directory tree
   (def directory-tree-tester (make-test-tool (create-directory-tree-tool)))

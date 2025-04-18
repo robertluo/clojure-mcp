@@ -135,39 +135,7 @@
 
 ;; Removed directory-tree-json function
 
-(defn search-files
-  "Search for files matching pattern in directory and subdirectories.
-   
-   Arguments:
-   - dir: Root directory to start search
-   - pattern: String pattern to match filenames against
-   - exclude-patterns: Optional sequence of patterns to exclude
-   
-   Returns a map with :matches vector of matching file paths."
-  [dir pattern & {:keys [exclude-patterns] :or {exclude-patterns []}}]
-  (let [root (io/file dir)]
-    (if (and (.exists root) (.isDirectory root))
-      (let [pattern-re (re-pattern (str "(?i).*" pattern ".*"))
-            exclude-res (mapv #(re-pattern (str "(?i).*" % ".*")) exclude-patterns)
-            excluded? (fn [path]
-                        (some #(re-matches % path) exclude-res))
-            matches (atom [])]
-        (letfn [(search [file]
-                  (when (.isDirectory file)
-                    (doseq [child (.listFiles file)]
-                      (let [path (.getAbsolutePath child)]
-                        (if (.isDirectory child)
-                          (when-not (excluded? path)
-                            (search child))
-                          (when (and (re-matches pattern-re (.getName child))
-                                     (not (excluded? path)))
-                            (swap! matches conj path)))))))]
-          (search root)
-          {:matches (sort @matches)
-           :count (count @matches)
-           :search-root (.getAbsolutePath root)
-           :pattern pattern}))
-      {:error (str dir " is not a valid directory")})))
+;; Removed search-files function (replaced by glob-files)
 
 (defn glob-pattern->regex
   "Convert glob pattern to regex pattern.
