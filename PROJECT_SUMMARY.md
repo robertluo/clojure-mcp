@@ -22,6 +22,7 @@ Clojure MCP is a Model Context Protocol (MCP) server that enables LLM assistants
 - **`src/clojure_mcp/repl_tools/project/inspect.clj`**: Project inspection tools
 - **`src/clojure_mcp/repl_tools/filesystem/core.clj`**: Core filesystem operations
 - **`src/clojure_mcp/repl_tools/filesystem/tools.clj`**: Filesystem tool implementations
+- **`src/clojure_mcp/repl_tools/filesystem/grep.clj`**: File content search implementation
 
 ### Configuration
 - **`deps.edn`**: Project dependencies and aliases
@@ -32,15 +33,15 @@ Clojure MCP is a Model Context Protocol (MCP) server that enables LLM assistants
 The project relies on the following key dependencies (from `deps.edn`):
 
 ```clojure
-{:deps {clj-kondo/clj-kondo {:mvn/version "2024.03.13"} ;; Static analysis
-        org.clojure/clojure {:mvn/version "1.11.1"}
-        org.clojure/data.json {:mvn/version "2.5.1"}
-        io.modelcontextprotocol.sdk/mcp {:mvn/version "0.8.1"} ;; MCP SDK
-        org.slf4j/slf4j-nop {:mvn/version "2.0.3"}
-        nrepl/nrepl {:mvn/version "1.3.1"} ;; nREPL client
-        com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.15.2"}
-        rewrite-clj/rewrite-clj {:mvn/version "1.1.47"} ;; Code parsing/editing
-        dev.weavejester/cljfmt {:mvn/version "0.13.1"} ;; Code formatting
+{:deps {clj-kondo/clj-kondo {:mvn/version \"2024.03.13\"} ;; Static analysis
+        org.clojure/clojure {:mvn/version \"1.11.1\"}
+        org.clojure/data.json {:mvn/version \"2.5.1\"}
+        io.modelcontextprotocol.sdk/mcp {:mvn/version \"0.8.1\"} ;; MCP SDK
+        org.slf4j/slf4j-nop {:mvn/version \"2.0.3\"}
+        nrepl/nrepl {:mvn/version \"1.3.1\"} ;; nREPL client
+        com.fasterxml.jackson.core/jackson-databind {:mvn/version \"2.15.2\"}
+        rewrite-clj/rewrite-clj {:mvn/version \"1.1.47\"} ;; Code parsing/editing
+        dev.weavejester/cljfmt {:mvn/version \"0.13.1\"} ;; Code formatting
         }}
 ```
 
@@ -48,13 +49,13 @@ The project relies on the following key dependencies (from `deps.edn`):
 
 ### Code Evaluation
 - **`clojure_eval`**: Evaluates Clojure code in the REPL
-  - Input: `{"expression": "(+ 1 2)"}`
+  - Input: `{\"expression\": \"(+ 1 2)\"}`
   - Output: Evaluation result and/or error messages
   - Implementation: `src/clojure_mcp/repl_tools/eval.clj`
 
 ### REPL History
 - **`clojure_eval_history`**: Retrieves previous evaluation results
-  - Input: `{"number-to-fetch": 5}`
+  - Input: `{\"number-to-fetch\": 5}`
   - Implementation: `src/clojure_mcp/repl_tools/history.clj`
 
 ### Namespace Management
@@ -63,63 +64,94 @@ The project relies on the following key dependencies (from `deps.edn`):
 - **`clojure_list_namespaces`**: Lists all available namespaces
   - Implementation: `src/clojure_mcp/repl_tools/namespace.clj`
 - **`clojure_list_vars_in_namespace`**: Lists vars in a namespace
-  - Input: `{"namespace": "clojure.string"}`
+  - Input: `{\"namespace\": \"clojure.string\"}`
   - Implementation: `src/clojure_mcp/repl_tools/namespace.clj`
 
 ### Symbol Information
 - **`symbol_completions`**: Gets completions for symbol prefixes
-  - Input: `{"prefix": "map"}`
+  - Input: `{\"prefix\": \"map\"}`
   - Implementation: `src/clojure_mcp/repl_tools/symbol.clj`
 - **`symbol_metadata`**: Retrieves detailed metadata for symbols
-  - Input: `{"symbol": "map"}`
+  - Input: `{\"symbol\": \"map\"}`
   - Implementation: `src/clojure_mcp/repl_tools/symbol.clj`
 - **`symbol_documentation`**: Gets docstrings and usage information
-  - Input: `{"symbol": "map"}`
+  - Input: `{\"symbol\": \"map\"}`
   - Implementation: `src/clojure_mcp/repl_tools/symbol.clj`
 - **`source_code`**: Views source code implementation
-  - Input: `{"symbol": "map"}`
+  - Input: `{\"symbol\": \"map\"}`
   - Implementation: `src/clojure_mcp/repl_tools/symbol.clj`
 - **`symbol-search`**: Searches for symbols across namespaces
-  - Input: `{"search-str": "seq"}`
+  - Input: `{\"search-str\": \"seq\"}`
   - Implementation: `src/clojure_mcp/repl_tools/symbol.clj`
 
 ### File Editing
 - **`clojure_file_structure`**: Shows file structure with top-level forms
-  - Input: `{"file_path": "src/my_namespace/core.clj", "expand": ["my-function"]}`
+  - Input: `{\"file_path\": \"src/my_namespace/core.clj\", \"expand\": [\"my-function\"]}`
   - Implementation: `src/clojure_mcp/repl_tools/top_level_form_edit_pipeline.clj`
 - **`clojure_edit_replace_form`**: Updates top-level forms
-  - Input: `{"file_path": "...", "form_name": "my-function", "form_type": "defn", "new_implementation": "..."}`
+  - Input: `{\"file_path\": \"...\", \"form_name\": \"my-function\", \"form_type\": \"defn\", \"new_implementation\": \"...\"}`
   - Implementation: `src/clojure_mcp/repl_tools/top_level_form_edit_pipeline.clj`
+  - Supports replacing a single form with multiple forms in one operation
 - **`clojure_edit_insert_before_form`**: Inserts code before existing forms
-  - Input: `{"file_path": "...", "before_form_name": "main-fn", "form_type": "defn", "new_form_str": "..."}`
+  - Input: `{\"file_path\": \"...\", \"before_form_name\": \"main-fn\", \"form_type\": \"defn\", \"new_form_str\": \"...\"}`
   - Implementation: `src/clojure_mcp/repl_tools/top_level_form_edit_pipeline.clj`
+  - Supports inserting multiple forms in one operation
 - **`clojure_edit_insert_after_form`**: Inserts code after existing forms
-  - Input: `{"file_path": "...", "after_form_name": "helper-fn", "form_type": "defn", "new_form_str": "..."}`
+  - Input: `{\"file_path\": \"...\", \"after_form_name\": \"helper-fn\", \"form_type\": \"defn\", \"new_form_str\": \"...\"}`
   - Implementation: `src/clojure_mcp/repl_tools/top_level_form_edit_pipeline.clj`
+  - Supports inserting multiple forms in one operation
 - **`clojure_edit_comment_block`**: Edits or updates comment blocks
-  - Input: `{"file_path": "...", "comment_substring": "Example usage", "new_content": "..."}`
+  - Input: `{\"file_path\": \"...\", \"comment_substring\": \"Example usage\", \"new_content\": \"...\"}`
   - Implementation: `src/clojure_mcp/repl_tools/top_level_form_edit_pipeline.clj`
 - **`clojure_edit_replace_docstring`**: Updates function docstrings
-  - Input: `{"file_path": "...", "form_name": "my-function", "form_type": "defn", "new_docstring": "..."}`
+  - Input: `{\"file_path\": \"...\", \"form_name\": \"my-function\", \"form_type\": \"defn\", \"new_docstring\": \"...\"}`
   - Implementation: `src/clojure_mcp/repl_tools/top_level_form_edit_pipeline.clj`
 
+### File Operations
+- **`file_write`**: Writes content to a file with formatting and linting
+  - Input: `{\"file_path\": \"/path/to/file.clj\", \"content\": \"(ns my.namespace)\
+\
+(defn my-function [x]\
+  (* x 2))\"}`
+  - Output: Status indicating creation or update, plus a diff showing changes
+  - Performs Clojure-aware linting and formatting on the content
+  - Returns a detailed diff showing the changes made to the file
+  - Implementation: `src/clojure_mcp/repl_tools/top_level_form_edit_pipeline.clj`
+  - Best practices:
+    - Use `read_file` first to understand file contents and context
+    - Use `list_directory` to verify parent directories exist for new files
+
 ### Filesystem Tools
+- **`directory_tree`**: Shows a recursively indented tree view of files and directories
+  - Input: `{\"path\": \"/path/to/directory\", \"max_depth\": 2}`
+  - Output: Text representation of the directory tree with proper indentation
+  - Filters out temporary files like Emacs backups and hidden files
+  - Adds \"...\" indicators for directories truncated due to max_depth
+  - Implementation: `src/clojure_mcp/repl_tools/filesystem/tools.clj`
+
 - **`fs_list_directory`**: Lists files and directories at a specified path
-  - Input: `{"path": "/path/to/directory"}`
+  - Input: `{\"path\": \"/path/to/directory\"}`
   - Output: Formatted directory listing with files and subdirectories
   - Implementation: `src/clojure_mcp/repl_tools/filesystem/tools.clj`
+
 - **`fs_read_file`**: Reads file contents with optional line limits and offsets
-  - Input: `{"path": "/path/to/file", "offset": 0, "limit": 2000}`
+  - Input: `{\"path\": \"/path/to/file\", \"offset\": 0, \"limit\": 2000}`
   - Output: File contents wrapped in XML tags with metadata
   - Implementation: `src/clojure_mcp/repl_tools/filesystem/tools.clj`
-- **`fs_file_info`**: Gets detailed information about a file or directory
-  - Input: `{"path": "/path/to/file"}`
-  - Output: Comprehensive metadata including size, timestamps, and permissions
+
+- **`glob_files`**: Fast file pattern matching using glob patterns
+  - Input: `{\"path\": \"/path/to/directory\", \"pattern\": \"**/*.clj\", \"max_results\": 1000}`
+  - Output: JSON with filenames (sorted by modification time), count, duration, and truncation flag
+  - Supports standard glob patterns like \"**/*.js\" (recursive) or \"src/*.ts\" (single directory)
   - Implementation: `src/clojure_mcp/repl_tools/filesystem/tools.clj`
-- **`fs_search_files`**: Searches for files matching a pattern in a directory and its subdirectories
-  - Input: `{"directory": "/path/to/search", "pattern": "search-term", "exclude-patterns": ["node_modules"]}`
-  - Output: List of matching file paths
-  - Implementation: `src/clojure_mcp/repl_tools/filesystem/tools.clj`
+
+- **`fs_grep`**: Fast content search tool for finding text patterns in files
+  - Input: `{\"path\": \"/path/to/directory\", \"pattern\": \"function\\\\s+\\\\w+\", \"include\": \"*.{js,ts}\", \"max_results\": 1000}`
+  - Output: JSON with matching files (sorted by modification time), count, and duration
+  - Uses system grep command with extended regex support when available
+  - Provides pure Java fallback implementation for cross-platform compatibility
+  - Supports multiple file types through brace expansion (e.g., \"*.{clj,md}\")
+  - Implementation: `src/clojure_mcp/repl_tools/filesystem/grep.clj`
 
 ### Project Tools
 - **`clojure_inspect_project`**: Analyzes project structure and dependencies
@@ -147,11 +179,11 @@ Resources in the MCP server are implemented using:
 
 1. **Resource Definition**:
    ```clojure
-   {:url "custom://resource-name"
-    :name "Human-readable Name"
-    :description "Resource description"
-    :mime-type "text/plain"
-    :resource-fn (fn [_ _ callback] (callback ["Content as vector of strings"]))}
+   {:url \"custom://resource-name\"
+    :name \"Human-readable Name\"
+    :description \"Resource description\"
+    :mime-type \"text/plain\"
+    :resource-fn (fn [_ _ callback] (callback [\"Content as vector of strings\"]))}
    ```
 
 2. **Resource Registration**:
@@ -195,6 +227,28 @@ Resources in the MCP server are implemented using:
    - Implemented in `src/clojure_mcp/repl_tools/filesystem/` directory
    - Provides file and directory operations with configurable limits
    - Supports XML-wrapped output format for file contents with metadata
+   - Features glob pattern matching and directory tree visualization
+
+## Pipeline Pattern
+
+The project heavily utilizes a pipeline pattern for operations, particularly in the file editing tools:
+
+1. **Context Map**: Operations use a context map (with ::namespaced keys) to pass data through a series of processing functions
+2. **Thread-Ctx**: The `thread-ctx` function chains pipeline functions while short-circuiting on error
+3. **Pipeline Components**: Individual functions perform specific operations and update the context map:
+   - `load-source`: Loads file content into the context
+   - `lint-code`: Validates code syntax and style
+   - `format-source`: Formats code according to Clojure conventions
+   - `generate-diff`: Creates a human-readable diff of changes
+   - `determine-file-type`: Identifies if operation is create or update
+   - `save-file`: Writes content to file with offset tracking
+   - `highlight-form`: Provides visual feedback in Emacs
+
+This pattern enables:
+- Clear separation of concerns
+- Consistent error handling
+- Reusable components across different tools
+- Easy extension with new processing steps
 
 ## Registration Pattern
 
@@ -239,10 +293,15 @@ When developing with this tool:
 1. **Error Handling**: Always check for errors in evaluation results
 2. **Namespace Context**: Be aware of the current namespace when evaluating code
 3. **File Editing**: The file editing tools are designed to maintain correct Clojure syntax
+   - All editing tools now support multiple forms in a single operation
+   - The `file_write` tool provides linting, formatting, and diffing
 4. **Async Tools**: All tool implementations use a callback continuation style for async results
 5. **Prompts**: The system includes several built-in prompts for guiding development
 6. **Resources**: Resources should return vectors of strings, which are wrapped in TextResourceContents
 7. **File Reading**: The `fs_read_file` tool handles large files with configurable limits and offset to avoid memory issues
+8. **Directory Traversal**: The `directory_tree` tool provides a clean, LLM-friendly view of file hierarchies
+9. **Pattern Matching**: The `glob_files` tool enables efficient file searching with standard glob patterns
+10. **Content Searching**: The `fs_grep` tool provides fast content searching with regular expression support
 
 ## Project Goals
 
@@ -254,6 +313,7 @@ The primary goal is to enable high-quality collaborative development between hum
 4. Functional programming patterns that produce more maintainable code
 5. Access to contextual project information via resources
 6. Efficient file and directory navigation and manipulation
+7. Pattern-based file searching for quickly locating relevant code
 
 ## Extension Points
 
@@ -263,5 +323,6 @@ If you need to extend this project:
 2. Add new prompts in `src/clojure_mcp/prompts.clj` and include them in `get-all-prompts`
 3. Add new resources in `src/clojure_mcp/resources.clj` and include them in `get-all-resources`
 4. Add new filesystem operations in `src/clojure_mcp/repl_tools/filesystem/core.clj`
+5. Create new pipeline components for the editing pipeline in `top_level_form_edit_pipeline.clj`
 
 This centralized pattern makes it easy to extend the system without modifying the core server setup code.
