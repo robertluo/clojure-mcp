@@ -965,7 +965,7 @@ Tip: Use this tool before and after using other code editing tools to verify cha
    - service-atom: Service atom (required for tool registration but not used in this implementation)
    
    Returns a map with :name, :description, :schema and :tool-fn keys"
-  [_]
+  [nrepl-client-atom]
   {:name "clojure_edit_comment_block"
    :description
    (str
