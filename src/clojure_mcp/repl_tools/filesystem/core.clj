@@ -46,12 +46,12 @@
                   lines (with-open [rdr (io/reader file)]
                           (doall
                            (cond->> (drop offset (line-seq rdr))
-                              max-lines (take (inc max-lines))
-                              true (map
-                                    (fn [line]
-                                      (if (and max-line-length (> (count line) max-line-length))
-                                        (str (subs line 0 max-line-length) "...")
-                                        line))))))
+                             max-lines (take (inc max-lines))
+                             true (map
+                                   (fn [line]
+                                     (if (and max-line-length (> (count line) max-line-length))
+                                       (str (subs line 0 max-line-length) "...")
+                                       line))))))
                   truncated-by-lines? (and max-lines (> (count lines) max-lines))
                   content-lines (if truncated-by-lines? (take max-lines lines) lines)
                   content (str/join "\n" content-lines)]
@@ -70,53 +70,70 @@
         {:error (str path " is not a file")})
       {:error (str path " does not exist")})))
 
-(defn file-info
-  "Gets detailed information about a file or directory.
-   Returns a map with file/directory metadata including size, timestamps, and permissions."
-  [path]
-  (let [file (io/file path)]
-    (if (.exists file)
-      {:name (.getName file)
-       :path (.getAbsolutePath file)
-       :size (.length file)
-       :directory? (.isDirectory file)
-       :last-modified (.lastModified file)
-       :readable? (.canRead file)
-       :writable? (.canWrite file)
-       :executable? (.canExecute file)
-       :hidden? (.isHidden file)
-       :parent (when-let [p (.getParent file)] p)}
-      {:error (str path " does not exist")})))
+;; Removed file-info function
 
-(defn format-file-info
-  "Formats file information into a human-readable string.
+;; Removed format-file-info function
+
+(defn directory-tree
+  "Creates a recursive tree view of directory structure using simple indentation.
    
    Arguments:
-   - info: File information map from file-info function
+   - path: Root directory path to start from
+   - depth: Current depth level (used for indentation)
+   - max-depth: Maximum depth to traverse (nil for unlimited)
    
-   Returns a formatted string with file details"
-  [info]
-  (if (:error info)
-    (:error info)
-    (let [{:keys [name path size directory? last-modified
-                  readable? writable? executable? hidden? parent]} info
-          date-format (java.text.SimpleDateFormat. "yyyy-MM-dd HH:mm:ss")]
-      (with-out-str
-        (println "File Information:")
-        (println "===============================")
-        (println "Name:" name)
-        (println "Path:" path)
-        (println "Type:" (if directory? "Directory" "File"))
-        (when-not directory?
-          (println "Size:" size "bytes"))
-        (println "Last Modified:" (.format date-format (java.util.Date. last-modified)))
-        (println "Parent Directory:" parent)
-        (println "Permissions:"
-                 (str (if readable? "r" "-")
-                      (if writable? "w" "-")
-                      (if executable? "x" "-")))
-        (when hidden?
-          (println "Hidden: Yes"))))))
+   Returns a string representation of the directory tree with proper indentation.
+   Filters out temporary files like Emacs backup files (ending with ~).
+   Adds a \"...\" indicator when directories are truncated due to max-depth."
+  [path & {:keys [depth max-depth] :or {depth 0 max-depth nil}}]
+  (let [dir (io/file path)]
+    (if (and (.exists dir) (.isDirectory dir))
+      (let [indent (apply str (repeat depth "  "))
+            contents (.listFiles dir)
+            ; Filter out temporary files (like Emacs backup files)
+            is-temp-file? (fn [file]
+                            (let [name (.getName file)]
+                              (or (.endsWith name "~") ; Emacs backup
+                                  (.startsWith name ".") ; Hidden files
+                                  (.startsWith name "#") ; Emacs auto-save
+                                  (.contains name ".#")))) ; Emacs lock files
+            dirs (filter #(and (.isDirectory %) (not (is-temp-file? %))) contents)
+            files (filter #(and (.isFile %) (not (is-temp-file? %))) contents)
+            result (StringBuilder.)
+            continue? (or (nil? max-depth) (< depth max-depth))]
+
+        ;; Root entry
+        (when (zero? depth)
+          (.append result (str (.getAbsolutePath dir) "\n")))
+
+        ;; Directory entries
+        (doseq [d (sort-by #(.getName %) dirs)]
+          (.append result (str indent "- " (.getName d) "/\n"))
+          (cond
+            ;; If max-depth is set and we're at the limit, add truncation indicator
+            (and max-depth (= depth max-depth))
+            (.append result (str indent "  - ...\n"))
+
+            ;; Otherwise process subdirectory if we should continue
+            continue?
+            (let [subtree (directory-tree (.getAbsolutePath d)
+                                          :depth (inc depth)
+                                          :max-depth max-depth)]
+              (when (and subtree (not (map? subtree)) (not (empty? subtree)))
+                ;; Indent each line of the subtree with the current indentation
+                (let [subtree-lines (str/split-lines subtree)
+                      indented-lines (map #(str indent "  " %) subtree-lines)]
+                  (.append result (str (str/join "\n" indented-lines) "\n")))))))
+
+        ;; File entries
+        (let [sorted-files (sort-by #(.getName %) files)]
+          (doseq [f sorted-files]
+            (.append result (str indent "- " (.getName f) "\n"))))
+
+        (.toString result))
+      {:error (str path " is not a valid directory")})))
+
+;; Removed directory-tree-json function
 
 (defn search-files
   "Search for files matching pattern in directory and subdirectories.

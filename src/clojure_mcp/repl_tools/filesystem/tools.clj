@@ -74,29 +74,29 @@ Returns a formatted directory listing with files and subdirectories clearly labe
 
 (defn create-fs-read-file-tool
   "Creates a tool that reads the contents of a file"
-  [{:keys [max-lines max-line-length] 
+  [{:keys [max-lines max-line-length]
     :or {max-lines 2000 max-line-length 1000}}]
   {:name "fs_read_file"
    :description (str "Reads a file from the local filesystem. The file_path parameter must be an absolute path, not a relative path. "
                      "By default, it reads up to " max-lines " lines starting from the beginning of the file. "
                      "You can optionally specify a line offset and limit (especially handy for long files), but it's recommended "
-                     "to read the whole file by not providing these parameters. Any lines longer than " max-line-length 
+                     "to read the whole file by not providing these parameters. Any lines longer than " max-line-length
                      " characters will be truncated.")
    :schema (json/write-str {:type :object
                             :properties {:path {:type :string}
                                          :offset {:type :integer
-                                                 :description "Line number to start reading from (0-indexed)"}
+                                                  :description "Line number to start reading from (0-indexed)"}
                                          :limit {:type :integer
-                                                :description "Maximum number of lines to read"}}
+                                                 :description "Maximum number of lines to read"}}
                             :required [:path]})
    :tool-fn (fn [_ params clj-result-k]
               (let [path (get params "path")
                     offset (get params "offset" 0)
                     limit (get params "limit" max-lines)
-                    result (fs/read-file-contents path 
-                                                :max-lines limit
-                                                :offset offset
-                                                :max-line-length max-line-length)
+                    result (fs/read-file-contents path
+                                                  :max-lines limit
+                                                  :offset offset
+                                                  :max-line-length max-line-length)
                     output (if (:error result)
                              (:error result)
                              (let [file (io/file path)
@@ -112,9 +112,9 @@ Returns a formatted directory listing with files and subdirectories clearly labe
                                     "offset=\"" offset "\" "
                                     "limit=\"" limit "\" "
                                     "truncated=\"" truncated "\" "
-                                    (when truncation-reason 
+                                    (when truncation-reason
                                       (str "truncated-by=\"" truncation-reason "\" "))
-                                    (when line-lengths-truncated 
+                                    (when line-lengths-truncated
                                       "line-lengths-truncated=\"true\" ")
                                     ">\n"
                                     content
@@ -122,21 +122,7 @@ Returns a formatted directory listing with files and subdirectories clearly labe
                     error? (boolean (:error result))]
                 (clj-result-k [output] error?)))})
 
-(defn create-fs-file-info-tool
-  "Creates a tool that provides detailed information about a file or directory"
-  []
-  {:name "fs_file_info"
-   :description "Gets detailed information about a file or directory.
-Returns comprehensive metadata including size, creation time, permissions, and type."
-   :schema (json/write-str {:type :object
-                            :properties {:path {:type :string}}
-                            :required [:path]})
-   :tool-fn (fn [_ params clj-result-k]
-              (let [path (get params "path")
-                    info (fs/file-info path)
-                    formatted (fs/format-file-info info)
-                    error? (boolean (:error info))]
-                (clj-result-k [formatted] error?)))})
+;; Removed create-fs-file-info-tool function
 
 (defn create-fs-search-files-tool
   "Creates a tool that searches for files matching a pattern"
@@ -159,6 +145,32 @@ Results include full paths to matching files, sorted alphabetically."
                     error? (boolean (:error result))]
                 (clj-result-k [formatted] error?)))})
 
+(defn create-directory-tree-tool
+  "Creates a tool that displays a recursive tree view of directory structure"
+  []
+  {:name "directory_tree"
+   :description "Returns a recursive tree view of files and directories starting from the specified path.
+Formats the output as an indented tree structure showing the hierarchy of files and folders."
+   :schema (json/write-str {:type :object
+                            :properties {:path {:type :string}
+                                         :max_depth {:type :integer
+                                                     :description "Maximum depth to traverse (optional)"}}
+                            :required [:path]})
+   :tool-fn (fn [_ params clj-result-k]
+              (let [path (get params "path")
+                    max-depth (get params "max_depth")
+                    result (try
+                             (fs/directory-tree path :max-depth max-depth)
+                             (catch Exception e
+                               {:error (.getMessage e)}))
+                    error? (map? result)
+                    output (if error?
+                             (:error result)
+                             result)]
+                (clj-result-k [output] error?)))})
+
+;; Removed create-directory-tree-json-tool function
+
 (defn get-all-filesystem-tools
   "Returns a collection of all filesystem tools.
    
@@ -169,8 +181,8 @@ Results include full paths to matching files, sorted alphabetically."
   [nrepl-client-atom]
   [(create-fs-list-directory-tool)
    (create-fs-read-file-tool {:max-lines 2000 :max-line-length 1000})
-   (create-fs-file-info-tool)
-   (create-fs-search-files-tool)])
+   (create-fs-search-files-tool)
+   (create-directory-tree-tool)])
 
 (comment
   ;; === Examples of using the filesystem tools ===
@@ -196,13 +208,13 @@ Results include full paths to matching files, sorted alphabetically."
   (def read-file-tester (make-test-tool (create-fs-read-file-tool {:max-lines 2000 :max-line-length 1000})))
   (read-file-tester {"path" "deps.edn"})
 
-  ;; Test file info
-  (def file-info-tester (make-test-tool (create-fs-file-info-tool)))
-  (file-info-tester {"path" "deps.edn"})
-
   ;; Test file search
   (def search-files-tester (make-test-tool (create-fs-search-files-tool)))
   (search-files-tester {"directory" "src" "pattern" "eval"})
+
+  ;; Test directory tree
+  (def directory-tree-tester (make-test-tool (create-directory-tree-tool)))
+  (directory-tree-tester {"path" "src" "max_depth" 2})
 
   ;; Cleanup
   (clojure-mcp.nrepl/stop-polling @client-atom))
