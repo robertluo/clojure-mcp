@@ -181,14 +181,14 @@
               matches (atom [])
               truncated (atom false)]
 
-          ; Function to recursively collect files
+                                        ; Function to recursively collect files
           (letfn [(collect-files [file]
                     (when (< (count @matches) max-results)
                       (if (.isDirectory file)
-                        ; For directories, process all children
+                                        ; For directories, process all children
                         (doseq [child (.listFiles file)]
                           (collect-files child))
-                        ; For files, check if they match the pattern
+                                        ; For files, check if they match the pattern
                         (let [abs-path (.getAbsolutePath file)
                               rel-path (-> abs-path
                                            (str/replace (str root-path "/") ""))]
@@ -196,10 +196,10 @@
                             (swap! matches conj {:path abs-path
                                                  :mtime (.lastModified file)}))))))]
 
-            ; Start collection from root directory
+                                        ; Start collection from root directory
             (collect-files dir-file)
 
-            ; Check if truncated
+                                        ; Check if truncated
             (when (>= (count @matches) max-results)
               (reset! truncated true))
 
