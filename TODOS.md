@@ -1,5 +1,6 @@
 ## Looking forward
 
+## Adapt tools and prompts from OtherCl implementation
 * prompt is still misbehaving, so far working without the prompt seems to be better
 - add specifics to what its doing wrong
 

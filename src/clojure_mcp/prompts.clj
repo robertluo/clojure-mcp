@@ -22,18 +22,37 @@
 
 ;; --- Prompt Definitions ---
 
-(def clojure-dev-prompt
-  {:name "clojure_dev"
+(def clojure-system-repl-flex
+  {:name "clojure_repl_flex_system_prompt"
    :description "Provides instructions and guidelines for Clojure development, including style and best practices."
    :arguments [] ;; No arguments needed for this prompt
    :prompt-fn (simple-content-prompt-fn
-               "Clojure Development Guidelines"
-               (str
-                (load-prompt-from-resource "prompts/CLOJURE.md")
-                "\n\n---\n\n" ;; Separator
-                (load-prompt-from-resource "prompts/clojure_dev.txt")))})
+               "System Prompt: Clojure REPL Flex"
+               (load-prompt-from-resource "prompts/system/clojure_flex.md"))})
 
-(def clojure-repl-driven-prompt
+(def clojure-system-repl
+  {:name "clojure_repl_system_prompt"
+   :description "Provides instructions and guidelines for Clojure development, including style and best practices."
+   :arguments [] ;; No arguments needed for this prompt
+   :prompt-fn (simple-content-prompt-fn
+               "System Prompt: Clojure REPL"
+               (load-prompt-from-resource "prompts/system/clojure_repl.md"))})
+
+
+
+
+#_(def clojure-dev-prompt
+    {:name "clojure_dev"
+     :description "Provides instructions and guidelines for Clojure development, including style and best practices."
+     :arguments [] ;; No arguments needed for this prompt
+     :prompt-fn (simple-content-prompt-fn
+                 "Clojure Development Guidelines"
+                 (str
+                  (load-prompt-from-resource "prompts/CLOJURE.md")
+                  "\n\n---\n\n" ;; Separator
+                  (load-prompt-from-resource "prompts/clojure_dev.txt")))})
+
+#_(def clojure-repl-driven-prompt
   {:name "clojure-repl-driven"
    :description "Provides comprehensive instructions for REPL-driven development in Clojure, including style, best practices, and REPL usage guidelines."
    :arguments [] ;; No arguments needed
@@ -63,38 +82,6 @@
    :prompt-fn (simple-content-prompt-fn
                "Test-Driven-Development Modifier for Clojure"
                (load-prompt-from-resource "prompts/test_modifier.md"))})
-
-(defn working-dir-prompt [dir]
-  (str
-   "The Clojure project assocated with the code we are developing is located at `"
-   dir
-   "`   
-When interacting with filesystem for this code it will be in this project.
-
-The source code is in the \"src\" dir of this project directory.
-The test code is in the \"test\" dir of this project directory.
-
-When the user changes a file that is being worked on, you must require reload the file in order for the repl to pick them up.
-
-Filesystem writes, saves, edits and other interactions should use the `filesystem` tool rather than the Clojure REPL."
-   ;; If the filesystem tool can't acces this directory then fallback to the REPL for filesystem access
-   ))
-
-(def clojure-project-context-modifier
-  {:name "clj-set-project-dir"
-   :description "Set the project context of the code we are working on"
-   :arguments [{:name "project-working-directory"
-                :description "The root directory of your Clojure project"
-                :required? true}] ;; No arguments needed
-   :prompt-fn (fn [_ request-args clj-result-k]
-                (let [working-directory (get request-args "project-working-directory")]
-                  ;; Call the continuation with the result map
-                  (clj-result-k
-                   {:description "Set the working directory of a project"
-                    :messages [{:role :user
-                                :content (working-dir-prompt working-directory)}
-                               #_{:role :assistant
-                                  :content (str "Working directory set to " working-directory "\n all filesytem interactions will be focused here.")}]})))})
 
 (defn sync-namespace-workflow-prompt [namesp]
   (format "I'm currently working on a Clojure namespace `%s`  
@@ -151,7 +138,8 @@ If the file get's *edited* outside and must be read to see the changes, you shou
    Takes an nrepl-client-atom for consistency with other similar functions,
    though current prompts don't use it."
   [nrepl-client-atom]
-  [
+  [clojure-system-repl
+   clojure-system-repl-flex
    clj-sync-namespace
    (create-project-summary (:clojure-mcp.core/nrepl-user-dir @nrepl-client-atom))
    ;; Commented out prompts can be uncommented if needed
