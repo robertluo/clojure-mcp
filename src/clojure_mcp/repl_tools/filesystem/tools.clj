@@ -2,6 +2,7 @@
   "MCP tools for filesystem operations.
    Provides tools for listing, reading, and searching files and directories."
   (:require [clojure-mcp.repl-tools.filesystem.core :as fs]
+            [clojure-mcp.repl-tools.filesystem.grep :as grep]
             [clojure.data.json :as json]
             [clojure-mcp.nrepl :as mcp-nrepl]
             [clojure.string :as str]
@@ -162,6 +163,40 @@ Use this tool when you need to find files by name patterns."
 
 ;; Removed create-directory-tree-json-tool function
 
+(defn create-grep-tool
+  "Creates a tool for searching file contents using regular expressions"
+  []
+  {:name "fs_grep"
+   :description "Fast content search tool that works with any codebase size.\nSearches file contents using regular expressions.\nSupports full regex syntax (eg. \"log.*Error\", \"function\\s+\\w+\", etc.).\nFilter files by pattern with the include parameter (eg. \"*.js\", \"*.{ts,tsx}\").\nReturns matching file paths sorted by modification time.\nUse this tool when you need to find files containing specific patterns."
+   :schema (json/write-str {:type :object
+                            :properties {:path {:type :string
+                                                :description "The directory to search in. Defaults to the current working directory."}
+                                         :pattern {:type :string
+                                                   :description "The regular expression pattern to search for in file contents"}
+                                         :include {:type :string
+                                                  :description "File pattern to include in the search (e.g. \"*.clj\", \"*.{clj,cljs}\")"}
+                                         :max_results {:type :integer
+                                                      :description "Maximum number of results to return (default: 1000)"}}
+                            :required [:pattern]})
+   :tool-fn (fn [_ params clj-result-k]
+              (let [path (get params "path" ".")
+                    pattern (get params "pattern")
+                    include (get params "include")
+                    max-results (get params "max_results" 1000)
+                    result (try
+                             (grep/grep-files path pattern :include include :max-results max-results)
+                             (catch Exception e
+                               {:error (.getMessage e)}))
+                    error? (boolean (:error result))
+                    output (if error?
+                             (:error result)
+                             (json/write-str
+                              {:filenames (:filenames result)
+                               :numFiles (:numFiles result)
+                               :durationMs (:durationMs result)}
+                              :escape-slash false))]                
+                (clj-result-k [output] error?)))})  
+
 (defn get-all-filesystem-tools
   "Returns a collection of all filesystem tools.
    
@@ -173,7 +208,8 @@ Use this tool when you need to find files by name patterns."
   [(create-fs-list-directory-tool)
    (create-fs-read-file-tool {:max-lines 2000 :max-line-length 1000})
    (create-directory-tree-tool)
-   (create-glob-files-tool)])
+   (create-glob-files-tool)
+   (create-grep-tool)])
 
 (comment
   ;; === Examples of using the filesystem tools ===
@@ -206,6 +242,10 @@ Use this tool when you need to find files by name patterns."
   ;; Test glob pattern matching
   (def glob-files-tester (make-test-tool (create-glob-files-tool)))
   (glob-files-tester {"path" "src" "pattern" "**/*.clj"})
+  
+  ;; Test content grep
+  (def grep-tester (make-test-tool (create-grep-tool)))
+  (grep-tester {"path" "src" "pattern" "defn" "include" "*.clj"})
 
   ;; Cleanup
   (clojure-mcp.nrepl/stop-polling @client-atom))
