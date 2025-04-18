@@ -176,17 +176,22 @@ Use this tool when you need to find files by name patterns."
   "Creates a tool for searching file contents using regular expressions"
   [nrepl-client-atom]
   {:name "fs_grep"
-   :description "Fast content search tool that works with any codebase size.\nSearches file contents using regular expressions.\nSupports full regex syntax (eg. \"log.*Error\", \"function\\s+\\w+\", etc.).\nFilter files by pattern with the include parameter (eg. \"*.js\", \"*.{ts,tsx}\").\nReturns matching file paths sorted by modification time.\nUse this tool when you need to find files containing specific patterns."
+   :description "Fast content search tool that works with any codebase size.
+Searches file contents using regular expressions.
+Supports full regex syntax (eg. \"log.*Error\", \"function\\s+\\w+\", etc.).
+Filter files by pattern with the include parameter (eg. \"*.js\", \"*.{ts,tsx}\").
+Returns matching file paths sorted by modification time.
+Use this tool when you need to find files containing specific patterns."
    :schema (json/write-str {:type :object
                             :properties {:path {:type :string
-                                                :description "The directory to search in. Defaults to the current working directory."}
+                                                :description "The directory to search in"}
                                          :pattern {:type :string
                                                    :description "The regular expression pattern to search for in file contents"}
                                          :include {:type :string
                                                    :description "File pattern to include in the search (e.g. \"*.clj\", \"*.{clj,cljs}\")"}
                                          :max_results {:type :integer
                                                        :description "Maximum number of results to return (default: 1000)"}}
-                            :required [:pattern]})
+                            :required [:path :pattern]})
    :tool-fn (fn [_ params clj-result-k]
               (let [path (get params "path" ".")
                     pattern (get params "pattern")
@@ -195,15 +200,28 @@ Use this tool when you need to find files by name patterns."
                     nrepl-client @nrepl-client-atom]
                 (try
                   (let [validated-path (utils/validate-path-with-client path nrepl-client)
+                        ;; No pattern validation - let the underlying tools handle errors
+                        
                         result (grep/grep-files validated-path pattern :include include :max-results max-results)
+                        
+                        ;; Check if there's an error in the result
+                        _ (when (:error result)
+                            (throw (ex-info (:error result) {:path validated-path :pattern pattern})))
+                        
+                        ;; Format the output properly, handling the case where no files were found
                         output (json/write-str
-                                {:filenames (:filenames result)
-                                 :numFiles (:numFiles result)
-                                 :durationMs (:durationMs result)}
+                                (if (nil? (:filenames result))
+                                  {:filenames [] :numFiles 0 :durationMs (:durationMs result)
+                                   :message "No matching files found. Try broadening your search pattern or path."}
+                                  {:filenames (:filenames result)
+                                   :numFiles (:numFiles result)
+                                   :durationMs (:durationMs result)})
                                 :escape-slash false)]
                     (clj-result-k [output] false))
                   (catch Exception e
-                    (clj-result-k [(str "Error: " (.getMessage e))] true)))))})
+                    (clj-result-k [(str "Error: " (.getMessage e) 
+                                        (when-let [data (ex-data e)]
+                                          (str "\nDetails: " (pr-str data))))] true)))))})
 
 (defn create-file-write-tool
   "Returns a tool map for writing files to the filesystem.
