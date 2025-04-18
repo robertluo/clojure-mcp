@@ -7,6 +7,7 @@
    [clojure.string :as str]
    [clojure.data.json :as json]
    [clojure.spec.alpha :as s]
+   [clojure.java.io :as io]
    [clojure-mcp.linting :as linting]
    [clojure-mcp.utils.emacs-integration :as emacs]))
 
@@ -1081,6 +1082,165 @@ Tip: Use this tool before and after using other code editing tools to verify cha
                     (clj-result-k
                      [(format "Successfully updated docstring for '%s' in file %s" form-name file-path)]
                      false)))))})
+
+(defn generate-diff
+  "Generate a diff between old and new content, showing a few lines of context.
+   
+   Arguments:
+   - old-content: The original content string
+   - new-content: The updated content string
+   
+   Returns:
+   - A string containing a unified diff with context, or an empty string if no changes"
+  [old-content new-content]
+  (if (= old-content new-content)
+    ""
+    (let [old-lines (str/split-lines old-content)
+          new-lines (str/split-lines new-content)
+          max-context 3 ; Number of context lines before and after changes
+
+          ;; Simple diff algorithm to show changes with context
+          changes (loop [i 0
+                         j 0
+                         result []
+                         in-diff false]
+                    (cond
+                      ;; Both sequences exhausted
+                      (and (>= i (count old-lines)) (>= j (count new-lines)))
+                      result
+
+                      ;; Old sequence exhausted, remaining are additions
+                      (>= i (count old-lines))
+                      (concat result (map #(str "+ " %) (subvec new-lines j)))
+
+                      ;; New sequence exhausted, remaining are deletions
+                      (>= j (count new-lines))
+                      (concat result (map #(str "- " %) (subvec old-lines i)))
+
+                      ;; Lines match
+                      (= (nth old-lines i) (nth new-lines j))
+                      (let [context-line (str "  " (nth old-lines i))]
+                        (recur (inc i) (inc j)
+                               (if in-diff
+                                 (conj result context-line)
+                                 result)
+                               false))
+
+                      ;; Lines don't match - show both old and new
+                      :else
+                      (let [start-context (max 0 (- i max-context))
+                            context-before (when (and (not in-diff) (> i 0))
+                                             (map #(str "  " %)
+                                                  (subvec old-lines start-context i)))
+                            deletion (str "- " (nth old-lines i))
+                            addition (str "+ " (nth new-lines j))]
+                        (recur (inc i) (inc j)
+                               (cond-> result
+                                 (and (not in-diff) (> i 0)) (concat context-before)
+                                 true (conj deletion addition))
+                               true))))]
+
+      (str/join "\n" changes))))
+
+(defn write-file
+  "Write content to a file, with linting, formatting, and diffing.
+   
+   Arguments:
+   - file-path: Absolute path to the file to write
+   - content: Content to write to the file
+   
+   Returns:
+   - A map with :error, :type, :file-path, and :diff keys"
+  [file-path content]
+  (try
+    (let [file (io/file file-path)
+          file-exists? (.exists file)
+          old-content (if file-exists? (slurp file) "")
+
+          ;; Lint the content
+          lint-result (linting/lint content)
+
+          ;; If there are linting errors, return them
+          _ (when (and lint-result (:error? lint-result))
+              (throw (ex-info "Linting failed"
+                              {:message (str "Linting issues in content:\n" (:report lint-result))})))
+
+          ;; Format the content
+          formatting-options {:indentation? true
+                              :remove-surrounding-whitespace? true
+                              :remove-trailing-whitespace? true
+                              :insert-missing-whitespace? true
+                              :remove-consecutive-blank-lines? true
+                              :remove-multiple-non-indenting-spaces? true
+                              :split-keypairs-over-multiple-lines? false
+                              :sort-ns-references? false
+                              :function-arguments-indentation :community
+                              :indents fmt/default-indents}
+
+          formatted-content (try
+                              (fmt/reformat-string content formatting-options)
+                              (catch Exception e
+                                (throw (ex-info "Formatting failed"
+                                                {:message (str "Failed to format content: " (.getMessage e))}))))
+
+          ;; Generate diff
+          diff (generate-diff old-content formatted-content)
+
+          ;; Write the file
+          _ (io/make-parents file)
+          _ (spit file formatted-content)]
+
+      {:error false
+       :type (if file-exists? "update" "create")
+       :file-path file-path
+       :diff diff})
+
+    (catch clojure.lang.ExceptionInfo e
+      (let [data (ex-data e)]
+        {:error true
+         :message (:message data)}))
+    (catch Exception e
+      {:error true
+       :message (str "Failed to write file: " (.getMessage e))})))
+
+(defn file-write-tool
+  "Returns a tool map for writing files to the filesystem.
+   
+   Arguments:
+   - service-atom: Service atom (required for tool registration but not used in this implementation)
+   
+   Returns a map with :name, :description, :schema and :tool-fn keys"
+  [_]
+  {:name "file_write"
+   :description
+   (str "Write a file to the local filesystem. Overwrites the existing file if there is one. "
+        "The content will be linted and formatted according to Clojure standards before writing.\n\n"
+        "Returns information about whether the file was created or updated, along with a diff "
+        "showing the changes made.\n\n"
+        "# Example:\n"
+        "# file_write(\n"
+        "#   file_path: \"/absolute/path/to/file.clj\",\n"
+        "#   content: \"(ns my.namespace)\\n\\n(defn my-function [x]\\n  (* x 2))\"\n"
+        "# )")
+   :schema
+   (json/write-str
+    {:type :object
+     :properties
+     {:file_path {:type :string
+                  :description "The absolute path to the file to write (must be absolute, not relative)"}
+      :content {:type :string
+                :description "The content to write to the file"}}
+     :required [:file_path :content]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [file-path (get arg-map "file_path")
+                    content (get arg-map "content")
+                    result (write-file file-path content)]
+                (if (:error result)
+                  (clj-result-k [(:message result)] true)
+                  (let [response (str "File " (:type result) "d: " (:file-path result))]
+                    (if (seq (:diff result))
+                      (clj-result-k [(str response "\nChanges:\n" (:diff result))] false)
+                      (clj-result-k [response] false))))))})
 
 (comment
   ;; Examples of using the pipeline
