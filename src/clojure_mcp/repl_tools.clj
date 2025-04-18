@@ -7,29 +7,32 @@
    [clojure-mcp.repl-tools.namespace :as namespace-tools]
    [clojure-mcp.repl-tools.symbol :as symbol-tools]
    [clojure-mcp.repl-tools.top-level-form-edit-pipeline :as edit-tools]
-   [clojure-mcp.repl-tools.project.inspect :as project-inspect]))
+   [clojure-mcp.repl-tools.project.inspect :as project-inspect]
+   [clojure-mcp.repl-tools.filesystem.tools :as filesystem-tools]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
   "Returns a list of all defined tools for registration with the MCP server."
   [nrepl-client-atom]
-  [(eval-tools/eval-code nrepl-client-atom)
-   (namespace-tools/current-namespace nrepl-client-atom)
-   (symbol-tools/symbol-completions nrepl-client-atom)
-   (symbol-tools/symbol-metadata nrepl-client-atom)
-   (symbol-tools/symbol-documentation nrepl-client-atom)
-   (symbol-tools/source-code nrepl-client-atom)
-   (symbol-tools/symbol-search nrepl-client-atom)
-   (namespace-tools/list-namespaces nrepl-client-atom)
-   (namespace-tools/list-vars-in-namespace nrepl-client-atom)
-   (history-tools/eval-history nrepl-client-atom)
-   (edit-tools/top-level-form-edit-tool nrepl-client-atom)
-   (edit-tools/top-level-form-insert-before-tool nrepl-client-atom)
-   (edit-tools/top-level-form-insert-after-tool nrepl-client-atom)
-   (edit-tools/clojure-file-outline-tool nrepl-client-atom)
-   (edit-tools/comment-block-edit-tool nrepl-client-atom)
-   (edit-tools/docstring-edit-tool nrepl-client-atom)
-   (project-inspect/inspect-project-tool nrepl-client-atom)])
+  (concat
+   [(eval-tools/eval-code nrepl-client-atom)
+    (namespace-tools/current-namespace nrepl-client-atom)
+    (symbol-tools/symbol-completions nrepl-client-atom)
+    (symbol-tools/symbol-metadata nrepl-client-atom)
+    (symbol-tools/symbol-documentation nrepl-client-atom)
+    (symbol-tools/source-code nrepl-client-atom)
+    (symbol-tools/symbol-search nrepl-client-atom)
+    (namespace-tools/list-namespaces nrepl-client-atom)
+    (namespace-tools/list-vars-in-namespace nrepl-client-atom)
+    (history-tools/eval-history nrepl-client-atom)
+    (edit-tools/top-level-form-edit-tool nrepl-client-atom)
+    (edit-tools/top-level-form-insert-before-tool nrepl-client-atom)
+    (edit-tools/top-level-form-insert-after-tool nrepl-client-atom)
+    (edit-tools/clojure-file-outline-tool nrepl-client-atom)
+    (edit-tools/comment-block-edit-tool nrepl-client-atom)
+    (edit-tools/docstring-edit-tool nrepl-client-atom)
+    (project-inspect/inspect-project-tool nrepl-client-atom)]
+   (filesystem-tools/get-all-filesystem-tools nrepl-client-atom)))
 
 (comment
   ;; Example of testing tools directly
