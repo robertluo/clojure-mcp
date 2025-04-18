@@ -50,14 +50,14 @@
    - zloc: The zipper location to start searching from
    - tag: The form type (e.g., 'defn, 'def, 'ns)
    - name: The name of the form
-   - content-str: The string to insert or replace with
+   - content-str: The string to insert or replace with (can contain multiple forms)
    - edit-type: Keyword indicating the edit type (:replace, :before, or :after)
    
    Returns the updated zipper, or nil if the form was not found."
   [zloc tag name content-str edit-type]
   (when-let [form-zloc (find-top-level-form zloc tag name)]
     (case edit-type
-      :replace (z/replace form-zloc (p/parse-string content-str))
+      :replace (z/replace form-zloc (p/parse-string-all content-str))
       ;; it would be nice if this handled comments immediately preceeding the form
       :before (-> form-zloc
                   (z/insert-left (p/parse-string-all "\n\n"))
@@ -76,22 +76,21 @@
 (defn hello [] 'heya)
 ;; after
 ")]
-  (-> zloc
-      z/right
-      (z/insert-left (p/parse-string-all "\n\n"))
-      z/left
-      (z/insert-left (p/parse-string-all "(def x 5)" ))
-      z/left
+    (-> zloc
+        z/right
+        (z/insert-left (p/parse-string-all "\n\n"))
+        z/left
+        (z/insert-left (p/parse-string-all "(def x 5)"))
+        z/left
 
-      #_z/root-string))
-
+        #_z/root-string))
 
 (defn row-col->offset [s target-row target-col]
   (loop [lines (clojure.string/split-lines s)
          current-row 1
          offset 0]
     (if (or (empty? lines) (>= current-row target-row))
-      (+ offset target-col)          ; Add (col - 1) for 0-based index
+      (+ offset target-col) ; Add (col - 1) for 0-based index
       (recur (next lines)
              (inc current-row)
              (+ offset (count (first lines)) 1)))))
@@ -470,8 +469,9 @@
   {:name "clojure_edit_replace_form"
    :description
    (str "Replaces a top-level Clojure form with new implementation. Use this to modify existing functions, vars, "
-        "or other forms while preserving surrounding code formatting. Example: Update a function's implementation "
-        "or signature without rewriting the entire file.\n\n"
+        "or other forms while preserving surrounding code formatting. Supports replacing with multiple forms "
+        "in a single operation. Example: Update a function's implementation or signature, "
+        "or replace a single function with multiple helper functions.\n\n"
         "Tip: To effectively remove a form, replace it with a comment like \";; Removed form-name\" - "
         "this maintains file structure while making the intention clear.\n\n"
         "Tip: Use clojure_file_outline before and after editing to confirm the structure of the file "
@@ -482,6 +482,13 @@
         "#   form_name: \"process-data\",\n"
         "#   form_type: \"defn\",\n"
         "#   new_implementation: \"(defn process-data [x] (+ x 10))\"\n"
+        "# )\n\n"
+        "# Example (replacing with multiple forms):\n"
+        "# clojure_edit_replace_form(\n"
+        "#   file_path: \"src/my_ns/core.clj\",\n"
+        "#   form_name: \"process-data\",\n"
+        "#   form_type: \"defn\",\n"
+        "#   new_implementation: \"(defn process-data [x] (+ x 10))\\n\\n(defn helper-fn [y] (* y 2))\"\n"
         "# )\n\n"
         "# Example (removing a form):\n"
         "# clojure_edit_replace_form(\n"
@@ -501,7 +508,7 @@
       :form_type {:type :string
                   :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
       :new_implementation {:type :string
-                           :description "String with the new form implementation"}}
+                           :description "String with the new form implementation (can contain multiple forms)"}}
      :required [:form_name :file_path :form_type :new_implementation]})
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [form-name (get arg-map "form_name")
@@ -534,7 +541,8 @@
   {:name "clojure_edit_insert_before_form"
    :description
    (str "Inserts new Clojure code immediately before a specified top-level form. Perfect for adding helper functions, "
-        "imports, or configuration before existing code. Maintains proper formatting and whitespace in the file.\n\n"
+        "imports, or configuration before existing code. Supports inserting multiple forms in a single operation. "
+        "Maintains proper formatting and whitespace in the file.\n\n"
         "Tip: Use clojure_file_outline before and after inserting to confirm the order of forms "
         "and ensure your new code appears in the expected location.\n\n"
         "# Example:\n"
@@ -543,6 +551,13 @@
         "#   before_form_name: \"main-function\",\n"
         "#   form_type: \"defn\",\n"
         "#   new_form_str: \"(defn helper-function [x] (str x))\"\n"
+        "# )\n\n"
+        "# Example (inserting multiple forms):\n"
+        "# clojure_edit_insert_before_form(\n"
+        "#   file_path: \"src/my_ns/core.clj\",\n"
+        "#   before_form_name: \"main-function\",\n"
+        "#   form_type: \"defn\",\n"
+        "#   new_form_str: \"(defn helper1 [x] (str x))\\n\\n(defn helper2 [y] (str y))\"\n"
         "# )")
    :schema
    (json/write-str
@@ -555,7 +570,7 @@
       :form_type {:type :string
                   :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
       :new_form_str {:type :string
-                     :description "String with the new form to insert"}}
+                     :description "String with the new form to insert (can contain multiple forms)"}}
      :required [:before_form_name :file_path :form_type :new_form_str]})
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [form-name (get arg-map "before_form_name")
@@ -588,7 +603,8 @@
   {:name "clojure_edit_insert_after_form"
    :description
    (str "Inserts new Clojure code immediately after a specified top-level form. Ideal for extending existing functionality "
-        "with new functions or adding dependent code. Preserves all formatting in the file.\n\n"
+        "with new functions or adding dependent code. Supports inserting multiple forms in a single operation. "
+        "Preserves all formatting in the file.\n\n"
         "Tip: Use clojure_file_outline before and after inserting to visualize the structure of the file "
         "and confirm your new code appears in the correct position.\n\n"
         "# Example:\n"
@@ -597,6 +613,13 @@
         "#   after_form_name: \"config\",\n"
         "#   form_type: \"def\",\n"
         "#   new_form_str: \"(def extended-config (merge config {:new-key 'value}))\"\n"
+        "# )\n\n"
+        "# Example (inserting multiple forms):\n"
+        "# clojure_edit_insert_after_form(\n"
+        "#   file_path: \"src/my_ns/core.clj\",\n"
+        "#   after_form_name: \"config\",\n"
+        "#   form_type: \"def\",\n"
+        "#   new_form_str: \"(def config1 {:a 1})\\n\\n(def config2 {:b 2})\"\n"
         "# )")
    :schema
    (json/write-str
@@ -609,7 +632,7 @@
       :form_type {:type :string
                   :description "The type of form (e.g., 'defn', 'def', 'ns', 'deftest' ...). Required."}
       :new_form_str {:type :string
-                     :description "String with the new form to insert"}}
+                     :description "String with the new form to insert (can contain multiple forms)"}}
      :required [:after_form_name :file_path :form_type :new_form_str]})
    :tool-fn (fn [_ arg-map clj-result-k]
               (let [form-name (get arg-map "after_form_name")
@@ -659,7 +682,7 @@
             "ns" (z/string zloc) ; Always show the full namespace
             (str "(" form-type " " (or form-name "") " ...)")))))
     (catch Exception e
-      (str "Error in get-form-summary: "  (pr-str (z/sexpr zloc))
+      (str "Error in get-form-summary: " (pr-str (z/sexpr zloc))
            " - " (.getMessage e))
       nil)))
 
@@ -714,7 +737,7 @@
   {:name "clojure_file_structure"
    :description
    (str
-"Creates a concise structural view of a Clojure file by showing only top-level forms with their signatures, collapsing implementation details. This provides a clear API overview that helps you understand how the file is organized.
+    "Creates a concise structural view of a Clojure file by showing only top-level forms with their signatures, collapsing implementation details. This provides a clear API overview that helps you understand how the file is organized.
 
 The 'expand' parameter lets you selectively view full implementations of specific forms while keeping others collapsed, making it ideal for focused code review.
 
