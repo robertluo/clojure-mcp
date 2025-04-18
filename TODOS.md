@@ -1,5 +1,18 @@
 ## Looking forward
 
+Need to have an official scratch area for temp files.
+
+Maybe a tool can handle this for us 
+
+refactor out the write file tool maybe into filesystem
+it should detect clojureisms 
+
+write file needs to handle non clojure files
+
+
+
+
+
 ## Adapt tools and prompts from OtherCl implementation
 * prompt is still misbehaving, so far working without the prompt seems to be better
 - add specifics to what its doing wrong
