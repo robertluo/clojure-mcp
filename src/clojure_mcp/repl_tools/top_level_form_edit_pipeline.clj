@@ -1142,57 +1142,22 @@ Tip: Use this tool before and after using other code editing tools to verify cha
 
       (str/join "\n" changes))))
 
-(defn write-file
-  "Write content to a file, with linting, formatting, and diffing,
-   using the existing pipeline components.
+(defn generate-diff-and-type
+  "Generate diff between old and new content and determine file operation type.
    
    Arguments:
-   - file-path: Absolute path to the file to write
-   - content: Content to write to the file
+   - ctx: Context map containing ::old-content, ::output-source, and an optional file-exists? flag
    
    Returns:
-   - A map with :error, :type, :file-path, and :diff keys"
-  [file-path content]
-  (let [file (io/file file-path)
-        file-exists? (.exists file)
-        old-content (if file-exists? (slurp file) "")
-
-        ;; Create a context map for the pipeline
-        initial-ctx {::file-path file-path
-                     ::source old-content
-                     ::new-source-code content
-                     ::old-content old-content}
-
-        ;; Use thread-ctx to run the pipeline
-        result (thread-ctx
-                initial-ctx
-                lint-code ;; Lint the content
-                (fn [ctx] ;; Prepare for formatting
-                  (assoc ctx ::zloc (z/of-string (::new-source-code ctx))))
-                format-source ;; Format the content
-                (fn [ctx] ;; Generate diff
-                  (let [old-content (::old-content ctx)
-                        new-content (::output-source ctx)
-                        diff (generate-diff old-content new-content)]
-                    (assoc ctx ::diff diff
-                           ::type (if file-exists? "update" "create"))))
-                (fn [ctx] ;; Write the file (custom impl vs save-file)
-                  (try
-                    (io/make-parents (io/file (::file-path ctx)))
-                    (spit (::file-path ctx) (::output-source ctx))
-                    ctx
-                    (catch Exception e
-                      {::error :write-failed
-                       ::message (str "Failed to write file: " (.getMessage e))}))))]
-
-    ;; Format the result for tool consumption
-    (if (::error result)
-      {:error true
-       :message (::message result)}
-      {:error false
-       :type (::type result)
-       :file-path (::file-path result)
-       :diff (::diff result)})))
+   - Updated context with ::diff and ::type added"
+  [ctx]
+  (let [old-content (::old-content ctx)
+        new-content (::output-source ctx)
+        file-exists? (get ctx ::file-exists? (.exists (io/file (::file-path ctx))))
+        diff (generate-diff old-content new-content)]
+    (assoc ctx
+           ::diff diff
+           ::type (if file-exists? "update" "create"))))
 
 (defn file-write-tool
   "Returns a tool map for writing files to the filesystem.
