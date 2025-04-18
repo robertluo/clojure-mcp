@@ -178,8 +178,9 @@
             path
             (proxy [SimpleFileVisitor] []
               (visitFile [file _attrs]
-                (when (and (< (count @matches) max-results)
-                           (.matches matcher (.getFileName file)))
+                (let [rel (.relativize path file)]
+                  (when (and (< (count @matches) max-results)
+                             (.matches matcher rel))
                   (swap! matches conj {:path (str file)
                                        :mtime (.lastModified (.toFile file))}))
                 (when (>= (count @matches) max-results)
