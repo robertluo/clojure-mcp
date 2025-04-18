@@ -1143,7 +1143,8 @@ Tip: Use this tool before and after using other code editing tools to verify cha
       (str/join "\n" changes))))
 
 (defn write-file
-  "Write content to a file, with linting, formatting, and diffing.
+  "Write content to a file, with linting, formatting, and diffing,
+   using the existing pipeline components.
    
    Arguments:
    - file-path: Absolute path to the file to write
@@ -1152,56 +1153,46 @@ Tip: Use this tool before and after using other code editing tools to verify cha
    Returns:
    - A map with :error, :type, :file-path, and :diff keys"
   [file-path content]
-  (try
-    (let [file (io/file file-path)
-          file-exists? (.exists file)
-          old-content (if file-exists? (slurp file) "")
+  (let [file (io/file file-path)
+        file-exists? (.exists file)
+        old-content (if file-exists? (slurp file) "")
 
-          ;; Lint the content
-          lint-result (linting/lint content)
+        ;; Create a context map for the pipeline
+        initial-ctx {::file-path file-path
+                     ::source old-content
+                     ::new-source-code content
+                     ::old-content old-content}
 
-          ;; If there are linting errors, return them
-          _ (when (and lint-result (:error? lint-result))
-              (throw (ex-info "Linting failed"
-                              {:message (str "Linting issues in content:\n" (:report lint-result))})))
+        ;; Use thread-ctx to run the pipeline
+        result (thread-ctx
+                initial-ctx
+                lint-code ;; Lint the content
+                (fn [ctx] ;; Prepare for formatting
+                  (assoc ctx ::zloc (z/of-string (::new-source-code ctx))))
+                format-source ;; Format the content
+                (fn [ctx] ;; Generate diff
+                  (let [old-content (::old-content ctx)
+                        new-content (::output-source ctx)
+                        diff (generate-diff old-content new-content)]
+                    (assoc ctx ::diff diff
+                           ::type (if file-exists? "update" "create"))))
+                (fn [ctx] ;; Write the file (custom impl vs save-file)
+                  (try
+                    (io/make-parents (io/file (::file-path ctx)))
+                    (spit (::file-path ctx) (::output-source ctx))
+                    ctx
+                    (catch Exception e
+                      {::error :write-failed
+                       ::message (str "Failed to write file: " (.getMessage e))}))))]
 
-          ;; Format the content
-          formatting-options {:indentation? true
-                              :remove-surrounding-whitespace? true
-                              :remove-trailing-whitespace? true
-                              :insert-missing-whitespace? true
-                              :remove-consecutive-blank-lines? true
-                              :remove-multiple-non-indenting-spaces? true
-                              :split-keypairs-over-multiple-lines? false
-                              :sort-ns-references? false
-                              :function-arguments-indentation :community
-                              :indents fmt/default-indents}
-
-          formatted-content (try
-                              (fmt/reformat-string content formatting-options)
-                              (catch Exception e
-                                (throw (ex-info "Formatting failed"
-                                                {:message (str "Failed to format content: " (.getMessage e))}))))
-
-          ;; Generate diff
-          diff (generate-diff old-content formatted-content)
-
-          ;; Write the file
-          _ (io/make-parents file)
-          _ (spit file formatted-content)]
-
-      {:error false
-       :type (if file-exists? "update" "create")
-       :file-path file-path
-       :diff diff})
-
-    (catch clojure.lang.ExceptionInfo e
-      (let [data (ex-data e)]
-        {:error true
-         :message (:message data)}))
-    (catch Exception e
+    ;; Format the result for tool consumption
+    (if (::error result)
       {:error true
-       :message (str "Failed to write file: " (.getMessage e))})))
+       :message (::message result)}
+      {:error false
+       :type (::type result)
+       :file-path (::file-path result)
+       :diff (::diff result)})))
 
 (defn file-write-tool
   "Returns a tool map for writing files to the filesystem.
