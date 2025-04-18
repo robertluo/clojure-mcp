@@ -20,6 +20,8 @@ Clojure MCP is a Model Context Protocol (MCP) server that enables LLM assistants
 - **`src/clojure_mcp/repl_tools/symbol.clj`**: Symbol documentation, metadata and search
 - **`src/clojure_mcp/repl_tools/top_level_form_edit_pipeline.clj`**: Code editing tools
 - **`src/clojure_mcp/repl_tools/project/inspect.clj`**: Project inspection tools
+- **`src/clojure_mcp/repl_tools/filesystem/core.clj`**: Core filesystem operations
+- **`src/clojure_mcp/repl_tools/filesystem/tools.clj`**: Filesystem tool implementations
 
 ### Configuration
 - **`deps.edn`**: Project dependencies and aliases
@@ -101,6 +103,24 @@ The project relies on the following key dependencies (from `deps.edn`):
   - Input: `{"file_path": "...", "form_name": "my-function", "form_type": "defn", "new_docstring": "..."}`
   - Implementation: `src/clojure_mcp/repl_tools/top_level_form_edit_pipeline.clj`
 
+### Filesystem Tools
+- **`fs_list_directory`**: Lists files and directories at a specified path
+  - Input: `{"path": "/path/to/directory"}`
+  - Output: Formatted directory listing with files and subdirectories
+  - Implementation: `src/clojure_mcp/repl_tools/filesystem/tools.clj`
+- **`fs_read_file`**: Reads file contents with optional line limits and offsets
+  - Input: `{"path": "/path/to/file", "offset": 0, "limit": 2000}`
+  - Output: File contents wrapped in XML tags with metadata
+  - Implementation: `src/clojure_mcp/repl_tools/filesystem/tools.clj`
+- **`fs_file_info`**: Gets detailed information about a file or directory
+  - Input: `{"path": "/path/to/file"}`
+  - Output: Comprehensive metadata including size, timestamps, and permissions
+  - Implementation: `src/clojure_mcp/repl_tools/filesystem/tools.clj`
+- **`fs_search_files`**: Searches for files matching a pattern in a directory and its subdirectories
+  - Input: `{"directory": "/path/to/search", "pattern": "search-term", "exclude-patterns": ["node_modules"]}`
+  - Output: List of matching file paths
+  - Implementation: `src/clojure_mcp/repl_tools/filesystem/tools.clj`
+
 ### Project Tools
 - **`clojure_inspect_project`**: Analyzes project structure and dependencies
   - Implementation: `src/clojure_mcp/repl_tools/project/inspect.clj`
@@ -171,6 +191,11 @@ Resources in the MCP server are implemented using:
    - Defines prompts for the MCP server
    - Provides access to template-based prompts
 
+6. **Filesystem Layer**:
+   - Implemented in `src/clojure_mcp/repl_tools/filesystem/` directory
+   - Provides file and directory operations with configurable limits
+   - Supports XML-wrapped output format for file contents with metadata
+
 ## Registration Pattern
 
 The project uses a consistent pattern for registering tools, prompts, and resources:
@@ -207,6 +232,7 @@ When developing with this tool:
 4. **Edit with care**: Use the specialized editing tools that maintain correct syntax
 5. **Verify saved code**: After editing files, re-evaluate to ensure correctness
 6. **Access documentation**: Use resource URLs to access project documentation when needed
+7. **File access**: Use filesystem tools to navigate and read code files when needed
 
 ## Important Implementation Notes
 
@@ -216,6 +242,7 @@ When developing with this tool:
 4. **Async Tools**: All tool implementations use a callback continuation style for async results
 5. **Prompts**: The system includes several built-in prompts for guiding development
 6. **Resources**: Resources should return vectors of strings, which are wrapped in TextResourceContents
+7. **File Reading**: The `fs_read_file` tool handles large files with configurable limits and offset to avoid memory issues
 
 ## Project Goals
 
@@ -226,6 +253,7 @@ The primary goal is to enable high-quality collaborative development between hum
 3. Human oversight for maintaining code quality
 4. Functional programming patterns that produce more maintainable code
 5. Access to contextual project information via resources
+6. Efficient file and directory navigation and manipulation
 
 ## Extension Points
 
@@ -234,5 +262,6 @@ If you need to extend this project:
 1. Add new tools in `src/clojure_mcp/repl_tools/` and include them in `get-all-tools`
 2. Add new prompts in `src/clojure_mcp/prompts.clj` and include them in `get-all-prompts`
 3. Add new resources in `src/clojure_mcp/resources.clj` and include them in `get-all-resources`
+4. Add new filesystem operations in `src/clojure_mcp/repl_tools/filesystem/core.clj`
 
 This centralized pattern makes it easy to extend the system without modifying the core server setup code.
