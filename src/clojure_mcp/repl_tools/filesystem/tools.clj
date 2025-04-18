@@ -3,6 +3,8 @@
    Provides tools for listing, reading, and searching files and directories."
   (:require [clojure-mcp.repl-tools.filesystem.core :as fs]
             [clojure-mcp.repl-tools.filesystem.grep :as grep]
+            [clojure-mcp.repl-tools.filesystem.file-write :as fw]
+            [clojure-mcp.repl-tools.utils :as utils]
             [clojure.data.json :as json]
             [clojure-mcp.nrepl :as mcp-nrepl]
             [clojure.string :as str]
@@ -46,10 +48,16 @@ Returns a formatted directory listing with files and subdirectories clearly labe
                             :required [:path]})
    :tool-fn (fn [_ params clj-result-k]
               (let [path (get params "path")
-                    result (fs/list-directory path)
-                    formatted (format-directory-listing result)
-                    error? (boolean (:error result))]
-                (clj-result-k [formatted] error?)))})
+                    current-dir (System/getProperty "user.dir")
+                    allowed-dirs [current-dir]]
+                (try
+                  (let [validated-path (utils/validate-path path current-dir allowed-dirs)
+                        result (fs/list-directory validated-path)
+                        formatted (format-directory-listing result)
+                        error? (boolean (:error result))]
+                    (clj-result-k [formatted] error?))
+                  (catch Exception e
+                    (clj-result-k [(str "Error: " (.getMessage e))] true)))))})
 
 (defn create-fs-read-file-tool
   "Creates a tool that reads the contents of a file"
@@ -72,34 +80,40 @@ Returns a formatted directory listing with files and subdirectories clearly labe
               (let [path (get params "path")
                     offset (get params "offset" 0)
                     limit (get params "limit" max-lines)
-                    result (fs/read-file-contents path
-                                                  :max-lines limit
-                                                  :offset offset
-                                                  :max-line-length max-line-length)
-                    output (if (:error result)
-                             (:error result)
-                             (let [file (io/file path)
-                                   size (.length file)
-                                   truncated (boolean (:truncated? result))
-                                   content (:content result)
-                                   line-count (:line-count result)
-                                   line-lengths-truncated (:line-lengths-truncated? result)
-                                   truncation-reason (:truncated-by result)]
-                               (str "<file-content path=\"" (:path result) "\" "
-                                    "size=\"" size "\" "
-                                    "line-count=\"" line-count "\" "
-                                    "offset=\"" offset "\" "
-                                    "limit=\"" limit "\" "
-                                    "truncated=\"" truncated "\" "
-                                    (when truncation-reason
-                                      (str "truncated-by=\"" truncation-reason "\" "))
-                                    (when line-lengths-truncated
-                                      "line-lengths-truncated=\"true\" ")
-                                    ">\n"
-                                    content
-                                    "\n</file-content>")))
-                    error? (boolean (:error result))]
-                (clj-result-k [output] error?)))})
+                    current-dir (System/getProperty "user.dir")
+                    allowed-dirs [current-dir]]
+                (try
+                  (let [validated-path (utils/validate-path path current-dir allowed-dirs)
+                        result (fs/read-file-contents validated-path
+                                                      :max-lines limit
+                                                      :offset offset
+                                                      :max-line-length max-line-length)
+                        output (if (:error result)
+                                 (:error result)
+                                 (let [file (io/file validated-path)
+                                       size (.length file)
+                                       truncated (boolean (:truncated? result))
+                                       content (:content result)
+                                       line-count (:line-count result)
+                                       line-lengths-truncated (:line-lengths-truncated? result)
+                                       truncation-reason (:truncated-by result)]
+                                   (str "<file-content path=\"" (:path result) "\" "
+                                        "size=\"" size "\" "
+                                        "line-count=\"" line-count "\" "
+                                        "offset=\"" offset "\" "
+                                        "limit=\"" limit "\" "
+                                        "truncated=\"" truncated "\" "
+                                        (when truncation-reason
+                                          (str "truncated-by=\"" truncation-reason "\" "))
+                                        (when line-lengths-truncated
+                                          "line-lengths-truncated=\"true\" ")
+                                        ">\n"
+                                        content
+                                        "\n</file-content>")))
+                        error? (boolean (:error result))]
+                    (clj-result-k [output] error?))
+                  (catch Exception e
+                    (clj-result-k [(str "Error: " (.getMessage e))] true)))))})
 
 ;; Removed create-fs-file-info-tool function
 
@@ -119,15 +133,14 @@ Formats the output as an indented tree structure showing the hierarchy of files 
    :tool-fn (fn [_ params clj-result-k]
               (let [path (get params "path")
                     max-depth (get params "max_depth")
-                    result (try
-                             (fs/directory-tree path :max-depth max-depth)
-                             (catch Exception e
-                               {:error (.getMessage e)}))
-                    error? (map? result)
-                    output (if error?
-                             (:error result)
-                             result)]
-                (clj-result-k [output] error?)))})
+                    current-dir (System/getProperty "user.dir")
+                    allowed-dirs [current-dir]]
+                (try
+                  (let [validated-path (utils/validate-path path current-dir allowed-dirs)
+                        result (fs/directory-tree validated-path :max-depth max-depth)]
+                    (clj-result-k [result] false))
+                  (catch Exception e
+                    (clj-result-k [(str "Error: " (.getMessage e))] true)))))})
 
 (defn create-glob-files-tool
   "Creates a tool for fast file pattern matching using glob patterns"
@@ -149,17 +162,17 @@ Use this tool when you need to find files by name patterns."
               (let [path (get params "path")
                     pattern (get params "pattern")
                     max-results (get params "max_results" 1000)
-                    result (try
-                             (fs/glob-files path pattern :max-results max-results)
-                             (catch Exception e
-                               {:error (.getMessage e)}))
-                    error? (boolean (:error result))
-                    output (if error?
-                             (:error result)
-                             (json/write-str
-                              (select-keys result [:filenames :numFiles :durationMs :truncated])
-                              :escape-slash false))]
-                (clj-result-k [output] error?)))})
+                    current-dir (System/getProperty "user.dir")
+                    allowed-dirs [current-dir]]
+                (try
+                  (let [validated-path (utils/validate-path path current-dir allowed-dirs)
+                        result (fs/glob-files validated-path pattern :max-results max-results)
+                        output (json/write-str
+                                (select-keys result [:filenames :numFiles :durationMs :truncated])
+                                :escape-slash false)]
+                    (clj-result-k [output] false))
+                  (catch Exception e
+                    (clj-result-k [(str "Error: " (.getMessage e))] true)))))})
 
 ;; Removed create-directory-tree-json-tool function
 
@@ -174,28 +187,77 @@ Use this tool when you need to find files by name patterns."
                                          :pattern {:type :string
                                                    :description "The regular expression pattern to search for in file contents"}
                                          :include {:type :string
-                                                  :description "File pattern to include in the search (e.g. \"*.clj\", \"*.{clj,cljs}\")"}
+                                                   :description "File pattern to include in the search (e.g. \"*.clj\", \"*.{clj,cljs}\")"}
                                          :max_results {:type :integer
-                                                      :description "Maximum number of results to return (default: 1000)"}}
+                                                       :description "Maximum number of results to return (default: 1000)"}}
                             :required [:pattern]})
    :tool-fn (fn [_ params clj-result-k]
               (let [path (get params "path" ".")
                     pattern (get params "pattern")
                     include (get params "include")
                     max-results (get params "max_results" 1000)
-                    result (try
-                             (grep/grep-files path pattern :include include :max-results max-results)
-                             (catch Exception e
-                               {:error (.getMessage e)}))
-                    error? (boolean (:error result))
-                    output (if error?
-                             (:error result)
-                             (json/write-str
-                              {:filenames (:filenames result)
-                               :numFiles (:numFiles result)
-                               :durationMs (:durationMs result)}
-                              :escape-slash false))]                
-                (clj-result-k [output] error?)))})  
+                    current-dir (System/getProperty "user.dir")
+                    allowed-dirs [current-dir]]
+                (try
+                  (let [validated-path (utils/validate-path path current-dir allowed-dirs)
+                        result (grep/grep-files validated-path pattern :include include :max-results max-results)
+                        output (json/write-str
+                                {:filenames (:filenames result)
+                                 :numFiles (:numFiles result)
+                                 :durationMs (:durationMs result)}
+                                :escape-slash false)]
+                    (clj-result-k [output] false))
+                  (catch Exception e
+                    (clj-result-k [(str "Error: " (.getMessage e))] true)))))})
+
+(defn create-file-write-tool
+  "Returns a tool map for writing files to the filesystem.
+   
+   Arguments:
+   - service-atom: Service atom (required for tool registration but not used in this implementation)
+   
+   Returns a map with :name, :description, :schema and :tool-fn keys"
+  [_]
+  {:name "file_write"
+   :description
+   (str "Write a file to the local filesystem. Overwrites the existing file if there is one. "
+        "The content will be linted and formatted according to Clojure standards before writing.\n\n"
+        "Returns information about whether the file was created or updated, along with a diff "
+        "showing the changes made.\n\n"
+        "Before using this tool:\n"
+        "1. Use the read_file tool to understand the file's contents and context\n"
+        "2. Directory Verification (only applicable when creating new files):\n"
+        "   - Use the list_directory tool to verify the parent directory exists and is the correct location\n\n"
+        "# Example:\n"
+        "# file_write(\n"
+        "#   file_path: \"/absolute/path/to/file.clj\",\n"
+        "#   content: \"(ns my.namespace)\\n\\n(defn my-function [x]\\n  (* x 2))\"\n"
+        "# )")
+   :schema
+   (json/write-str
+    {:type :object
+     :properties
+     {:file_path {:type :string
+                  :description "The absolute path to the file to write (must be absolute, not relative)"}
+      :content {:type :string
+                :description "The content to write to the file"}}
+     :required [:file_path :content]})
+   :tool-fn (fn [_ arg-map clj-result-k]
+              (let [file-path (get arg-map "file_path")
+                    content (get arg-map "content")
+                    current-dir (System/getProperty "user.dir")
+                    allowed-dirs [current-dir]]
+                (try
+                  (let [validated-path (utils/validate-path file-path current-dir allowed-dirs)
+                        result (fw/write-file validated-path content)]
+                    (if (:error result)
+                      (clj-result-k [(:message result)] true)
+                      (let [response (str "File " (:type result) "d: " (:file-path result))]
+                        (if (seq (:diff result))
+                          (clj-result-k [(str response "\nChanges:\n" (:diff result))] false)
+                          (clj-result-k [response] false)))))
+                  (catch Exception e
+                    (clj-result-k [(str "Error: " (.getMessage e))] true)))))})
 
 (defn get-all-filesystem-tools
   "Returns a collection of all filesystem tools.
@@ -209,7 +271,8 @@ Use this tool when you need to find files by name patterns."
    (create-fs-read-file-tool {:max-lines 2000 :max-line-length 1000})
    (create-directory-tree-tool)
    (create-glob-files-tool)
-   (create-grep-tool)])
+   (create-grep-tool)
+   (create-file-write-tool nrepl-client-atom)])
 
 (comment
   ;; === Examples of using the filesystem tools ===
@@ -242,7 +305,7 @@ Use this tool when you need to find files by name patterns."
   ;; Test glob pattern matching
   (def glob-files-tester (make-test-tool (create-glob-files-tool)))
   (glob-files-tester {"path" "src" "pattern" "**/*.clj"})
-  
+
   ;; Test content grep
   (def grep-tester (make-test-tool (create-grep-tool)))
   (grep-tester {"path" "src" "pattern" "defn" "include" "*.clj"})
