@@ -203,8 +203,16 @@
       {:error (str dir " is not a valid directory")
        :durationMs 0})))
 
+(comment
+  (let [cwd (System/getProperty "user.dir")]
+    (glob-files
+     cwd
+     "**/top_level*.clj"
+     ))
+  )
+
 #_(defn glob-files
-  "Fast file pattern matching using glob patterns.
+    "Fast file pattern matching using glob patterns.
    
    Arguments:
    - dir: Root directory to start search
@@ -215,50 +223,50 @@
    - :numFiles - Number of matching files found
    - :durationMs - Time taken for the search in milliseconds
    - :truncated - Whether the results were truncated"
-  [dir pattern & {:keys [max-results] :or {max-results 1000}}]
-  (let [start-time (System/currentTimeMillis)
-        dir-file (io/file dir)]
-    (if (and (.exists dir-file) (.isDirectory dir-file))
-      (try
-        (let [pattern-regex (re-pattern (glob-pattern->regex pattern))
-              root-path (.getAbsolutePath dir-file)
-              matches (atom [])
-              truncated (atom false)]
+    [dir pattern & {:keys [max-results] :or {max-results 1000}}]
+    (let [start-time (System/currentTimeMillis)
+          dir-file (io/file dir)]
+      (if (and (.exists dir-file) (.isDirectory dir-file))
+        (try
+          (let [pattern-regex (re-pattern (glob-pattern->regex pattern))
+                root-path (.getAbsolutePath dir-file)
+                matches (atom [])
+                truncated (atom false)]
 
                                         ; Function to recursively collect files
-          (letfn [(collect-files [file]
-                    (when (< (count @matches) max-results)
-                      (if (.isDirectory file)
+            (letfn [(collect-files [file]
+                      (when (< (count @matches) max-results)
+                        (if (.isDirectory file)
                                         ; For directories, process all children
-                        (doseq [child (.listFiles file)]
-                          (collect-files child))
+                          (doseq [child (.listFiles file)]
+                            (collect-files child))
                                         ; For files, check if they match the pattern
-                        (let [abs-path (.getAbsolutePath file)
-                              rel-path (-> abs-path
-                                           (str/replace (str root-path "/") ""))]
-                          (when (re-matches pattern-regex rel-path)
-                            (swap! matches conj {:path abs-path
-                                                 :mtime (.lastModified file)}))))))]
+                          (let [abs-path (.getAbsolutePath file)
+                                rel-path (-> abs-path
+                                             (str/replace (str root-path "/") ""))]
+                            (when (re-matches pattern-regex rel-path)
+                              (swap! matches conj {:path abs-path
+                                                   :mtime (.lastModified file)}))))))]
 
                                         ; Start collection from root directory
-            (collect-files dir-file)
+              (collect-files dir-file)
 
                                         ; Check if truncated
-            (when (>= (count @matches) max-results)
-              (reset! truncated true))
+              (when (>= (count @matches) max-results)
+                (reset! truncated true))
 
-            (let [end-time (System/currentTimeMillis)
-                  duration (- end-time start-time)
-                  sorted-results (->> @matches
-                                      (sort-by :mtime >)
-                                      (map :path)
-                                      vec)]
-              {:filenames sorted-results
-               :numFiles (count sorted-results)
-               :durationMs duration
-               :truncated @truncated})))
-        (catch Exception e
-          {:error (.getMessage e)
-           :durationMs (- (System/currentTimeMillis) start-time)}))
-      {:error (str dir " is not a valid directory")
-       :durationMs 0})))
+              (let [end-time (System/currentTimeMillis)
+                    duration (- end-time start-time)
+                    sorted-results (->> @matches
+                                        (sort-by :mtime >)
+                                        (map :path)
+                                        vec)]
+                {:filenames sorted-results
+                 :numFiles (count sorted-results)
+                 :durationMs duration
+                 :truncated @truncated})))
+          (catch Exception e
+            {:error (.getMessage e)
+             :durationMs (- (System/currentTimeMillis) start-time)}))
+        {:error (str dir " is not a valid directory")
+         :durationMs 0})))
