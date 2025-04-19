@@ -452,7 +452,7 @@
    - service-atom: Service atom (required for tool registration but not used in this implementation)
    
    Returns a map with :name, :description, :schema and :tool-fn keys"
-  [_]
+  [nrepl-client-atom]
   {:name "clojure_edit_replace_form"
    :description
    (str "Replaces a top-level Clojure form with new implementation. Use this to modify existing functions, vars, "
@@ -501,21 +501,26 @@
               (let [form-name (get arg-map "form_name")
                     file-path (get arg-map "file_path")
                     form-type (get arg-map "form_type")
-                    content (get arg-map "new_implementation")
-                    result (edit-top-level-form-pipeline
-                            form-name file-path form-type content :replace)
-                    formatted (format-result result)]
-                (if (:error formatted)
-                  (clj-result-k [(::message result)] true)
-                  (let [[start end] (::offsets result)]
-                    (try
-                      (emacs/temporary-highlight file-path start end 2.0)
-                      (catch Exception _
-                        ;; Ignore highlight errors
-                        nil))
-                    (clj-result-k
-                     [(format "Successfully updated form '%s' in file %s" form-name file-path)]
-                     false)))))})
+                    content (get arg-map "new_implementation")]
+                (try
+                  (let [validated-path (utils/validate-path-with-client file-path @nrepl-client-atom)
+                        result (edit-top-level-form-pipeline
+                                form-name validated-path form-type content :replace)
+                        formatted (format-result result)]
+                    (if (:error formatted)
+                      (clj-result-k [(::message result)] true)
+                      (let [[start end] (::offsets result)]
+                        (try
+                          (emacs/temporary-highlight file-path start end 2.0)
+                          (catch Exception _
+                            ;; Ignore highlight errors
+                            nil))
+                        (clj-result-k
+                         [(format "Successfully updated form '%s' in file %s" form-name file-path)]
+                         false))))
+                  (catch Exception e
+                    (clj-result-k [(str "Error: " (.getMessage e))] true)))))
+                })
 
 (defn top-level-form-insert-before-tool
   "Returns a tool map for inserting before top-level forms in Clojure files.
@@ -524,7 +529,7 @@
    - service-atom: Service atom (required for tool registration but not used in this implementation)
    
    Returns a map with :name, :description, :schema and :tool-fn keys"
-  [_]
+  [nrepl-client-atom]
   {:name "clojure_edit_insert_before_form"
    :description
    (str "Inserts new Clojure code immediately before a specified top-level form. Perfect for adding helper functions, "
@@ -560,24 +565,28 @@
                      :description "String with the new form to insert (can contain multiple forms)"}}
      :required [:before_form_name :file_path :form_type :new_form_str]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [form-name (get arg-map "before_form_name")
-                    file-path (get arg-map "file_path")
-                    form-type (get arg-map "form_type")
-                    content (get arg-map "new_form_str")
-                    result (edit-top-level-form-pipeline
-                            form-name file-path form-type content :before)
-                    formatted (format-result result)]
-                (if (:error formatted)
-                  (clj-result-k [(::message result)] true)
-                  (let [[start end] (::offsets result)]
-                    (try
-                      (emacs/temporary-highlight file-path start end 2.0)
-                      (catch Exception _
-                        ;; Ignore highlight errors
-                        nil))
-                    (clj-result-k
-                     [(format "Successfully inserted form before '%s' in file %s" form-name file-path)]
-                     false)))))})
+              (try
+                (let [form-name (get arg-map "before_form_name")
+                      file-path (get arg-map "file_path")
+                      form-type (get arg-map "form_type")
+                      content (get arg-map "new_form_str")
+                      validated-path (utils/validate-path-with-client file-path @nrepl-client-atom)
+                      result (edit-top-level-form-pipeline
+                              form-name validated-path form-type content :before)
+                      formatted (format-result result)]
+                  (if (:error formatted)
+                    (clj-result-k [(::message result)] true)
+                    (let [[start end] (::offsets result)]
+                      (try
+                        (emacs/temporary-highlight file-path start end 2.0)
+                        (catch Exception _
+                          ;; Ignore highlight errors
+                          nil))
+                      (clj-result-k
+                       [(format "Successfully inserted form before '%s' in file %s" form-name file-path)]
+                       false))))
+                (catch Exception e
+                  (clj-result-k [(str "Error: " (.getMessage e))] true))))})
 
 (defn top-level-form-insert-after-tool
   "Returns a tool map for inserting after top-level forms in Clojure files.
@@ -586,7 +595,7 @@
    - service-atom: Service atom (required for tool registration but not used in this implementation)
    
    Returns a map with :name, :description, :schema and :tool-fn keys"
-  [_]
+  [nrepl-client-atom]
   {:name "clojure_edit_insert_after_form"
    :description
    (str "Inserts new Clojure code immediately after a specified top-level form. Ideal for extending existing functionality "
@@ -622,24 +631,28 @@
                      :description "String with the new form to insert (can contain multiple forms)"}}
      :required [:after_form_name :file_path :form_type :new_form_str]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [form-name (get arg-map "after_form_name")
-                    file-path (get arg-map "file_path")
-                    form-type (get arg-map "form_type")
-                    content (get arg-map "new_form_str")
-                    result (edit-top-level-form-pipeline
-                            form-name file-path form-type content :after)
-                    formatted (format-result result)]
-                (if (:error formatted)
-                  (clj-result-k [(::message result)] true)
-                  (let [[start end] (::offsets result)]
-                    (try
-                      (emacs/temporary-highlight file-path start end 2.0)
-                      (catch Exception _
-                        ;; Ignore highlight errors
-                        nil))
-                    (clj-result-k
-                     [(format "Successfully inserted form after '%s' in file %s" form-name file-path)]
-                     false)))))})
+              (try
+                (let [form-name (get arg-map "after_form_name")
+                      file-path (get arg-map "file_path")
+                      form-type (get arg-map "form_type")
+                      content (get arg-map "new_form_str")
+                      validated-path (utils/validate-path-with-client file-path @nrepl-client-atom)
+                      result (edit-top-level-form-pipeline
+                              form-name validated-path form-type content :after)
+                      formatted (format-result result)]
+                  (if (:error formatted)
+                    (clj-result-k [(::message result)] true)
+                    (let [[start end] (::offsets result)]
+                      (try
+                        (emacs/temporary-highlight file-path start end 2.0)
+                        (catch Exception _
+                          ;; Ignore highlight errors
+                          nil))
+                      (clj-result-k
+                       [(format "Successfully inserted form after '%s' in file %s" form-name file-path)]
+                       false))))
+                (catch Exception e
+                  (clj-result-k [(str "Error: " (.getMessage e))] true))))})
 
 (defn get-form-summary
   "Get a summarized representation of a Clojure form showing only up to the argument list"
@@ -720,7 +733,7 @@
    - service-atom: Service atom (required for tool registration but not used in this implementation)
    
    Returns a map with :name, :description, :schema and :tool-fn keys"
-  [_]
+  [nrepl-client-atom]
   {:name "clojure_file_structure"
    :description
    (str
@@ -758,12 +771,16 @@ Tip: Use this tool before and after using other code editing tools to verify cha
                :items {:type :string}}}
      :required [:file_path]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [file-path (get arg-map "file_path")
-                    expand-forms (or (get arg-map "expand") [])
-                    result (generate-collapsed-file-view file-path expand-forms)]
-                (if (str/starts-with? result "Error")
-                  (clj-result-k [result] true)
-                  (clj-result-k [result] false))))})
+              (try
+                (let [file-path (get arg-map "file_path")
+                      expand-forms (or (get arg-map "expand") [])
+                      validated-path (utils/validate-path-with-client file-path @nrepl-client-atom)
+                      result (generate-collapsed-file-view validated-path expand-forms)]
+                  (if (str/starts-with? result "Error")
+                    (clj-result-k [result] true)
+                    (clj-result-k [result] false)))
+                (catch Exception e
+                  (clj-result-k [(str "Error: " (.getMessage e))] true))))})
 
 (defn is-comment-form?
   "Check if a zloc is a (comment ...) form."
@@ -939,23 +956,11 @@ Tip: Use this tool before and after using other code editing tools to verify cha
    {::file-path file-path
     ::comment-substring comment-substring
     ::new-content new-content}
-
-   ;; Load the file content
    load-source
-
-   ;; Find and edit the comment block, creating a zipper
    find-and-edit-comment
-
-   ;; Format the source
    format-source
-
-   ;; Ensure Emacs auto-revert is enabled
    emacs-set-auto-revert
-
-   ;; Save the file
    save-file
-
-   ;; Highlight the edited region
    highlight-form))
 
 (defn comment-block-edit-tool
@@ -1003,16 +1008,20 @@ Tip: Use this tool before and after using other code editing tools to verify cha
                     :description "New content to replace the comment block with"}}
      :required [:file_path :comment_substring :new_content]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [file-path (get arg-map "file_path")
-                    comment-substring (get arg-map "comment_substring")
-                    new-content (get arg-map "new_content")
-                    result (comment-block-edit-pipeline
-                            file-path comment-substring new-content)]
-                (if (::error result)
-                  (clj-result-k [(::message result)] true)
-                  (clj-result-k
-                   [(format "Successfully updated comment block in file %s" file-path)]
-                   false))))})
+              (try
+                (let [file-path (get arg-map "file_path")
+                      validated-path (utils/validate-path-with-client file-path @nrepl-client-atom)
+                      comment-substring (get arg-map "comment_substring")
+                      new-content (get arg-map "new_content")
+                      result (comment-block-edit-pipeline
+                              validated-path comment-substring new-content)]
+                  (if (::error result)
+                    (clj-result-k [(::message result)] true)
+                    (clj-result-k
+                     [(format "Successfully updated comment block in file %s" file-path)]
+                     false)))
+                (catch Exception e
+                  (clj-result-k [(str "Error: " (.getMessage e))] true))))})
 
 (defn docstring-edit-tool
   "Returns a tool map for editing docstrings in Clojure files.
@@ -1021,7 +1030,7 @@ Tip: Use this tool before and after using other code editing tools to verify cha
    - service-atom: Service atom (required for tool registration but not used in this implementation)
    
    Returns a map with :name, :description, :schema and :tool-fn keys"
-  [_]
+  [nrepl-client-atom]
   {:name "clojure_edit_replace_docstring"
    :description
    (str "Replaces a docstring in a top-level Clojure form. This tool maintains all function "
@@ -1050,24 +1059,28 @@ Tip: Use this tool before and after using other code editing tools to verify cha
                       :description "String with the new docstring content"}}
      :required [:form_name :file_path :form_type :new_docstring]})
    :tool-fn (fn [_ arg-map clj-result-k]
-              (let [form-name (get arg-map "form_name")
-                    file-path (get arg-map "file_path")
-                    form-type (get arg-map "form_type")
-                    new-docstring (get arg-map "new_docstring")
-                    result (docstring-edit-pipeline
-                            form-name file-path form-type new-docstring)
-                    formatted (format-result result)]
-                (if (:error formatted)
-                  (clj-result-k [(:message formatted)] true)
-                  (let [[start end] (::offsets result)]
-                    (try
-                      (emacs/temporary-highlight file-path start end 2.0)
-                      (catch Exception _
-                        ;; Ignore highlight errors
-                        nil))
-                    (clj-result-k
-                     [(format "Successfully updated docstring for '%s' in file %s" form-name file-path)]
-                     false)))))})
+              (try
+                (let [form-name (get arg-map "form_name")
+                      file-path (get arg-map "file_path")
+                      form-type (get arg-map "form_type")
+                      new-docstring (get arg-map "new_docstring")
+                      validated-path (utils/validate-path-with-client file-path @nrepl-client-atom)
+                      result (docstring-edit-pipeline
+                              form-name validated-path form-type new-docstring)
+                      formatted (format-result result)]
+                  (if (:error formatted)
+                    (clj-result-k [(:message formatted)] true)
+                    (let [[start end] (::offsets result)]
+                      (try
+                        (emacs/temporary-highlight file-path start end 2.0)
+                        (catch Exception _
+                          ;; Ignore highlight errors
+                          nil))
+                      (clj-result-k
+                       [(format "Successfully updated docstring for '%s' in file %s" form-name file-path)]
+                       false))))
+                (catch Exception e
+                  (clj-result-k [(str "Error: " (.getMessage e))] true))))})
 
 ;; Removed generate-diff-string, now using utils/generate-diff-via-shell instead
 
