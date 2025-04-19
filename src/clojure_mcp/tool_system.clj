@@ -55,21 +55,26 @@
    Dispatches on :tool-type."
   :tool-type)
 
+;; Function to handle java.util.Map and other collection types before keywordizing
+(defn convert-java-collections
+  "Converts Java collection types to their Clojure equivalents recursively."
+  [x]
+  (walk/postwalk
+   (fn [node]
+     (cond
+       (instance? java.util.Map node) (into {} node)
+       (instance? java.util.List node) (into [] node)
+       (instance? java.util.Set node) (into #{} node)
+       :else node))
+   x))
+
 ;; Helper function to keywordize map keys while preserving underscores
 (defn keywordize-keys-preserve-underscores 
   "Recursively transforms string map keys into keywords.
-   Unlike clojure.walk/keywordize-keys, this preserves underscores."
+   Unlike clojure.walk/keywordize-keys, this preserves underscores.
+   Works with Java collection types by converting them first."
   [m]
-  (let [f (fn [[k v]]
-            (if (string? k)
-              [(keyword k) v]
-              [k v]))]
-    (walk/postwalk 
-     (fn [x]
-       (if (map? x)
-         (into {} (map f x))
-         x))
-     m)))
+  (walk/keywordize-keys (convert-java-collections m)))
 
 ;; Default implementation for registration-map
 (defmethod registration-map :default [tool-config]
@@ -78,7 +83,7 @@
    :schema (json/write-str (tool-schema tool-config))
    :tool-fn (fn [_ params callback]
               (try
-                (let [keywordized-params (keywordize-keys-preserve-underscores (into {} params))
+                (let [keywordized-params (keywordize-keys-preserve-underscores params)
                       validated (validate-inputs tool-config keywordized-params)
                       result (execute-tool tool-config validated)
                       formatted (format-results tool-config result)]
