@@ -8,14 +8,17 @@
    [clojure-mcp.repl-tools.symbol :as symbol-tools]
    [clojure-mcp.repl-tools.top-level-form-edit-pipeline :as edit-tools]
    [clojure-mcp.repl-tools.project.inspect :as project-inspect]
-   [clojure-mcp.repl-tools.filesystem.tools :as filesystem-tools]))
+   [clojure-mcp.repl-tools.filesystem.tools :as filesystem-tools]
+   ;; New tool-system tools
+   [clojure-mcp.tools.eval.tool :as new-eval-tool]
+   [clojure-mcp.tools.read-file.tool :as new-read-file-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
   "Returns a list of all defined tools for registration with the MCP server."
   [nrepl-client-atom]
   (concat
-   [(eval-tools/eval-code nrepl-client-atom)
+   [#_(eval-tools/eval-code nrepl-client-atom)
     (namespace-tools/current-namespace nrepl-client-atom)
     (symbol-tools/symbol-completions nrepl-client-atom)
     (symbol-tools/symbol-metadata nrepl-client-atom)
@@ -31,7 +34,12 @@
     (edit-tools/clojure-file-outline-tool nrepl-client-atom)
     (edit-tools/comment-block-edit-tool nrepl-client-atom)
     (edit-tools/docstring-edit-tool nrepl-client-atom)
-    (project-inspect/inspect-project-tool nrepl-client-atom)]
+    (project-inspect/inspect-project-tool nrepl-client-atom)
+    ;; New tool-system tools - commented out for now to avoid name conflicts
+    ;; Uncomment when ready to replace the original tools
+    ;; (new-eval-tool/eval-code nrepl-client-atom)
+    ;; (new-read-file-tool/read-file-tool nrepl-client-atom)
+    ]
    (filesystem-tools/get-all-filesystem-tools nrepl-client-atom)))
 
 (comment
