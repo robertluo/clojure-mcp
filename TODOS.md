@@ -1,17 +1,29 @@
 ## Looking forward
 
+Look into how thinking is used in clod
+
 Need to have an official scratch area for temp files.
+ Maybe a tool can handle this for us return a scrath file
 
-Maybe a tool can handle this for us 
+clojure_edit_replace_form
 
-refactor out the write file tool maybe into filesystem
-it should detect clojureisms 
+Agents provide a way to reduce the growing context and keep things relevant
+agent to handle troublesome edits
+agent to handle parenthesis edits
+agent to implement change
+agent to research information to solve a problem
 
-write file needs to handle non clojure files
+very clear that we need a separate mode with no editing tools available 
+  to do design work and thinking
 
+let's add the last few file tools
+edit_file - should lint format output if clojure
+create_directory
+move_file
 
+read-file needs to check mod time like clod
 
-
+Emacs notify switch
 
 ## Adapt tools and prompts from OtherCl implementation
 * prompt is still misbehaving, so far working without the prompt seems to be better

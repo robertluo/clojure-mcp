@@ -292,7 +292,7 @@ Use this tool when you need to find files containing specific patterns."
                       {:client-keys (keys nrepl-client)})))
 
     [(create-fs-list-directory-tool nrepl-client-atom)
-     (create-fs-read-file-tool nrepl-client-atom {:max-lines 2000 :max-line-length 1000})
+     #_(create-fs-read-file-tool nrepl-client-atom {:max-lines 2000 :max-line-length 1000})
      (create-directory-tree-tool nrepl-client-atom)
      (create-glob-files-tool nrepl-client-atom)
      (create-grep-tool nrepl-client-atom)
