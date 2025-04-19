@@ -39,10 +39,10 @@ If the returned value is too long it will be truncated.")
         result (core/evaluate-code @nrepl-client-atom code)]
     result))
 
-(defmethod tool-system/format-results :clojure-eval [_ {:keys [result error] :as eval-result}]
-  ;; The core implementation returns a map with :result and :error
-  ;; We need to return a map with :result (data to pass to callback) and :error (boolean)
-  {:result result
+(defmethod tool-system/format-results :clojure-eval [_ {:keys [outputs error] :as eval-result}]
+  ;; The core implementation now returns a map with :outputs (raw outputs) and :error (boolean)
+  ;; We need to format the outputs and return a map with :result and :error
+  {:result (core/partition-and-format-outputs outputs)
    :error error})
 
 ;; Backward compatibility function that returns the registration map

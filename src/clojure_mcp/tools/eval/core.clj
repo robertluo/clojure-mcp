@@ -40,7 +40,7 @@
    - code: The Clojure code to evaluate as a string
    
    Returns:
-   - A map with :result (formatted output) or :error (boolean) keys"
+   - A map with :outputs (raw outputs), :error (boolean flag)"
   [nrepl-client code]
   (let [outputs (atom []) ;; Atom to store prefixed output strings
         error-occurred (atom false) ;; Atom to track if any error happened
@@ -57,7 +57,7 @@
     
     ;; If linter found critical errors, return early
     (if @error-occurred
-      {:result (partition-and-format-outputs @outputs)
+      {:outputs @outputs
        :error true}
       
       ;; Otherwise, evaluate the code
@@ -75,13 +75,13 @@
                                    (nrepl/value #(add-output! :value %))
                                    (nrepl/done (fn [_]
                                                  (deliver result-promise
-                                                          {:result (partition-and-format-outputs @outputs)
+                                                          {:outputs @outputs
                                                            :error @error-occurred})))
                                    (nrepl/error (fn [_]
                                                   (reset! error-occurred true)
                                                   (add-output! :err "Evaluation failed")
                                                   (deliver result-promise
-                                                           {:result (partition-and-format-outputs @outputs)
+                                                           {:outputs @outputs
                                                             :error true})))))
         
         ;; Wait for the result and return it
