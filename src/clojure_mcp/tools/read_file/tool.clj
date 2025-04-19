@@ -48,7 +48,10 @@ Returns the file contents or an error message if the file cannot be read.")
 
 (defmethod tool-system/format-results :read-file [_ {:keys [error path content truncated? line-count offset max-lines line-lengths-truncated? truncated-by] :as result}]
   (if error
-    {:error error}
+    ;; If there's an error, return it with error flag true
+    {:result [error]
+     :error true}
+    ;; Otherwise, format the file content with metadata
     (let [file (io/file path)
           size (.length file)
           header (-> (str "<file-content path=\"" path "\" "
@@ -60,8 +63,10 @@ Returns the file contents or an error message if the file cannot be read.")
                     (cond-> 
                       truncated-by (str "truncated-by=\"" truncated-by "\" ")
                       line-lengths-truncated? (str "line-lengths-truncated=\"true\" "))
-                    (str ">\n"))]
-      (str header content "\n</file-content>"))))
+                    (str ">\n"))
+          formatted (str header content "\n</file-content>")]
+      {:result [formatted]
+       :error false})))
 
 ;; Backward compatibility function that returns the registration map
 (defn read-file-tool [nrepl-client-atom]

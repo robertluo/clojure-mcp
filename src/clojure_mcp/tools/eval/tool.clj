@@ -36,10 +36,10 @@
     result))
 
 (defmethod tool-system/format-results :clojure-eval [_ {:keys [result error] :as eval-result}]
-  ;; The core implementation now returns a map with :result and :error
-  (if error
-    {:error result}
-    {:result result}))
+  ;; The core implementation returns a map with :result and :error
+  ;; We need to return a map with :result (data to pass to callback) and :error (boolean)
+  {:result result
+   :error error})
 
 ;; Backward compatibility function that returns the registration map
 (defn eval-code [nrepl-client-atom]
@@ -67,6 +67,7 @@
   ;; Test running the tool-fn directly
   (def tool-fn (:tool-fn reg-map))
   (tool-fn nil {"code" "(+ 1 2)"} (fn [result error] (println "Result:" result "Error:" error)))
+  (tool-fn nil {"code" "(+ 1 2"} (fn [result error] (println "Result:" result "Error:" error)))
   
   ;; Make a simpler test function that works like tool-fn
   (defn test-tool [code]

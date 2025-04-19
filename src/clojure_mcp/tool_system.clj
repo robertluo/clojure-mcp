@@ -39,6 +39,11 @@
 
 (defmulti format-results 
   "Formats the results from tool execution into the expected MCP response format.
+   Must return a map with :result (a string or vector of strings) and :error (boolean).
+   
+   This standardized format is then used by the tool-fn to call the callback with:
+   (callback (:result formatted) (:error formatted))
+   
    Dispatches on :tool-type in the tool-config."
   (fn [tool-config result] (:tool-type tool-config)))
 
@@ -77,7 +82,19 @@
                       keywordized-params (keywordize-keys-preserve-underscores params)
                       validated (validate-inputs tool-config keywordized-params)
                       result (execute-tool tool-config validated)
+                      ;; format-results must return {:result data :error boolean}
                       formatted (format-results tool-config result)]
-                  (callback formatted nil))
+                  ;; Use the formatted result with the callback
+                  (callback (:result formatted) (:error formatted)))
                 (catch Exception e
-                  (callback nil (.getMessage e)))))})
+                  ;; On error, create a sequence of error messages
+                  (let [error-msg (or (ex-message e) "Unknown error")
+                        data (ex-data e)
+                        ;; Construct error messages sequence
+                        error-msgs (cond-> [error-msg]
+                                    ;; Add any error-details from ex-data if available
+                                    (and data (:error-details data)) 
+                                    (concat (if (sequential? (:error-details data))
+                                              (:error-details data)
+                                              [(:error-details data)])))]
+                    (callback error-msgs true)))))})
