@@ -257,9 +257,11 @@
          ::message (str "Failed to set auto-revert mode: " (:message result))}
         ;; Success - return context unchanged
         ctx))
+    ;; XXX fail silently if emacs isn't started, logging would be better here
     (catch Exception e
-      {::error :auto-revert-exception
-       ::message (str "Exception setting auto-revert mode: " (.getMessage e))})))
+      ctx
+      #_{::error :auto-revert-exception
+         ::message (str "Exception setting auto-revert mode: " (.getMessage e))})))
 
 (defn save-file
   "Saves the updated source to the file and calculates offsets.
@@ -284,8 +286,10 @@
       (emacs/temporary-highlight
        (::file-path ctx) start end 2.0)
       ctx)
+    ;; XXX fail silently to support non emacs workflow for now
     (catch Exception e
-      (assoc ctx ::highlight-error (.getMessage e)))))
+      ctx
+      #_(assoc ctx ::highlight-error (.getMessage e)))))
 
 ;; Helper for threading functions with error handling
 (defn thread-ctx
