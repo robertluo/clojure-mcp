@@ -26,7 +26,8 @@
 (defmethod tool-system/validate-inputs :clojure-eval [_ inputs]
   (let [{:keys [code]} inputs]
     (when-not code
-      (throw (ex-info "Missing required parameter: code" {:inputs inputs})))
+      (throw (ex-info (str "Missing required parameter: code " (pr-str inputs))
+                      {:inputs inputs})))
     ;; Return validated inputs (could do more validation/coercion here)
     inputs))
 

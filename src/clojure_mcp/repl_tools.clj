@@ -37,7 +37,7 @@
     (project-inspect/inspect-project-tool nrepl-client-atom)
     ;; New tool-system tools - commented out for now to avoid name conflicts
     ;; Uncomment when ready to replace the original tools
-    ;; (new-eval-tool/eval-code nrepl-client-atom)
+    (new-eval-tool/eval-code nrepl-client-atom)
     ;; (new-read-file-tool/read-file-tool nrepl-client-atom)
     ]
    (filesystem-tools/get-all-filesystem-tools nrepl-client-atom)))

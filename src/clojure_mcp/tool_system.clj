@@ -78,14 +78,10 @@
    :schema (json/write-str (tool-schema tool-config))
    :tool-fn (fn [_ params callback]
               (try
-                (let [;; Keywordize params from string keys to keywords 
-                      ;; while preserving underscores
-                      keywordized-params (keywordize-keys-preserve-underscores params)
+                (let [keywordized-params (keywordize-keys-preserve-underscores (into {} params))
                       validated (validate-inputs tool-config keywordized-params)
                       result (execute-tool tool-config validated)
-                      ;; format-results must return {:result data :error boolean}
                       formatted (format-results tool-config result)]
-                  ;; Use the formatted result with the callback
                   (callback (:result formatted) (:error formatted)))
                 (catch Exception e
                   ;; On error, create a sequence of error messages
@@ -99,3 +95,46 @@
                                               (:error-details data)
                                               [(:error-details data)])))]
                     (callback error-msgs true)))))})
+
+(comment
+  ;; === Simple testing for the tool-system ===
+  
+  ;; Set up nREPL client for testing
+  (require '[clojure-mcp.nrepl :as nrepl])
+  (require '[clojure-mcp.tools.eval.tool :as eval-tool])
+  
+  (def client-atom (atom (nrepl/create {:port 7888})))
+  (nrepl/start-polling @client-atom)
+  
+  ;; Create a tool instance 
+  (def eval-tool-instance (eval-tool/create-eval-tool client-atom))
+  
+  ;; Generate the registration map with our debug println statements
+  (def reg-map (registration-map eval-tool-instance))
+  
+  ;; Get the tool-fn
+  (def tool-fn (:tool-fn reg-map))
+  
+  ;; Test it directly with string keys (like it would receive from MCP) 
+  (tool-fn nil {"code" "(+ 1 2)"} 
+          (fn [result error] (println "RESULT:" result "ERROR:" error)))
+  
+  ;; See what happens with malformed code
+  (tool-fn nil {"code" "(+ 1"} 
+          (fn [result error] (println "ERROR RESULT:" result "ERROR FLAG:" error)))
+  
+  ;; Helper function to make testing easier
+  (defn test-eval [code]
+    (let [p (promise)]
+      (tool-fn nil {"code" code} 
+              (fn [result error] 
+                (deliver p {:result result :error? error})))
+      @p))
+  
+  (test-eval "(+ 1 2)")
+  (test-eval "(println \"hello\")\n(+ 3 4)")
+  (test-eval "(/ 1 0)")  ;; Should trigger error handling
+  
+  ;; Clean up
+  (nrepl/stop-polling @client-atom)
+)
