@@ -18,9 +18,10 @@
   "Evaluates Clojure code in the current namespace and returns the result.")
 
 (defmethod tool-system/tool-schema :clojure-eval [_]
-  {:code {:type "string"
-          :description "The Clojure code to evaluate."}
-   :required ["code"]})
+  {:type :object
+   :properties {:code {:type :string
+                      :description "The Clojure code to evaluate."}}
+   :required [:code]})
 
 (defmethod tool-system/validate-inputs :clojure-eval [_ inputs]
   (let [{:keys [code]} inputs]

@@ -21,13 +21,14 @@ By default, it reads the entire file. You can optionally specify a line offset a
 Returns the file contents or an error message if the file cannot be read.")
 
 (defmethod tool-system/tool-schema :read-file [_]
-  {:path {:type "string"
-          :description "The path to the file to read."}
-   :offset {:type "integer"
-            :description "Line number to start reading from (0-indexed)"}
-   :limit {:type "integer"
-           :description "Maximum number of lines to read"}
-   :required ["path"]})
+  {:type :object
+   :properties {:path {:type :string
+                      :description "The path to the file to read."}
+                :offset {:type :integer
+                         :description "Line number to start reading from (0-indexed)"}
+                :limit {:type :integer
+                        :description "Maximum number of lines to read"}}
+   :required [:path]})
 
 (defmethod tool-system/validate-inputs :read-file [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [path]} inputs

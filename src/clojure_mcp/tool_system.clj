@@ -4,7 +4,8 @@
    in a modular, extensible way."
   (:require
    [clojure.string :as string]
-   [clojure.walk :as walk]))
+   [clojure.walk :as walk]
+   [clojure.data.json :as json]))
 
 ;; Core multimethods for tool behavior
 
@@ -74,7 +75,7 @@
 (defmethod registration-map :default [tool-config]
   {:name (tool-name tool-config)
    :description (tool-description tool-config)
-   :schema (tool-schema tool-config)
+   :schema (json/write-str (tool-schema tool-config))
    :tool-fn (fn [_ params callback]
               (try
                 (let [;; Keywordize params from string keys to keywords 
