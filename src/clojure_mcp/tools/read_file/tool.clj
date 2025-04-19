@@ -8,17 +8,33 @@
 
 ;; Factory function to create the tool configuration
 (defn create-read-file-tool 
-  "Creates the read-file tool configuration"
-  [nrepl-client-atom]
-  {:tool-type :read-file
-   :nrepl-client-atom nrepl-client-atom})
+  "Creates the read-file tool configuration with optional parameters.
+   
+   Parameters:
+   - nrepl-client-atom: Atom containing the nREPL client
+   - opts: Optional map with configuration options:
+     - :max-lines: Maximum number of lines to read (default: 2000)
+     - :max-line-length: Maximum length per line before truncation (default: 1000)"
+  ([nrepl-client-atom]
+   (create-read-file-tool nrepl-client-atom {}))
+  ([nrepl-client-atom {:keys [max-lines max-line-length]
+                       :or {max-lines 2000
+                            max-line-length 1000}}]
+   {:tool-type :read-file
+    :nrepl-client-atom nrepl-client-atom
+    :max-lines max-lines
+    :max-line-length max-line-length}))
 
 ;; Implement the required multimethods for the read-file tool
+(defmethod tool-system/tool-name :read-file [_]
+  "fs_read_file")
 
-(defmethod tool-system/tool-description :read-file [_]
-  "Reads the contents of a file. The file_path parameter must be an absolute path, not a relative path.
-By default, it reads the entire file. You can optionally specify a line offset and limit for large files.
-Returns the file contents or an error message if the file cannot be read.")
+(defmethod tool-system/tool-description :read-file [{:keys [max-lines max-line-length]}]
+  (str "Reads the contents of a file. The file_path parameter must be an absolute path, not a relative path. "
+       "By default, it reads up to " max-lines " lines starting from the beginning of the file. "
+       "You can optionally specify a line offset and limit (especially handy for long files). "
+       "Any lines longer than " max-line-length " characters will be truncated. "
+       "Returns the file contents or an error message if the file cannot be read."))
 
 (defmethod tool-system/tool-schema :read-file [_]
   {:type :object
@@ -41,11 +57,11 @@ Returns the file contents or an error message if the file cannot be read.")
       ;; Return validated inputs with normalized path
       (assoc inputs :path validated-path))))
 
-(defmethod tool-system/execute-tool :read-file [_ inputs]
+(defmethod tool-system/execute-tool :read-file [{:keys [max-lines max-line-length]} inputs]
   (let [{:keys [path offset limit]} inputs
         offset (or offset 0)
-        limit (or limit 2000)]
-    (core/read-file path offset limit)))
+        limit (or limit max-lines)]
+    (core/read-file path offset limit :max-line-length max-line-length)))
 
 (defmethod tool-system/format-results :read-file [_ {:keys [error path content truncated? line-count offset max-lines line-lengths-truncated? truncated-by] :as result}]
   (if error
@@ -69,6 +85,16 @@ Returns the file contents or an error message if the file cannot be read.")
       {:result [formatted]
        :error false})))
 
-;; Backward compatibility function that returns the registration map
-(defn read-file-tool [nrepl-client-atom]
-  (tool-system/registration-map (create-read-file-tool nrepl-client-atom)))
+;; Backward compatibility functions that return the registration map
+(defn read-file-tool 
+  "Returns the registration map for the read-file tool.
+   
+   Parameters:
+   - nrepl-client-atom: Atom containing the nREPL client
+   - opts: Optional map with configuration options:
+     - :max-lines: Maximum number of lines to read (default: 2000)
+     - :max-line-length: Maximum length per line before truncation (default: 1000)"
+  ([nrepl-client-atom]
+   (read-file-tool nrepl-client-atom {}))
+  ([nrepl-client-atom opts]
+   (tool-system/registration-map (create-read-file-tool nrepl-client-atom opts))))
