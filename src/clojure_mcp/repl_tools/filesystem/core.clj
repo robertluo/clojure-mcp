@@ -4,8 +4,8 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str])
   (:import
-    (java.nio.file FileVisitResult FileSystems Files Path Paths SimpleFileVisitor)
-    (java.nio.file.attribute BasicFileAttributes)))
+   (java.nio.file FileVisitResult FileSystems Files Path Paths SimpleFileVisitor)
+   (java.nio.file.attribute BasicFileAttributes)))
 
 (defn list-directory
   "Lists files and directories at the specified path.
@@ -77,6 +77,7 @@
 
 ;; Removed format-file-info function
 
+;; MOVED to clojure-mcp.tools.directory-tree.core
 (defn directory-tree
   "Creates a recursive tree view of directory structure using simple indentation.
    
@@ -87,54 +88,14 @@
    
    Returns a string representation of the directory tree with proper indentation.
    Filters out temporary files like Emacs backup files (ending with ~).
-   Adds a \"...\" indicator when directories are truncated due to max-depth."
+   Adds a \"...\" indicator when directories are truncated due to max-depth.
+   
+   @deprecated This function has been moved to clojure-mcp.tools.directory-tree.core"
   [path & {:keys [depth max-depth] :or {depth 0 max-depth nil}}]
-  (let [dir (io/file path)]
-    (if (and (.exists dir) (.isDirectory dir))
-      (let [indent (apply str (repeat depth "  "))
-            contents (.listFiles dir)
-            ; Filter out temporary files (like Emacs backup files)
-            is-temp-file? (fn [file]
-                            (let [name (.getName file)]
-                              (or (.endsWith name "~") ; Emacs backup
-                                  (.startsWith name ".") ; Hidden files
-                                  (.startsWith name "#") ; Emacs auto-save
-                                  (.contains name ".#")))) ; Emacs lock files
-            dirs (filter #(and (.isDirectory %) (not (is-temp-file? %))) contents)
-            files (filter #(and (.isFile %) (not (is-temp-file? %))) contents)
-            result (StringBuilder.)
-            continue? (or (nil? max-depth) (< depth max-depth))]
-
-        ;; Root entry
-        (when (zero? depth)
-          (.append result (str (.getAbsolutePath dir) "\n")))
-
-        ;; Directory entries
-        (doseq [d (sort-by #(.getName %) dirs)]
-          (.append result (str indent "- " (.getName d) "/\n"))
-          (cond
-            ;; If max-depth is set and we're at the limit, add truncation indicator
-            (and max-depth (= depth max-depth))
-            (.append result (str indent "  - ...\n"))
-
-            ;; Otherwise process subdirectory if we should continue
-            continue?
-            (let [subtree (directory-tree (.getAbsolutePath d)
-                                          :depth (inc depth)
-                                          :max-depth max-depth)]
-              (when (and subtree (not (map? subtree)) (not (empty? subtree)))
-                ;; Indent each line of the subtree with the current indentation
-                (let [subtree-lines (str/split-lines subtree)
-                      indented-lines (map #(str indent "  " %) subtree-lines)]
-                  (.append result (str (str/join "\n" indented-lines) "\n")))))))
-
-        ;; File entries
-        (let [sorted-files (sort-by #(.getName %) files)]
-          (doseq [f sorted-files]
-            (.append result (str indent "- " (.getName f) "\n"))))
-
-        (.toString result))
-      {:error (str path " is not a valid directory")})))
+  ;; Delegate to the new implementation to maintain backward compatibility
+  (require 'clojure-mcp.tools.directory-tree.core)
+  ((resolve 'clojure-mcp.tools.directory-tree.core/directory-tree)
+   path :depth depth :max-depth max-depth))
 
 (defn glob-files
   [dir pattern & {:keys [max-results] :or {max-results 1000}}]
@@ -148,22 +109,22 @@
               truncated (atom false)]
 
           (Files/walkFileTree
-            path
-            (proxy [SimpleFileVisitor] []
-              (preVisitDirectory [dir _attrs]
-                (let [dirName (str (.getFileName dir))]
-                  (if (.startsWith dirName ".")
-                    FileVisitResult/SKIP_SUBTREE
-                    FileVisitResult/CONTINUE)))
-              (visitFile [file _attrs]
-                (let [rel (.relativize path file)]
-                  (when (and (< (count @matches) max-results)
-                             (.matches matcher rel))
-                    (swap! matches conj {:path (str file)
-                                         :mtime (.lastModified (.toFile file))}))
-                  (when (>= (count @matches) max-results)
-                    (reset! truncated true))
-                  FileVisitResult/CONTINUE))))
+           path
+           (proxy [SimpleFileVisitor] []
+             (preVisitDirectory [dir _attrs]
+               (let [dirName (str (.getFileName dir))]
+                 (if (.startsWith dirName ".")
+                   FileVisitResult/SKIP_SUBTREE
+                   FileVisitResult/CONTINUE)))
+             (visitFile [file _attrs]
+               (let [rel (.relativize path file)]
+                 (when (and (< (count @matches) max-results)
+                            (.matches matcher rel))
+                   (swap! matches conj {:path (str file)
+                                        :mtime (.lastModified (.toFile file))}))
+                 (when (>= (count @matches) max-results)
+                   (reset! truncated true))
+                 FileVisitResult/CONTINUE))))
 
           (let [end (System/currentTimeMillis)
                 duration (- end start)
@@ -186,7 +147,5 @@
   (let [cwd (System/getProperty "user.dir")]
     (glob-files
      cwd
-     "**/top_level*.clj"
-     ))
-  )
+     "**/top_level*.clj")))
 

@@ -201,13 +201,13 @@ Use this tool when you need to find files containing specific patterns."
                 (try
                   (let [validated-path (utils/validate-path-with-client path nrepl-client)
                         ;; No pattern validation - let the underlying tools handle errors
-                        
+
                         result (grep/grep-files validated-path pattern :include include :max-results max-results)
-                        
+
                         ;; Check if there's an error in the result
                         _ (when (:error result)
                             (throw (ex-info (:error result) {:path validated-path :pattern pattern})))
-                        
+
                         ;; Format the output properly, handling the case where no files were found
                         output (json/write-str
                                 (if (nil? (:filenames result))
@@ -219,7 +219,7 @@ Use this tool when you need to find files containing specific patterns."
                                 :escape-slash false)]
                     (clj-result-k [output] false))
                   (catch Exception e
-                    (clj-result-k [(str "Error: " (.getMessage e) 
+                    (clj-result-k [(str "Error: " (.getMessage e)
                                         (when-let [data (ex-data e)]
                                           (str "\nDetails: " (pr-str data))))] true)))))})
 
@@ -293,7 +293,7 @@ Use this tool when you need to find files containing specific patterns."
 
     [(create-fs-list-directory-tool nrepl-client-atom)
      #_(create-fs-read-file-tool nrepl-client-atom {:max-lines 2000 :max-line-length 1000})
-     (create-directory-tree-tool nrepl-client-atom)
+     #_(create-directory-tree-tool nrepl-client-atom) ;; Commented out - replaced by the new tool-system implementation
      (create-glob-files-tool nrepl-client-atom)
      (create-grep-tool nrepl-client-atom)
      (create-file-write-tool nrepl-client-atom)]))

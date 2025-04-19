@@ -11,7 +11,8 @@
    [clojure-mcp.repl-tools.filesystem.tools :as filesystem-tools]
    ;; New tool-system tools
    [clojure-mcp.tools.eval.tool :as new-eval-tool]
-   [clojure-mcp.tools.read-file.tool :as new-read-file-tool]))
+   [clojure-mcp.tools.read-file.tool :as new-read-file-tool]
+   [clojure-mcp.tools.directory-tree.tool :as new-directory-tree-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
@@ -39,7 +40,7 @@
     ;; Uncomment when ready to replace the original tools
     (new-eval-tool/eval-code nrepl-client-atom)
     (new-read-file-tool/read-file-tool nrepl-client-atom)
-    ]
+    (new-directory-tree-tool/directory-tree-tool nrepl-client-atom)]
    (filesystem-tools/get-all-filesystem-tools nrepl-client-atom)))
 
 (comment
