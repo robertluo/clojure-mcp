@@ -13,9 +13,11 @@
    :timeout 30000})
 
 ;; Implement the required multimethods for the eval tool
-
 (defmethod tool-system/tool-description :clojure-eval [_]
-  "Evaluates Clojure code in the current namespace and returns the result.")
+  "Takes a Clojure Expression and evaluates it in the current namespace. For example, providing \"(+ 1 2)\" will evaluate to 3.
+This tool is intended to execute Clojure code. This is very helpful for verifying that code is working as expected. It's also helpful for REPL driven development.
+If you send multiple expressions they will all be evaluated individually and their output will be clearly partitioned.
+If the returned value is too long it will be truncated.")
 
 (defmethod tool-system/tool-schema :clojure-eval [_]
   {:type :object
