@@ -35,12 +35,51 @@
         result (core/evaluate-code @nrepl-client-atom code)]
     result))
 
-(defmethod tool-system/format-results :clojure-eval [_ result]
-  ;; Keep the same format as the existing implementation
-  (cond
-    (:error result) {:error (:error result)}
-    :else {:result (or (:value result) "nil")}))
+(defmethod tool-system/format-results :clojure-eval [_ {:keys [result error] :as eval-result}]
+  ;; The core implementation now returns a map with :result and :error
+  (if error
+    {:error result}
+    {:result result}))
 
 ;; Backward compatibility function that returns the registration map
 (defn eval-code [nrepl-client-atom]
   (tool-system/registration-map (create-eval-tool nrepl-client-atom)))
+
+(comment
+  ;; === Examples of using the eval tool ===
+  
+  ;; Setup for REPL-based testing
+  (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
+  (clojure-mcp.nrepl/start-polling @client-atom)
+  
+  ;; Create a tool instance
+  (def eval-tool (create-eval-tool client-atom))
+  
+  ;; Test the individual multimethod steps
+  (def inputs {:code "(+ 1 2)"})
+  (def validated (tool-system/validate-inputs eval-tool inputs))
+  (def result (tool-system/execute-tool eval-tool validated))
+  (def formatted (tool-system/format-results eval-tool result))
+  
+  ;; Generate the full registration map
+  (def reg-map (tool-system/registration-map eval-tool))
+  
+  ;; Test running the handler function directly
+  (def handler-fn (:handler reg-map))
+  (handler-fn {"code" "(+ 1 2)"} (fn [result] (println "Result:" result)))
+  
+  ;; Make a simpler test function that works like tool-fn
+  (defn test-tool [code]
+    (let [prom (promise)]
+      (handler-fn {"code" code}
+                  (fn [result] (deliver prom result)))
+      @prom))
+  
+  ;; Test with simple expressions
+  (test-tool "(+ 1 2)")
+  (test-tool "(println \"Hello\")\n(+ 3 4)")
+  (test-tool "(/ 1 0)")
+  
+  ;; Clean up
+  (clojure-mcp.nrepl/stop-polling @client-atom)
+)
