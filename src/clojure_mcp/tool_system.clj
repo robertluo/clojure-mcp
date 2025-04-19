@@ -3,7 +3,8 @@
    This namespace provides multimethods for implementing tools 
    in a modular, extensible way."
   (:require
-   [clojure.string :as string]))
+   [clojure.string :as string]
+   [clojure.walk :as walk]))
 
 ;; Core multimethods for tool behavior
 
@@ -48,17 +49,35 @@
    Dispatches on :tool-type."
   :tool-type)
 
-;; Default implementation for registration-map
+;; Helper function to keywordize map keys while preserving underscores
+(defn keywordize-keys-preserve-underscores 
+  "Recursively transforms string map keys into keywords.
+   Unlike clojure.walk/keywordize-keys, this preserves underscores."
+  [m]
+  (let [f (fn [[k v]]
+            (if (string? k)
+              [(keyword k) v]
+              [k v]))]
+    (walk/postwalk 
+     (fn [x]
+       (if (map? x)
+         (into {} (map f x))
+         x))
+     m)))
 
+;; Default implementation for registration-map
 (defmethod registration-map :default [tool-config]
   {:name (tool-name tool-config)
    :description (tool-description tool-config)
    :schema (tool-schema tool-config)
-   :handler (fn [params callback]
-             (try
-               (let [validated (validate-inputs tool-config params)
-                     result (execute-tool tool-config validated)
-                     formatted (format-results tool-config result)]
-                 (callback formatted))
-               (catch Exception e
-                 (callback {:error (.getMessage e)}))))})
+   :tool-fn (fn [_ params callback]
+              (try
+                (let [;; Keywordize params from string keys to keywords 
+                      ;; while preserving underscores
+                      keywordized-params (keywordize-keys-preserve-underscores params)
+                      validated (validate-inputs tool-config keywordized-params)
+                      result (execute-tool tool-config validated)
+                      formatted (format-results tool-config result)]
+                  (callback formatted nil))
+                (catch Exception e
+                  (callback nil (.getMessage e)))))})

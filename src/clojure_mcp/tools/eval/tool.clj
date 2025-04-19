@@ -64,15 +64,16 @@
   ;; Generate the full registration map
   (def reg-map (tool-system/registration-map eval-tool))
   
-  ;; Test running the handler function directly
-  (def handler-fn (:handler reg-map))
-  (handler-fn {"code" "(+ 1 2)"} (fn [result] (println "Result:" result)))
+  ;; Test running the tool-fn directly
+  (def tool-fn (:tool-fn reg-map))
+  (tool-fn nil {"code" "(+ 1 2)"} (fn [result error] (println "Result:" result "Error:" error)))
   
   ;; Make a simpler test function that works like tool-fn
   (defn test-tool [code]
     (let [prom (promise)]
-      (handler-fn {"code" code}
-                  (fn [result] (deliver prom result)))
+      (tool-fn nil {"code" code}
+               (fn [result error] 
+                 (deliver prom (if error {:error error} {:result result}))))
       @prom))
   
   ;; Test with simple expressions
