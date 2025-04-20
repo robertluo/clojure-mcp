@@ -31,26 +31,28 @@ Use this tool when you need to find files containing specific patterns.")
 (defmethod tool-system/tool-schema :grep [_]
   {:type :object
    :properties {:path {:type :string
-                       :description "The directory to search in"}
+                       :description "The directory to search in. Defaults to the current working directory."}
                 :pattern {:type :string
                           :description "The regular expression pattern to search for in file contents"}
                 :include {:type :string
                           :description "File pattern to include in the search (e.g. \"*.clj\", \"*.{clj,cljs}\")"}
                 :max_results {:type :integer
                               :description "Maximum number of results to return (default: 1000)"}}
-   :required [:path :pattern]})
+   :required [:pattern]})
 
 (defmethod tool-system/validate-inputs :grep [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [path pattern include max_results]} inputs
-        nrepl-client @nrepl-client-atom]
-    (when-not path
+        nrepl-client @nrepl-client-atom
+        effective-path (or path
+                           (get @nrepl-client-atom :clojure-mcp.core/nrepl-user-dir))]
+    (when-not effective-path
       (throw (ex-info "Missing required parameter: path" {:inputs inputs})))
 
     (when-not pattern
       (throw (ex-info "Missing required parameter: pattern" {:inputs inputs})))
 
     ;; Use the existing validate-path-with-client function
-    (let [validated-path (utils/validate-path-with-client path nrepl-client)]
+    (let [validated-path (utils/validate-path-with-client effective-path nrepl-client)]
       ;; Return validated inputs with normalized path
       (cond-> {:path validated-path
                :pattern pattern}

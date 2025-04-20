@@ -25,7 +25,7 @@
       (is (contains? (:properties schema) :pattern))
       (is (contains? (:properties schema) :include))
       (is (contains? (:properties schema) :max_results))
-      (is (= [:path :pattern] (:required schema))))))
+      (is (= [:pattern] (:required schema))))))
 
 (deftest validate-inputs-test
   (testing "validate-inputs properly validates and transforms inputs"
@@ -57,11 +57,6 @@
                     :pattern "test.*pattern"
                     :include "*.clj"
                     :max-results 500} result))))
-
-        (testing "missing required path parameter"
-          (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                                #"Missing required parameter: path"
-                                (tool-system/validate-inputs tool-config {:pattern "test"}))))
 
         (testing "missing required pattern parameter"
           (is (thrown-with-msg? clojure.lang.ExceptionInfo
