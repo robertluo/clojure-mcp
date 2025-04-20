@@ -14,40 +14,64 @@
 ;; Factory functions to create the tool configurations
 
 (defn create-edit-replace-form-tool
-  "Creates the tool configuration for replacing forms in a file"
+  "Creates the tool configuration for replacing forms in a file.
+   Automatically inherits emacs notification preferences from the client."
   [nrepl-client-atom]
-  {:tool-type :clojure-edit-replace-form
-   :nrepl-client-atom nrepl-client-atom})
+  (let [client @nrepl-client-atom
+        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+    {:tool-type :clojure-edit-replace-form
+     :nrepl-client-atom nrepl-client-atom
+     :enable-emacs-notifications emacs-notify}))
 
 (defn create-edit-insert-before-form-tool
-  "Creates the tool configuration for inserting content before forms"
+  "Creates the tool configuration for inserting content before forms.
+   Automatically inherits emacs notification preferences from the client."
   [nrepl-client-atom]
-  {:tool-type :clojure-edit-insert-before-form
-   :nrepl-client-atom nrepl-client-atom})
+  (let [client @nrepl-client-atom
+        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+    {:tool-type :clojure-edit-insert-before-form
+     :nrepl-client-atom nrepl-client-atom
+     :enable-emacs-notifications emacs-notify}))
 
 (defn create-edit-insert-after-form-tool
-  "Creates the tool configuration for inserting content after forms"
+  "Creates the tool configuration for inserting content after forms.
+   Automatically inherits emacs notification preferences from the client."
   [nrepl-client-atom]
-  {:tool-type :clojure-edit-insert-after-form
-   :nrepl-client-atom nrepl-client-atom})
+  (let [client @nrepl-client-atom
+        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+    {:tool-type :clojure-edit-insert-after-form
+     :nrepl-client-atom nrepl-client-atom
+     :enable-emacs-notifications emacs-notify}))
 
 (defn create-edit-docstring-tool
-  "Creates the tool configuration for editing docstrings"
+  "Creates the tool configuration for editing docstrings.
+   Automatically inherits emacs notification preferences from the client."
   [nrepl-client-atom]
-  {:tool-type :clojure-edit-replace-docstring
-   :nrepl-client-atom nrepl-client-atom})
+  (let [client @nrepl-client-atom
+        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+    {:tool-type :clojure-edit-replace-docstring
+     :nrepl-client-atom nrepl-client-atom
+     :enable-emacs-notifications emacs-notify}))
 
 (defn create-edit-comment-block-tool
-  "Creates the tool configuration for editing comment blocks"
+  "Creates the tool configuration for editing comment blocks.
+   Automatically inherits emacs notification preferences from the client."
   [nrepl-client-atom]
-  {:tool-type :clojure-edit-comment-block
-   :nrepl-client-atom nrepl-client-atom})
+  (let [client @nrepl-client-atom
+        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+    {:tool-type :clojure-edit-comment-block
+     :nrepl-client-atom nrepl-client-atom
+     :enable-emacs-notifications emacs-notify}))
 
 (defn create-file-structure-tool
-  "Creates the tool configuration for generating file outlines"
+  "Creates the tool configuration for generating file outlines.
+   Automatically inherits emacs notification preferences from the client."
   [nrepl-client-atom]
-  {:tool-type :clojure-file-structure
-   :nrepl-client-atom nrepl-client-atom})
+  (let [client @nrepl-client-atom
+        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+    {:tool-type :clojure-file-structure
+     :nrepl-client-atom nrepl-client-atom
+     :enable-emacs-notifications emacs-notify}))
 
 ;; Common validation functions
 
@@ -110,9 +134,9 @@
      :form_type form_type
      :content content}))
 
-(defmethod tool-system/execute-tool :clojure-edit-replace-form [_ inputs]
+(defmethod tool-system/execute-tool :clojure-edit-replace-form [config inputs]
   (let [{:keys [file_path form_name form_type content]} inputs
-        result (pipeline/edit-form-pipeline file_path form_name form_type content :replace)
+        result (pipeline/edit-form-pipeline file_path form_name form_type content :replace config)
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
@@ -170,9 +194,9 @@
      :form_type form_type
      :content content}))
 
-(defmethod tool-system/execute-tool :clojure-edit-insert-before-form [_ inputs]
+(defmethod tool-system/execute-tool :clojure-edit-insert-before-form [config inputs]
   (let [{:keys [file_path form_name form_type content]} inputs
-        result (pipeline/edit-form-pipeline file_path form_name form_type content :before)
+        result (pipeline/edit-form-pipeline file_path form_name form_type content :before config)
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
@@ -230,9 +254,9 @@
      :form_type form_type
      :content content}))
 
-(defmethod tool-system/execute-tool :clojure-edit-insert-after-form [_ inputs]
+(defmethod tool-system/execute-tool :clojure-edit-insert-after-form [config inputs]
   (let [{:keys [file_path form_name form_type content]} inputs
-        result (pipeline/edit-form-pipeline file_path form_name form_type content :after)
+        result (pipeline/edit-form-pipeline file_path form_name form_type content :after config)
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
@@ -290,9 +314,9 @@
      :form_type form_type
      :docstring docstring}))
 
-(defmethod tool-system/execute-tool :clojure-edit-replace-docstring [_ inputs]
+(defmethod tool-system/execute-tool :clojure-edit-replace-docstring [config inputs]
   (let [{:keys [file_path form_name form_type docstring]} inputs
-        result (pipeline/docstring-edit-pipeline file_path form_name form_type docstring)
+        result (pipeline/docstring-edit-pipeline file_path form_name form_type docstring config)
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
@@ -344,9 +368,9 @@
      :comment_substring comment_substring
      :new_content new_content}))
 
-(defmethod tool-system/execute-tool :clojure-edit-comment-block [_ inputs]
+(defmethod tool-system/execute-tool :clojure-edit-comment-block [config inputs]
   (let [{:keys [file_path comment_substring new_content]} inputs
-        result (pipeline/comment-block-edit-pipeline file_path comment_substring new_content)
+        result (pipeline/comment-block-edit-pipeline file_path comment_substring new_content config)
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
@@ -389,9 +413,9 @@
     {:file_path file-path
      :expand_symbols expand-symbols}))
 
-(defmethod tool-system/execute-tool :clojure-file-structure [_ inputs]
+(defmethod tool-system/execute-tool :clojure-file-structure [config inputs]
   (let [{:keys [file_path expand_symbols]} inputs
-        result (pipeline/file-outline-pipeline file_path expand_symbols)
+        result (pipeline/file-outline-pipeline file_path expand_symbols config)
         formatted-result (pipeline/format-result result)]
     formatted-result))
 

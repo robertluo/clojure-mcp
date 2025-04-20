@@ -233,19 +233,20 @@
     (assoc ctx ::diff diff)))
 
 (defn emacs-set-auto-revert
-  "Ensures that the file is open in Emacs with auto-revert-mode enabled.
-   Requires ::file-path in the context."
+  "Ensures that the file is open in Emacs with auto-revert-mode enabled if notifications are enabled.
+   Requires ::file-path and ::config in the context."
   [ctx]
   (try
     (let [file-path (::file-path ctx)
-          result (emacs/ensure-auto-revert file-path)]
-      (if (and (map? result) (:error result))
-        ;; Error was returned
-        {::error true
-         ::message (str "Failed to set auto-revert mode: " (:message result))}
-        ;; Success - return context unchanged
+          config (::config ctx)]
+      ;; Only notify if emacs notifications are enabled in config
+      (if (emacs/config-enables-emacs-notifications? config)
+        (do
+          (emacs/ensure-auto-revert file-path) ;; Now ensure-auto-revert is always async
+          ctx)
+        ;; Otherwise return context unchanged
         ctx))
-    ;; XXX fail silently if emacs isn't started, logging would be better here
+    ;; Fail silently if emacs isn't started
     (catch Exception _
       ;; Return context unchanged if Emacs integration fails
       ctx)))
@@ -270,15 +271,17 @@
        ::message (str "Failed to save file: " (.getMessage e))})))
 
 (defn highlight-form
-  "Highlights the edited form in Emacs.
-   Requires ::file-path and ::offsets in the context."
+  "Highlights the edited form in Emacs if notifications are enabled.
+   Requires ::file-path, ::offsets, and ::config in the context."
   [ctx]
   (try
-    (let [[start end] (::offsets ctx)]
-      (emacs/temporary-highlight
-       (::file-path ctx) start end 2.0)
+    (let [[start end] (::offsets ctx)
+          config (::config ctx)]
+      ;; Only notify if emacs notifications are enabled in config
+      (when (emacs/config-enables-emacs-notifications? config)
+        (emacs/highlight-region (::file-path ctx) start end 2.0))
       ctx)
-    ;; XXX fail silently to support non emacs workflow for now
+    ;; Fail silently to support non-emacs workflow
     (catch Exception _
       ;; Return context unchanged if highlighting fails
       ctx)))
@@ -313,16 +316,18 @@
    - form-type: Type of the form (e.g., \"defn\", \"def\")
    - content-str: New content for the form
    - edit-type: Type of edit (:replace, :before, or :after)
+   - config: Optional tool configuration map with notification preferences
    
    Returns:
    - A context map with the result of the operation"
-  [file-path form-name form-type content-str edit-type]
+  [file-path form-name form-type content-str edit-type & [config]]
   (thread-ctx
    {::file-path file-path
     ::top-level-def-name form-name
     ::top-level-def-type form-type
     ::new-source-code content-str
-    ::edit-type edit-type}
+    ::edit-type edit-type
+    ::config config}
    determine-file-type
    load-source
    parse-source
@@ -342,15 +347,17 @@
    - form-name: Name of the form whose docstring to edit
    - form-type: Type of the form (e.g., \"defn\", \"def\")
    - new-docstring: New docstring content
+   - config: Optional tool configuration map with notification preferences
    
    Returns:
    - A context map with the result of the operation"
-  [file-path form-name form-type new-docstring]
+  [file-path form-name form-type new-docstring & [config]]
   (thread-ctx
    {::file-path file-path
     ::top-level-def-name form-name
     ::top-level-def-type form-type
-    ::docstring new-docstring}
+    ::docstring new-docstring
+    ::config config}
    determine-file-type
    load-source
    parse-source
@@ -368,14 +375,16 @@
    - file-path: Path to the file containing the comment
    - comment-substring: Substring to identify the comment block
    - new-content: New content for the comment block
+   - config: Optional tool configuration map with notification preferences
    
    Returns:
    - A context map with the result of the operation"
-  [file-path comment-substring new-content]
+  [file-path comment-substring new-content & [config]]
   (thread-ctx
    {::file-path file-path
     ::comment-substring comment-substring
-    ::new-content new-content}
+    ::new-content new-content
+    ::config config}
    determine-file-type
    load-source
    find-and-edit-comment
@@ -391,13 +400,15 @@
    Arguments:
    - file-path: Path to the file
    - expand-symbols: Optional sequence of symbol names to show expanded
+   - config: Optional tool configuration map with notification preferences
    
    Returns:
    - A context map with the result of the operation"
-  [file-path expand-symbols]
+  [file-path expand-symbols & [config]]
   (thread-ctx
    {::file-path file-path
-    ::expand-symbols expand-symbols}
+    ::expand-symbols expand-symbols
+    ::config config}
    create-file-outline))
 
 (comment

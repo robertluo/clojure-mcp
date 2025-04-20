@@ -1,6 +1,10 @@
 (ns clojure-mcp.utils.emacs-integration
+  "Utilities for integrating with Emacs editor.
+   Provides asynchronous notifications and highlighting capabilities."
   (:require [clojure.java.shell :as shell]
             [clojure.string :as str]))
+
+;; ===== Core Elisp Evaluation Functions =====
 
 (defn emacs-eval
   "Evaluates elisp code in Emacs using emacsclient with improved error handling.
@@ -29,15 +33,54 @@
       {:error :execution-error
        :message (format "Failed to execute emacsclient: %s" (.getMessage e))})))
 
+(defn emacs-eval-async
+  "Asynchronously evaluates elisp code in Emacs using emacsclient.
+   Does not block and does not capture the output.
+   
+   Arguments:
+   - elisp-code: String containing Emacs Lisp code to be evaluated
+   
+   Returns:
+   - A future object that can be deref'd if needed (but usually ignored)
+   
+   Note: This function is designed to be non-blocking by using Clojure's future."
+  [elisp-code]
+  (future
+    (try
+      (shell/sh "emacsclient" "--eval" elisp-code)
+      (catch Exception e
+        {:error :execution-error
+         :message (format "Failed to execute emacsclient: %s" (.getMessage e))}))))
 
-#_"(let ((overlay (make-overlay start (point))))
-                               (overlay-put overlay 'face 'highlight)
-                               (overlay-put overlay 'priority 100)
-                               (run-with-timer %s nil 
-                                 (lambda () (delete-overlay overlay))))"
+;; ===== Elisp Code Generation Functions =====
+
+(defn gen-file-visit-code [file-path]
+  (format "(find-file \"%s\")"
+          (str/replace file-path #"\\" "\\\\")))
+
+(defn gen-auto-revert-setup-code []
+  "(progn
+     (switch-to-buffer (current-buffer))
+     (auto-revert-mode 1)
+     (let ((revert-without-query '(\".*\")))
+       (revert-buffer t t t)))")
+
+(defn gen-goto-position-code [position]
+  (format "(goto-char %d)" position))
+
+(defn gen-highlight-code [start end duration]
+  (format "(let ((overlay (make-overlay %d %d)))
+            (overlay-put overlay 'face 'highlight)
+            (overlay-put overlay 'priority 100)
+            (run-with-timer %s nil 
+              (lambda () (delete-overlay overlay))))"
+          start end (float duration)))
+
+;; ===== Main Emacs Integration Functions =====
 
 (defn highlight-region
-  "Highlights a region in a file in Emacs temporarily.
+  "Asynchronously highlights a region in a file in Emacs.
+   This function is non-blocking and returns immediately.
    
    Arguments:
    - file-path: Path to the file
@@ -46,43 +89,29 @@
    - duration: (optional) How long to show the highlight in seconds (default: 2 seconds)
    
    Notes:
-   - This function enables auto-revert-mode in the visited buffer to ensure
-     changes made externally are automatically reflected
+   - This function enables auto-revert-mode in the buffer to ensure changes are reflected
+   - This is an asynchronous operation that won't block execution
    
    Returns:
-   - On success: true
-   - On failure: Map with :error and :message keys"
+   - A future object (can be ignored)"
   ([file-path start end]
-   (highlight-region file-path start end 2.0)) ; Default to 2 seconds
+   (highlight-region file-path start end 2.0))
   ([file-path start end duration]
-   (let [highlight-code (format "(let ((overlay (make-overlay %d %d)))
-                                  (overlay-put overlay 'face 'highlight)
-                                  (overlay-put overlay 'priority 100)
-                                  (run-with-timer %s nil 
-                                    (lambda () (delete-overlay overlay))))"
-                                start end (float duration))
-         elisp-code (format "(progn
-                               (find-file \"%s\")
-                               (switch-to-buffer (current-buffer))
-                               (auto-revert-mode 1)
-                               (let ((revert-without-query '(\".*\")))
-                                 (revert-buffer t t t))
-                               (goto-char %d)
-                               %s
-                               t)"
-                             (str/replace file-path #"\\" "\\\\") ; Escape backslashes
-                             start
-                             highlight-code)
-         result (emacs-eval elisp-code)]
-     (if (map? result)
-       ;; Error was returned
-       result
-       ;; Success
-       true))))
+   (let [elisp-code (format "(progn
+                             %s
+                             %s
+                             %s
+                             %s
+                             t)"
+                           (gen-file-visit-code file-path)
+                           (gen-auto-revert-setup-code)
+                           (gen-goto-position-code start)
+                           (gen-highlight-code start end duration))]
+     (emacs-eval-async elisp-code))))
 
 (defn ensure-auto-revert
-  "Ensures that a file is open in Emacs with auto-revert-mode enabled.
-   This helps Emacs automatically refresh buffers when files are modified externally.
+  "Asynchronously ensures that a file is open in Emacs with auto-revert-mode enabled.
+   This function is non-blocking and returns immediately.
    
    Arguments:
    - file-path: Path to the file to open and configure
@@ -92,55 +121,40 @@
    - Enables auto-revert-mode for the buffer
    - Configures revert-without-query to avoid prompts
    - Performs an immediate revert to ensure the buffer is up-to-date
+   - This is an asynchronous operation that won't block execution
    
    Returns:
-   - On success: true
-   - On failure: Map with :error and :message keys"
+   - A future object (can be ignored)"
   [file-path]
   (let [elisp-code (format "(progn
-                             (find-file \"%s\")
-                             (switch-to-buffer (current-buffer))
-                             (auto-revert-mode 1)
-                             (let ((revert-without-query '(\".*\")))
-                               (revert-buffer t t t))
-                             t)"
-                           (str/replace file-path #"\\" "\\\\"))
-        result (emacs-eval elisp-code)]
-    (if (map? result)
-      ;; Error was returned
-      result
-      ;; Success
-      true)))
+                           %s
+                           %s
+                           t)"
+                         (gen-file-visit-code file-path)
+                         (gen-auto-revert-setup-code))]
+    (emacs-eval-async elisp-code)))
 
- (defn temporary-highlight
-  "Alias for highlight-region for backwards compatibility.
-   
-   Arguments:
-   - file-path: Path to the file
-   - start: Start position
-   - end: End position
-   - duration: How long to show the highlight in seconds
-   
-   See highlight-region for more details."
-  [file-path start end duration]
-  (highlight-region file-path start end duration))
+(defn config-enables-emacs-notifications?
+  "Returns true if the config has enabled emacs notifications.
+   Tests for the presence and value of :enable-emacs-notifications key in the config map."
+  [config]
+  (and config (:enable-emacs-notifications config)))
 
-;; Example usage
 (comment
-  ;; Evaluate an Emacs command
+  ;; Core evaluation
   (emacs-eval "(+ 1 2 3)")
+  (emacs-eval-async "(message \"Hello from Clojure (async)\")")
   
-  ;; Ensure auto-revert is enabled for a file
-  (ensure-auto-revert "/path/to/file.clj")
+  ;; Use highlight-region (now always async)
+  (def file-path "~/workspace/llempty/clojure-mcp/README.md")
+  (highlight-region file-path 12 53)
+  (highlight-region file-path 12 53 5.0)
   
-  ;; Highlight a form for 2 seconds (default)
-  ;; This will also enable auto-revert-mode in the buffer
-  (highlight-region "/path/to/file.clj" 12 53)
+  ;; Use ensure-auto-revert (now always async)
+  (ensure-auto-revert file-path)
   
-  ;; Highlight a form for 5 seconds
-  ;; This will also enable auto-revert-mode in the buffer
-  (highlight-region "/path/to/file.clj" 12 53 5)
-  
-  ;; Using the temporary-highlight alias (same behavior as highlight-region)
-  (temporary-highlight "/path/to/file.clj" 12 53 2)
-)
+  ;; Using notification helpers with client configuration
+  (def mock-config {:enable-emacs-notifications true})
+  (notify-emacs-file-changed mock-config file-path)
+  (notify-emacs-region-changed mock-config file-path 100 150 3.0)
+  )

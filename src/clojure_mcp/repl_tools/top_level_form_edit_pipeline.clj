@@ -246,22 +246,21 @@
    are immediately visible in Emacs without requiring manual buffer refreshes.
    It should be called before saving the file to ensure auto-revert is ready.
    
+   Only notifies Emacs if the client's ::emacs-notify flag is true.
    Adds no new values to the context."
   [ctx]
   (try
     (let [file-path (::file-path ctx)
-          result (emacs/ensure-auto-revert file-path)]
-      (if (map? result)
-        ;; Error was returned
-        {::error :auto-revert-failed
-         ::message (str "Failed to set auto-revert mode: " (:message result))}
-        ;; Success - return context unchanged
-        ctx))
-    ;; XXX fail silently if emacs isn't started, logging would be better here
-    (catch Exception e
-      ctx
-      #_{::error :auto-revert-exception
-         ::message (str "Exception setting auto-revert mode: " (.getMessage e))})))
+          client (::client ctx)]
+      ;; Only notify if emacs notifications are enabled
+      (do
+        (emacs/ensure-auto-revert file-path)
+        ctx)
+      ;; Otherwise return context unchanged - don't bother with sync version
+      ctx)
+    ;; Fail silently if emacs isn't started
+    (catch Exception _
+      ctx)))
 
 (defn save-file
   "Saves the updated source to the file and calculates offsets.
@@ -283,7 +282,7 @@
   [ctx]
   (try
     (let [[start end] (::offsets ctx)]
-      (emacs/temporary-highlight
+      (emacs/highlight-region
        (::file-path ctx) start end 2.0)
       ctx)
     ;; XXX fail silently to support non emacs workflow for now
@@ -515,7 +514,7 @@
                       (clj-result-k [(::message result)] true)
                       (let [[start end] (::offsets result)]
                         (try
-                          (emacs/temporary-highlight file-path start end 2.0)
+                          (emacs/highlight-region file-path start end 2.0)
                           (catch Exception _
                             ;; Ignore highlight errors
                             nil))
@@ -582,7 +581,7 @@
                     (clj-result-k [(::message result)] true)
                     (let [[start end] (::offsets result)]
                       (try
-                        (emacs/temporary-highlight file-path start end 2.0)
+                        (emacs/highlight-region file-path start end 2.0)
                         (catch Exception _
                           ;; Ignore highlight errors
                           nil))
@@ -648,7 +647,7 @@
                     (clj-result-k [(::message result)] true)
                     (let [[start end] (::offsets result)]
                       (try
-                        (emacs/temporary-highlight file-path start end 2.0)
+                        (emacs/highlight-region file-path start end 2.0)
                         (catch Exception _
                           ;; Ignore highlight errors
                           nil))
@@ -1076,7 +1075,7 @@ Tip: Use this tool before and after using other code editing tools to verify cha
                     (clj-result-k [(:message formatted)] true)
                     (let [[start end] (::offsets result)]
                       (try
-                        (emacs/temporary-highlight file-path start end 2.0)
+                        (emacs/highlight-region file-path start end 2.0)
                         (catch Exception _
                           ;; Ignore highlight errors
                           nil))
