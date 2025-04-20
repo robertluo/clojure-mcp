@@ -296,7 +296,8 @@ Use this tool when you need to find files containing specific patterns."
      #_(create-directory-tree-tool nrepl-client-atom) ;; Commented out - replaced by the new tool-system implementation
      #_(create-glob-files-tool nrepl-client-atom) ;; Commented out - replaced by the new tool-system implementation
      #_(create-grep-tool nrepl-client-atom) ;; Commented out - replaced by the new tool-system implementation
-     (create-file-write-tool nrepl-client-atom)]))
+     #_(create-file-write-tool nrepl-client-atom)] ;; Commented out - replaced by the new tool-system implementation
+    ))
 
 (comment
   ;; === Examples of using the filesystem tools ===

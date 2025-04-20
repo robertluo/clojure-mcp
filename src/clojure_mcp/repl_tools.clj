@@ -14,7 +14,8 @@
    [clojure-mcp.tools.read-file.tool :as new-read-file-tool]
    [clojure-mcp.tools.directory-tree.tool :as new-directory-tree-tool]
    [clojure-mcp.tools.grep.tool :as new-grep-tool]
-   [clojure-mcp.tools.glob-files.tool :as new-glob-files-tool]))
+   [clojure-mcp.tools.glob-files.tool :as new-glob-files-tool]
+   [clojure-mcp.tools.file-write.tool :as new-file-write-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
@@ -43,10 +44,11 @@
     (new-read-file-tool/read-file-tool nrepl-client-atom)
     (new-directory-tree-tool/directory-tree-tool nrepl-client-atom)
     (new-grep-tool/grep-tool nrepl-client-atom)
-    (new-glob-files-tool/glob-files-tool nrepl-client-atom)]
-   ;; Remove glob-files tool from filesystem-tools
+    (new-glob-files-tool/glob-files-tool nrepl-client-atom)
+    (new-file-write-tool/file-write-tool nrepl-client-atom)]
+   ;; Filter out tools that have been refactored to the new architecture
    (let [filesystem-tools (filesystem-tools/get-all-filesystem-tools nrepl-client-atom)]
-     (filter #(not= "glob_files" (:name %)) filesystem-tools))))
+     (filter #(not (contains? #{"glob_files" "file_write"} (:name %))) filesystem-tools))))
 
 (comment
   ;; Example of testing tools directly
