@@ -50,7 +50,7 @@
                                                  (System/getProperty "file.separator")))))
                     canonical-allowed-dirs))
         normalized-path
-        (throw (ex-info "Path outside allowed directories"
+        (throw (ex-info (str "Path outside allowed directories:\n" (str/join "\n" allowed-directories))
                         {:path normalized-path
                          :allowed-dirs allowed-directories}))))))
 
