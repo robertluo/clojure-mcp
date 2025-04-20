@@ -101,19 +101,23 @@
    - form_type: \"defn\"
    - content: \"(defn example-fn [x] (* x 2))\"
    
+   Note: For defmethod forms, you can specify either just the method name (\"area\") or 
+   include the dispatch value (\"area :rectangle\"). When using just the method name, 
+   the dispatch value will be automatically extracted from the replacement content.
+   
    The tool will find the form, replace it with the new content, and format the result.
    It returns the updated file content, the location offsets, and a diff of the changes.")
 
 (defmethod tool-system/tool-schema :clojure-edit-replace-form [_]
   {:type :object
    :properties {:file_path {:type :string
-                           :description "Path to the file containing the form to edit"}
+                            :description "Path to the file containing the form to edit"}
                 :form_name {:type :string
-                           :description "Name of the form to edit (e.g., function name)"}
+                            :description "Name of the form to edit (e.g., function name)"}
                 :form_type {:type :string
-                           :description "Type of the form (e.g., \"defn\", \"def\", \"ns\")"}
+                            :description "Type of the form (e.g., \"defn\", \"def\", \"ns\")"}
                 :content {:type :string
-                         :description "New content to replace the form with"}}
+                          :description "New content to replace the form with"}}
    :required [:file_path :form_name :form_type :content]})
 
 (defmethod tool-system/validate-inputs :clojure-edit-replace-form [_ inputs]
@@ -161,19 +165,23 @@
    - form_type: \"defn\"
    - content: \"(defn helper-fn [x] (* x 2))\"
    
+   Note: For defmethod forms, you can specify either just the method name (\"area\") or 
+   include the dispatch value (\"area :rectangle\"). When using just the method name, 
+   the dispatch value will be automatically extracted from the replacement content.
+   
    The tool will find the form, insert the new content before it, and format the result.
    It returns the updated file content, the location offsets, and a diff of the changes.")
 
 (defmethod tool-system/tool-schema :clojure-edit-insert-before-form [_]
   {:type :object
    :properties {:file_path {:type :string
-                           :description "Path to the file containing the form"}
+                            :description "Path to the file containing the form"}
                 :form_name {:type :string
-                           :description "Name of the form (e.g., function name)"}
+                            :description "Name of the form (e.g., function name)"}
                 :form_type {:type :string
-                           :description "Type of the form (e.g., \"defn\", \"def\", \"ns\")"}
+                            :description "Type of the form (e.g., \"defn\", \"def\", \"ns\")"}
                 :content {:type :string
-                         :description "Content to insert before the form"}}
+                          :description "Content to insert before the form"}}
    :required [:file_path :form_name :form_type :content]})
 
 (defmethod tool-system/validate-inputs :clojure-edit-insert-before-form [_ inputs]
@@ -221,19 +229,23 @@
    - form_type: \"defn\"
    - content: \"(deftest example-fn-test\n  (is (= 4 (example-fn 2))))\"
    
+   Note: For defmethod forms, you can specify either just the method name (\"area\") or 
+   include the dispatch value (\"area :rectangle\"). When using just the method name, 
+   the dispatch value will be automatically extracted from the replacement content.
+   
    The tool will find the form, insert the new content after it, and format the result.
    It returns the updated file content, the location offsets, and a diff of the changes.")
 
 (defmethod tool-system/tool-schema :clojure-edit-insert-after-form [_]
   {:type :object
    :properties {:file_path {:type :string
-                           :description "Path to the file containing the form"}
+                            :description "Path to the file containing the form"}
                 :form_name {:type :string
-                           :description "Name of the form (e.g., function name)"}
+                            :description "Name of the form (e.g., function name)"}
                 :form_type {:type :string
-                           :description "Type of the form (e.g., \"defn\", \"def\", \"ns\")"}
+                            :description "Type of the form (e.g., \"defn\", \"def\", \"ns\")"}
                 :content {:type :string
-                         :description "Content to insert after the form"}}
+                          :description "Content to insert after the form"}}
    :required [:file_path :form_name :form_type :content]})
 
 (defmethod tool-system/validate-inputs :clojure-edit-insert-after-form [_ inputs]
@@ -287,13 +299,13 @@
 (defmethod tool-system/tool-schema :clojure-edit-replace-docstring [_]
   {:type :object
    :properties {:file_path {:type :string
-                           :description "Path to the file containing the form"}
+                            :description "Path to the file containing the form"}
                 :form_name {:type :string
-                           :description "Name of the form (e.g., function name)"}
+                            :description "Name of the form (e.g., function name)"}
                 :form_type {:type :string
-                           :description "Type of the form (e.g., \"defn\", \"def\")"}
+                            :description "Type of the form (e.g., \"defn\", \"def\")"}
                 :docstring {:type :string
-                           :description "New docstring content"}}
+                            :description "New docstring content"}}
    :required [:file_path :form_name :form_type :docstring]})
 
 (defmethod tool-system/validate-inputs :clojure-edit-replace-docstring [_ inputs]
@@ -343,11 +355,11 @@ For reliable results, use a unique substring that appears in only one comment bl
 (defmethod tool-system/tool-schema :clojure-edit-comment-block [_]
   {:type :object
    :properties {:file_path {:type :string
-                           :description "Path to the file containing the comment"}
+                            :description "Path to the file containing the comment"}
                 :comment_substring {:type :string
-                                   :description "Substring to identify the comment block"}
+                                    :description "Substring to identify the comment block"}
                 :new_content {:type :string
-                             :description "The replacement comment block"}}
+                              :description "The replacement comment block"}}
    :required [:file_path :comment_substring :new_content]})
 
 (defmethod tool-system/validate-inputs :clojure-edit-comment-block [_ inputs]
@@ -396,10 +408,10 @@ For reliable results, use a unique substring that appears in only one comment bl
 (defmethod tool-system/tool-schema :clojure-file-structure [_]
   {:type :object
    :properties {:file_path {:type :string
-                           :description "Path to the Clojure file"}
+                            :description "Path to the Clojure file"}
                 :expand_symbols {:type :array
-                                :items {:type :string}
-                                :description "Optional list of symbol names to show in expanded form"}}
+                                 :items {:type :string}
+                                 :description "Optional list of symbol names to show in expanded form"}}
    :required [:file_path]})
 
 (defmethod tool-system/validate-inputs :clojure-file-structure [_ inputs]
@@ -445,7 +457,7 @@ For reliable results, use a unique substring that appears in only one comment bl
   ;; Setup for REPL-based testing
   (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
   (clojure-mcp.nrepl/start-polling @client-atom)
-  
+
   ;; Create tool instances
   (def replace-tool (create-edit-replace-form-tool client-atom))
   (def insert-before-tool (create-edit-insert-before-form-tool client-atom))
@@ -453,9 +465,9 @@ For reliable results, use a unique substring that appears in only one comment bl
   (def docstring-tool (create-edit-docstring-tool client-atom))
   (def comment-tool (create-edit-comment-block-tool client-atom))
   (def outline-tool (create-file-structure-tool client-atom))
-  
+
   ;; Test the replace form tool
-  (def replace-inputs 
+  (def replace-inputs
     {:file_path "/tmp/test.clj"
      :form_name "example-fn"
      :form_type "defn"
@@ -463,31 +475,30 @@ For reliable results, use a unique substring that appears in only one comment bl
   (def replace-validated (tool-system/validate-inputs replace-tool replace-inputs))
   (def replace-result (tool-system/execute-tool replace-tool replace-validated))
   (def replace-formatted (tool-system/format-results replace-tool replace-result))
-  
+
   ;; Test the comment edit tool
-  (def comment-inputs 
+  (def comment-inputs
     {:file_path "/tmp/test.clj"
      :comment_substring "TODO"
      :new_content ";; DONE: Implemented feature"})
   (def comment-validated (tool-system/validate-inputs comment-tool comment-inputs))
   (def comment-result (tool-system/execute-tool comment-tool comment-validated))
   (def comment-formatted (tool-system/format-results comment-tool comment-result))
-  
+
   ;; Make a simpler test function
   (defn test-tool [tool inputs]
     (let [prom (promise)
           reg-map (tool-system/registration-map tool)
           tool-fn (:tool-fn reg-map)]
       (tool-fn nil inputs
-               (fn [result error] 
+               (fn [result error]
                  (deliver prom (if error {:error error} {:result result}))))
       @prom))
-  
+
   ;; Test various tools
   (test-tool replace-tool replace-inputs)
   (test-tool comment-tool comment-inputs)
   (test-tool outline-tool {:file_path "/tmp/test.clj"})
-  
+
   ;; Clean up
-  (clojure-mcp.nrepl/stop-polling @client-atom)
-)
+  (clojure-mcp.nrepl/stop-polling @client-atom))

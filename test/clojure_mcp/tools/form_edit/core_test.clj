@@ -11,7 +11,7 @@
 (def ^:dynamic *test-file* nil)
 
 (defn create-test-files-fixture [f]
-  (let [test-dir (io/file (System/getProperty "java.io.tmpdir") 
+  (let [test-dir (io/file (System/getProperty "java.io.tmpdir")
                           (str "test-dir-" (System/currentTimeMillis)))]
     (.mkdirs test-dir)
     (let [test-file (io/file test-dir "test.clj")]
@@ -42,6 +42,27 @@
       (is (not (sut/is-top-level-form? defn-loc "def" "example-fn")))
       (is (not (sut/is-top-level-form? defn-loc "defn" "other-fn"))))))
 
+(deftest is-top-level-form-with-defmethod-test
+  (testing "is-top-level-form? correctly identifies defmethod forms"
+    (let [source "(ns test.multimethods)\n\n(defmulti area :shape)\n\n(defmethod area :rectangle [rect]\n  (* (:width rect) (:height rect)))\n\n(defmethod area :circle [circle]\n  (* Math/PI (:radius circle) (:radius circle)))"
+          zloc (get-zloc source)
+          rectangle-loc (-> zloc z/right z/right) ;; Skip ns, defmulti to reach first defmethod
+          circle-loc (-> rectangle-loc z/right)]
+
+      ;; Test with just the method name
+      (is (sut/is-top-level-form? rectangle-loc "defmethod" "area"))
+      (is (sut/is-top-level-form? circle-loc "defmethod" "area"))
+
+      ;; Test with method name and dispatch value
+      (is (sut/is-top-level-form? rectangle-loc "defmethod" "area :rectangle"))
+      (is (sut/is-top-level-form? circle-loc "defmethod" "area :circle"))
+
+      ;; Test negative cases
+      (is (not (sut/is-top-level-form? rectangle-loc "defmethod" "area :circle")))
+      (is (not (sut/is-top-level-form? circle-loc "defmethod" "area :rectangle")))
+      (is (not (sut/is-top-level-form? rectangle-loc "defmethod" "other-method")))
+      (is (not (sut/is-top-level-form? circle-loc "defn" "area"))))))
+
 (deftest find-top-level-form-test
   (testing "find-top-level-form finds the correct form"
     (let [source "(ns test.core)\n\n(defn example-fn [x y]\n  (+ x y))\n\n(def a 1)"
@@ -52,6 +73,28 @@
       (is (nil? (sut/find-top-level-form zloc "defn" "non-existent")))
       (is (nil? (sut/find-top-level-form zloc "def" "example-fn"))))))
 
+(deftest find-top-level-form-with-defmethod-test
+  (testing "find-top-level-form finds defmethod forms correctly"
+    (let [source "(ns test.multimethods)\n\n(defmulti area :shape)\n\n(defmethod area :rectangle [rect]\n  (* (:width rect) (:height rect)))\n\n(defmethod area :circle [circle]\n  (* Math/PI (:radius circle) (:radius circle)))"
+          zloc (get-zloc source)]
+
+      ;; Find with just the method name - should find the first occurrence
+      (let [found-area (sut/find-top-level-form zloc "defmethod" "area")]
+        (is (some? found-area))
+        (is (= :rectangle (-> found-area z/down z/right z/right z/sexpr))))
+
+      ;; Find with method name and dispatch value
+      (let [found-rectangle (sut/find-top-level-form zloc "defmethod" "area :rectangle")
+            found-circle (sut/find-top-level-form zloc "defmethod" "area :circle")]
+        (is (some? found-rectangle))
+        (is (some? found-circle))
+        (is (= :rectangle (-> found-rectangle z/down z/right z/right z/sexpr)))
+        (is (= :circle (-> found-circle z/down z/right z/right z/sexpr))))
+
+      ;; Negative tests
+      (is (nil? (sut/find-top-level-form zloc "defmethod" "area :triangle")))
+      (is (nil? (sut/find-top-level-form zloc "defmethod" "other-method"))))))
+
 (deftest edit-top-level-form-test
   (testing "edit-top-level-form correctly replaces a form"
     (let [source "(ns test.core)\n\n(defn example-fn [x y]\n  (+ x y))\n\n(def a 1)"
@@ -61,7 +104,7 @@
           result-str (z/root-string edited-zloc)]
       (is (some? edited-zloc))
       (is (str/includes? result-str "(defn example-fn [x y]\n  (* x y))"))
-      (is (not (str/includes? result-str "(defn example-fn [x y]\n  (+ x y))"))))))
+      (is (not (str/includes? result-str "(defn example-fn [x y]\n  (+ x y))")))))
 
   (testing "edit-top-level-form correctly inserts before a form"
     (let [source "(ns test.core)\n\n(defn example-fn [x y]\n  (+ x y))"
@@ -83,7 +126,7 @@
       (is (some? edited-zloc))
       (is (str/includes? result-str "(defn helper-fn [z]\n  (* z z))"))
       (is (str/includes? result-str "(defn example-fn [x y]\n  (+ x y))")
-          "Original form should still be present")))
+          "Original form should still be present"))))
 
 (deftest row-col-offset-test
   (testing "row-col->offset correctly calculates character offsets"
@@ -101,7 +144,7 @@
           docstring-zloc (sut/find-docstring zloc "defn" "example-fn")]
       (is (some? docstring-zloc))
       (is (= "This is a docstring" (z/sexpr docstring-zloc)))))
-  
+
   (testing "find-docstring returns nil when no docstring exists"
     (let [source "(ns test.core)\n\n(defn example-fn [x y]\n  (+ x y))"
           zloc (get-zloc source)]
@@ -125,7 +168,7 @@
           comment-loc (z/right zloc)] ;; Move to comment form
       (is (sut/is-comment-form? comment-loc))
       (is (not (sut/is-comment-form? zloc)))))
-  
+
   (testing "is-line-comment? correctly identifies line comments"
     (let [source "(ns test.core)\n\n;; This is a comment\n(defn example-fn [x y]\n  (+ x y))"
           zloc (get-zloc source)
@@ -141,7 +184,7 @@
       (is (= :comment-form (:type block)) "Should be a comment form")
       (is (str/includes? (:content block) "(+ 1 2)") "Should contain search string")
       (is (str/includes? (:content block) "(* 3 4)") "Should contain all content")))
-  
+
   (testing "find-comment-block finds line comments"
     (let [source "(ns test.core)\n\n;; This is a test comment\n;; with multiple lines\n\n(defn example-fn [x y]\n  (+ x y))"
           block (sut/find-comment-block source "test comment")]
@@ -159,7 +202,7 @@
       (is (str/includes? result "(/ 8 2)"))
       (is (not (str/includes? result "(+ 1 2)")))
       (is (not (str/includes? result "(* 3 4)")))))
-  
+
   (testing "edit-comment-block edits line comments"
     (let [source "(ns test.core)\n\n;; This is a test comment\n;; with multiple lines\n\n(defn example-fn [x y]\n  (+ x y))"
           new-content ";; Updated comment\n;; with new content"
@@ -175,13 +218,13 @@
           zloc (get-zloc source)
           summary (sut/get-form-summary zloc)]
       (is (= "(defn example-fn [x y] ...)" summary))))
-  
+
   (testing "get-form-summary provides correct summary for def forms"
     (let [source "(def a 1)"
           zloc (get-zloc source)
           summary (sut/get-form-summary zloc)]
       (is (= "(def a ...)" summary))))
-  
+
   (testing "get-form-summary returns full form for ns forms"
     (let [source "(ns test.core)"
           zloc (get-zloc source)
@@ -209,7 +252,7 @@
           result (sut/load-file-content path)]
       (is (not (:error result)))
       (is (str/includes? (:content result) "(defn example-fn"))))
-  
+
   (testing "load-file-content returns error for non-existent file"
     (let [path (str (.getAbsolutePath *test-dir*) "/non-existent.clj")
           result (sut/load-file-content path)]
@@ -223,3 +266,54 @@
           result (sut/save-file-content path content)]
       (is (:success result))
       (is (= content (slurp path))))))
+
+(deftest extract-dispatch-from-defmethod-test
+  (testing "extract-dispatch-from-defmethod extracts method name and dispatch value"
+    (let [rectangle-impl "(defmethod area :rectangle [rect] (* (:width rect) (:height rect)))"
+          circle-impl "(defmethod area :circle [circle] (* Math/PI (:radius circle) (:radius circle)))"
+          string-impl "(defmethod render \"circle\" [shape] (draw-circle shape))"
+          number-impl "(defmethod calculate 42 [data] (process-special-case data))"
+          symbol-impl "(defmethod transform 'reverse [coll] (reverse coll))"
+          vector-impl "(defmethod process [1 2 3] [data] (transform-with-sequence data))"
+          nested-impl "(defmethod handle-event [:ui :click :button] [event] (click-handler event))"
+          map-impl "(defmethod match {:type :user :role :admin} [user] (admin-panel user))"
+          malformed-impl "(defmethod area)"]
+
+      ;; Test basic dispatch values
+      (let [[method-name dispatch-value] (sut/extract-dispatch-from-defmethod rectangle-impl)]
+        (is (= "area" method-name))
+        (is (= ":rectangle" dispatch-value)))
+
+      (let [[method-name dispatch-value] (sut/extract-dispatch-from-defmethod circle-impl)]
+        (is (= "area" method-name))
+        (is (= ":circle" dispatch-value)))
+
+      ;; Test other dispatch value types
+      (let [[method-name dispatch-value] (sut/extract-dispatch-from-defmethod string-impl)]
+        (is (= "render" method-name))
+        (is (= "\"circle\"" dispatch-value)))
+
+      (let [[method-name dispatch-value] (sut/extract-dispatch-from-defmethod number-impl)]
+        (is (= "calculate" method-name))
+        (is (= "42" dispatch-value)))
+
+      (let [[method-name dispatch-value] (sut/extract-dispatch-from-defmethod symbol-impl)]
+        (is (= "transform" method-name))
+        (is (= "(quote reverse)" dispatch-value)))
+
+      (let [[method-name dispatch-value] (sut/extract-dispatch-from-defmethod vector-impl)]
+        (is (= "process" method-name))
+        (is (= "[1 2 3]" dispatch-value)))
+
+      (let [[method-name dispatch-value] (sut/extract-dispatch-from-defmethod nested-impl)]
+        (is (= "handle-event" method-name))
+        (is (= "[:ui :click :button]" dispatch-value)))
+
+      (let [[method-name dispatch-value] (sut/extract-dispatch-from-defmethod map-impl)]
+        (is (= "match" method-name))
+        (is (str/includes? dispatch-value "{")
+            "Map should be formatted correctly and contain opening brace"))
+
+      ;; Test malformed case
+      (is (nil? (sut/extract-dispatch-from-defmethod malformed-impl))
+          "Should return nil for malformed defmethod"))))

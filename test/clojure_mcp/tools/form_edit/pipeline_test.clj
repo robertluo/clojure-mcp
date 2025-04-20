@@ -12,7 +12,7 @@
 (def ^:dynamic *test-file* nil)
 
 (defn create-test-files-fixture [f]
-  (let [test-dir (io/file (System/getProperty "java.io.tmpdir") 
+  (let [test-dir (io/file (System/getProperty "java.io.tmpdir")
                           (str "test-dir-" (System/currentTimeMillis)))]
     (.mkdirs test-dir)
     (let [test-file (io/file test-dir "test.clj")]
@@ -44,13 +44,13 @@
       (is (= 1 (:a result)))
       (is (= 2 (:b result)))
       (is (= 3 (:c result)))))
-  
+
   (testing "thread-ctx short-circuits on error"
     (let [ctx {:a 1}
           result (sut/thread-ctx ctx
-                                #(assoc % :b 2)
-                                #(assoc % ::sut/error true ::sut/message "Error")
-                                #(assoc % :c 3))]
+                                 #(assoc % :b 2)
+                                 #(assoc % ::sut/error true ::sut/message "Error")
+                                 #(assoc % :c 3))]
       (is (= 1 (:a result)))
       (is (= 2 (:b result)))
       (is (true? (::sut/error result)))
@@ -64,7 +64,7 @@
       (is (string? (::sut/source result)))
       (is (= (::sut/source result) (::sut/old-content result)))
       (is (str/includes? (::sut/source result) "(defn example-fn"))))
-  
+
   (testing "load-source returns error for non-existent file"
     (let [ctx {::sut/file-path "/non-existent-path.clj"}
           result (sut/load-source ctx)]
@@ -80,6 +80,43 @@
       ;; Symbol equality check in tests can be tricky - just check string representation
       (is (= "test.core" (str (-> result ::sut/zloc z/down z/right z/sexpr)))))))
 
+(deftest enhance-defmethod-name-test
+  (testing "enhance-defmethod-name extracts dispatch value from replacement content"
+    (let [ctx {::sut/top-level-def-type "defmethod"
+               ::sut/top-level-def-name "area"
+               ::sut/new-source-code "(defmethod area :rectangle [rect] (* (:width rect) (:height rect)))"}
+          result (sut/enhance-defmethod-name ctx)]
+      (is (= "area :rectangle" (::sut/top-level-def-name result)))
+      (is (= "defmethod" (::sut/top-level-def-type result)))
+      (is (= "(defmethod area :rectangle [rect] (* (:width rect) (:height rect)))" (::sut/new-source-code result)))))
+
+  (testing "enhance-defmethod-name preserves compound name if already provided"
+    (let [ctx {::sut/top-level-def-type "defmethod"
+               ::sut/top-level-def-name "area :circle"
+               ::sut/new-source-code "(defmethod area :rectangle [rect] (* (:width rect) (:height rect)))"}
+          result (sut/enhance-defmethod-name ctx)]
+      (is (= "area :circle" (::sut/top-level-def-name result)))
+      (is (= "defmethod" (::sut/top-level-def-type result)))
+      (is (= "(defmethod area :rectangle [rect] (* (:width rect) (:height rect)))" (::sut/new-source-code result)))))
+
+  (testing "enhance-defmethod-name doesn't modify non-defmethod forms"
+    (let [ctx {::sut/top-level-def-type "defn"
+               ::sut/top-level-def-name "example-fn"
+               ::sut/new-source-code "(defn example-fn [x] (* x 2))"}
+          result (sut/enhance-defmethod-name ctx)]
+      (is (= "example-fn" (::sut/top-level-def-name result)))
+      (is (= "defn" (::sut/top-level-def-type result)))
+      (is (= "(defn example-fn [x] (* x 2))" (::sut/new-source-code result)))))
+
+  (testing "enhance-defmethod-name handles malformed defmethod content gracefully"
+    (let [ctx {::sut/top-level-def-type "defmethod"
+               ::sut/top-level-def-name "area"
+               ::sut/new-source-code "(defmethod area)"}
+          result (sut/enhance-defmethod-name ctx)]
+      (is (= "area" (::sut/top-level-def-name result)))
+      (is (= "defmethod" (::sut/top-level-def-type result)))
+      (is (= "(defmethod area)" (::sut/new-source-code result))))))
+
 (deftest find-form-test
   (testing "find-form locates form"
     (let [ctx {::sut/source "(ns test.core)\n\n(defn example-fn [x y]\n  (+ x y))"
@@ -89,7 +126,7 @@
           result (sut/find-form parsed)]
       (is (some? (::sut/zloc result)))
       (is (= 'defn (-> result ::sut/zloc z/down z/sexpr)))))
-  
+
   (testing "find-form returns error for non-existent form"
     (let [ctx {::sut/source "(ns test.core)\n\n(defn example-fn [x y]\n  (+ x y))"
                ::sut/top-level-def-type "defn"
@@ -133,7 +170,7 @@
       (is (string? (::sut/diff result)))
       (is (str/includes? (::sut/diff result) "(+ x y)"))
       (is (str/includes? (::sut/diff result) "(* x y)"))))
-  
+
   (testing "generate-diff returns empty string for identical content"
     (let [content "(ns test.core)"
           ctx {::sut/old-content content
@@ -146,7 +183,7 @@
     (let [ctx {::sut/file-path (get-file-path)}
           result (sut/determine-file-type ctx)]
       (is (= "update" (::sut/type result)))))
-  
+
   (testing "determine-file-type returns 'create' for new file"
     (let [ctx {::sut/file-path (str (get-file-path) ".new")}
           result (sut/determine-file-type ctx)]
@@ -162,7 +199,7 @@
       (is (= [10 20] (:offsets result)))
       (is (= ["formatted content"] (:result result)))
       (is (= "diff content" (:diff result)))))
-  
+
   (testing "format-result formats error context"
     (let [ctx {::sut/error true
                ::sut/message "Error message"}
@@ -176,14 +213,14 @@
   (testing "edit-form-pipeline edits form in file"
     (let [file-path (get-file-path)
           pipeline-result (sut/edit-form-pipeline
-                          file-path
-                          "example-fn"
-                          "defn"
-                          "(defn example-fn [x y]\n  (* x y))"
-                          :replace)
+                           file-path
+                           "example-fn"
+                           "defn"
+                           "(defn example-fn [x y]\n  (* x y))"
+                           :replace)
           result (sut/format-result pipeline-result)
           file-content (slurp file-path)]
-      (is (false? (:error result)) 
+      (is (false? (:error result))
           (str "Pipeline error: " (:message result)))
       (is (some? (:offsets result)))
       (is (str/includes? file-content "(defn example-fn")
@@ -197,10 +234,10 @@
   (testing "docstring-edit-pipeline updates docstring"
     (let [file-path (get-file-path)
           pipeline-result (sut/docstring-edit-pipeline
-                          file-path
-                          "example-fn"
-                          "defn"
-                          "Updated docstring")
+                           file-path
+                           "example-fn"
+                           "defn"
+                           "Updated docstring")
           result (sut/format-result pipeline-result)
           file-content (slurp file-path)]
       (is (false? (:error result))
@@ -217,21 +254,21 @@
           file-content-before (slurp file-path)
           new-comment ";; Updated comment\n;; with new content"
           pipeline-result (sut/comment-block-edit-pipeline
-                          file-path
-                          "Test comment"  ; Part of the exact line in the test file
-                          new-comment)
+                           file-path
+                           "Test comment" ; Part of the exact line in the test file
+                           new-comment)
           result (sut/format-result pipeline-result)
           file-content-after (slurp file-path)]
       (is (false? (:error result))
           (str "Pipeline error: " (:message result)))
       (is (some? (:offsets result)))
-      
+
       ;; Test for exact match of the comment content (not just includes)
       (is (.contains file-content-after ";; Updated comment")
           "File should contain exact comment text")
       (is (.contains file-content-after ";; with new content")
           "File should contain exact comment text")
-      
+
       ;; Make sure we're not serializing zipper data by checking for zipper-related strings
       (is (not (.contains file-content-after "rewrite-clj"))
           "File should not contain serialized zipper data")
@@ -239,17 +276,17 @@
           "File should not contain serialized zipper data")
       (is (not (.contains file-content-after "clj_node"))
           "File should not contain serialized zipper data")
-      
+
       ;; Test that there are no braces/brackets in comments (indicating serialized data structures)
       (is (not (re-find #";.*\{.*\}" file-content-after))
           "Comments should not contain curly braces from serialized data structures")
       (is (not (re-find #";.*\[.*\]" file-content-after))
           "Comments should not contain square brackets from serialized data structures")
-      
+
       ;; Check that the original comment is replaced
       (is (not (.contains file-content-after "Test comment"))
           "Original comment should be replaced")))
-  
+
   (testing "comment-block-edit-pipeline edits comment form"
     (let [file-path (get-file-path)
           new-comment-form "(comment\n  (example-fn 10 20))"
@@ -262,11 +299,11 @@
       (is (false? (:error result))
           (str "Pipeline error: " (:message result)))
       (is (some? (:offsets result)))
-      
+
       ;; Test for exact match of the comment content
       (is (.contains file-content "(comment\n  (example-fn 10 20))")
           "File should contain exactly the new comment form")
-      
+
       ;; Make sure we're not serializing zipper data
       (is (not (.contains file-content "rewrite-clj"))
           "File should not contain serialized zipper data")
@@ -274,36 +311,36 @@
           "File should not contain serialized zipper data")
       (is (not (.contains file-content "clj_string"))
           "File should not contain serialized zipper data")
-      
+
       ;; Test for serialized data structures in comment forms
       (is (not (re-find #"\(comment.*\{.*\}" file-content))
           "Comment form should not contain curly braces from serialized data structures")
       (is (not (re-find #"\(comment.*\[.*\]" file-content))
           "Comment form should not contain square brackets from serialized data structures")
-      
+
       ;; Check that the original comment content is replaced
       (is (not (.contains file-content "(example-fn 1 2)"))
           "Original comment should be replaced")))
-  
+
   (testing "comment-block-edit-pipeline correctly handles end-of-file comments"
     (let [file-path (get-file-path)
           ;; Add a comment at the end of file
           _ (spit file-path (str (slurp file-path) "\n\n;; End of file comment") :append true)
           new-comment ";; Updated EOF comment"
           pipeline-result (sut/comment-block-edit-pipeline
-                          file-path
-                          "End of file comment"
-                          new-comment)
+                           file-path
+                           "End of file comment"
+                           new-comment)
           result (sut/format-result pipeline-result)
           file-content (slurp file-path)]
       (is (false? (:error result))
           (str "Pipeline error: " (:message result)))
       (is (some? (:offsets result)))
-      
+
       ;; Check for exact match of the new comment
       (is (.contains file-content ";; Updated EOF comment")
           "File should contain the updated EOF comment")
-      
+
       ;; Make sure we're not serializing zipper data
       (is (not (.contains file-content "rewrite-clj"))
           "File should not contain serialized zipper data")
@@ -311,13 +348,13 @@
           "File should not contain serialized zipper data")
       (is (not (.contains file-content "clj_node"))
           "File should not contain serialized zipper data")
-      
+
       ;; Test for serialized data structures in EOF comments
       (is (not (re-find #";.*\{.*\}" file-content))
           "EOF comments should not contain curly braces from serialized data structures")
       (is (not (re-find #";.*\[.*\]" file-content))
           "EOF comments should not contain square brackets from serialized data structures")
-      
+
       ;; Verify the original is gone
       (is (not (.contains file-content "End of file comment"))
           "Original EOF comment should be replaced"))))

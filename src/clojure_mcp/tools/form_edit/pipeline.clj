@@ -76,6 +76,36 @@
           (assoc ::source (:content result))
           (assoc ::old-content (:content result))))))
 
+(defn enhance-defmethod-name
+  "If this is a defmethod form without a dispatch value in its name,
+   extract the dispatch value from the replacement code.
+   
+   This function handles the special case of defmethod forms by extracting
+   the dispatch value from the replacement content when not explicitly provided
+   in the form name. This allows users to target specific defmethod implementations
+   without having to use the 'method-name dispatch-value' syntax.
+   
+   Requires ::top-level-def-type, ::top-level-def-name, and ::new-source-code in the context.
+   May update ::top-level-def-name with the enhanced name."
+  [ctx]
+  (let [def-type (get ctx ::top-level-def-type)
+        def-name (get ctx ::top-level-def-name)
+        new-source (get ctx ::new-source-code)]
+
+    (if (= def-type "defmethod")
+      (let [name-parts (str/split def-name #"\s+")]
+        (if (= (count name-parts) 1)
+          ;; No dispatch value in name - try to extract from content
+          (if-let [[_ dispatch-str] (core/extract-dispatch-from-defmethod new-source)]
+            ;; Successfully extracted dispatch - update name
+            (assoc ctx ::top-level-def-name (str def-name " " dispatch-str))
+            ;; Couldn't extract - keep original name
+            ctx)
+          ;; Already has dispatch value - keep original name
+          ctx))
+      ;; Not a defmethod - keep original name
+      ctx)))
+
 (defn parse-source
   "Parses the source string into a zipper location.
    Adds ::zloc to the context."
@@ -330,6 +360,8 @@
     ::config config}
    determine-file-type
    load-source
+   ;; Add our new pipeline step to handle defmethod forms
+   enhance-defmethod-name
    parse-source
    find-form
    edit-form
@@ -413,23 +445,23 @@
 
 (comment
   ;; Example usage of the pipelines
-  (def replace-result 
+  (def replace-result
     (edit-form-pipeline "/path/to/file.clj"
                         "example-fn"
                         "defn"
                         "(defn example-fn [x y]\n  (* x y))"
                         :replace))
-  
+
   (def docstring-result
     (docstring-edit-pipeline "/path/to/file.clj"
                              "example-fn"
                              "defn"
                              "Updated docstring"))
-  
+
   (def comment-result
     (comment-block-edit-pipeline "/path/to/file.clj"
-                                "test comment"
-                                ";; Updated comment"))
-  
+                                 "test comment"
+                                 ";; Updated comment"))
+
   (def outline-result
     (file-outline-pipeline "/path/to/file.clj" [])))

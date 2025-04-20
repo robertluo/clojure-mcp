@@ -12,7 +12,7 @@
 (def ^:dynamic *client-atom* nil)
 
 (defn create-test-files-fixture [f]
-  (let [test-dir (io/file (System/getProperty "java.io.tmpdir") 
+  (let [test-dir (io/file (System/getProperty "java.io.tmpdir")
                           (str "test-dir-" (System/currentTimeMillis)))]
     (.mkdirs test-dir)
     (let [test-file (io/file test-dir "test.clj")]
@@ -40,7 +40,7 @@
 
 (defn make-callback []
   (let [p (promise)]
-    [p (fn [result error] 
+    [p (fn [result error]
          (deliver p {:result result :error error}))]))
 
 ;; Tests for tool configurations
@@ -53,27 +53,27 @@
           docstring-tool (sut/create-edit-docstring-tool client-atom)
           comment-tool (sut/create-edit-comment-block-tool client-atom)
           structure-tool (sut/create-file-structure-tool client-atom)]
-      
+
       (testing "Replace form tool has correct configuration"
         (is (= :clojure-edit-replace-form (:tool-type replace-tool)))
         (is (= client-atom (:nrepl-client-atom replace-tool))))
-      
+
       (testing "Insert before tool has correct configuration"
         (is (= :clojure-edit-insert-before-form (:tool-type before-tool)))
         (is (= client-atom (:nrepl-client-atom before-tool))))
-      
+
       (testing "Insert after tool has correct configuration"
         (is (= :clojure-edit-insert-after-form (:tool-type after-tool)))
         (is (= client-atom (:nrepl-client-atom after-tool))))
-      
+
       (testing "Docstring tool has correct configuration"
         (is (= :clojure-edit-replace-docstring (:tool-type docstring-tool)))
         (is (= client-atom (:nrepl-client-atom docstring-tool))))
-      
+
       (testing "Comment block tool has correct configuration"
         (is (= :clojure-edit-comment-block (:tool-type comment-tool)))
         (is (= client-atom (:nrepl-client-atom comment-tool))))
-      
+
       (testing "File structure tool has correct configuration"
         (is (= :clojure-file-structure (:tool-type structure-tool)))
         (is (= client-atom (:nrepl-client-atom structure-tool)))))))
@@ -87,20 +87,20 @@
           docstring-tool (sut/create-edit-docstring-tool client-atom)
           comment-tool (sut/create-edit-comment-block-tool client-atom)
           structure-tool (sut/create-file-structure-tool client-atom)]
-      
+
       (testing "Tool names are correct"
         (is (= "clojure_edit_replace_form" (tool-system/tool-name replace-tool)))
         (is (= "clojure_edit_insert_before_form" (tool-system/tool-name before-tool)))
         (is (= "clojure_edit_replace_docstring" (tool-system/tool-name docstring-tool)))
         (is (= "clojure_edit_replace_comment_block" (tool-system/tool-name comment-tool)))
         (is (= "clojure_file_structure" (tool-system/tool-name structure-tool))))
-      
+
       (testing "Tool descriptions are not empty"
         (is (string? (tool-system/tool-description replace-tool)))
         (is (not (str/blank? (tool-system/tool-description replace-tool))))
         (is (string? (tool-system/tool-description before-tool)))
         (is (not (str/blank? (tool-system/tool-description before-tool)))))
-      
+
       (testing "Tool schemas are correctly defined"
         (let [replace-schema (tool-system/tool-schema replace-tool)
               docstring-schema (tool-system/tool-schema docstring-tool)
@@ -112,16 +112,16 @@
           (is (contains? (:properties replace-schema) :form_name))
           (is (contains? (:properties replace-schema) :form_type))
           (is (contains? (:properties replace-schema) :content))
-          
+
           (is (map? docstring-schema))
           (is (= :object (:type docstring-schema)))
           (is (contains? (:properties docstring-schema) :docstring))
-          
+
           (is (map? comment-schema))
           (is (= :object (:type comment-schema)))
           (is (contains? (:properties comment-schema) :comment_substring))
           (is (contains? (:properties comment-schema) :new_content))
-          
+
           (is (map? structure-schema))
           (is (= :object (:type structure-schema)))
           (is (contains? (:properties structure-schema) :file_path))
@@ -135,7 +135,7 @@
           docstring-tool (sut/create-edit-docstring-tool client-atom)
           comment-tool (sut/create-edit-comment-block-tool client-atom)
           structure-tool (sut/create-file-structure-tool client-atom)]
-      
+
       (testing "Replace form validation checks required parameters"
         (let [valid-inputs {:file_path (get-file-path)
                             :form_name "example-fn"
@@ -146,21 +146,21 @@
           (is (= "example-fn" (:form_name validated)))
           (is (= "defn" (:form_type validated)))
           (is (= "(defn example-fn [x] (* x 2))" (:content validated))))
-        
+
         (is (thrown? clojure.lang.ExceptionInfo
                      (tool-system/validate-inputs replace-tool
-                                                 {:form_name "example-fn"
-                                                  :form_type "defn"
-                                                  :content "(defn example-fn [x] (* x 2))"}))
+                                                  {:form_name "example-fn"
+                                                   :form_type "defn"
+                                                   :content "(defn example-fn [x] (* x 2))"}))
             "Should throw exception when file_path is missing")
-        
+
         (is (thrown? clojure.lang.ExceptionInfo
                      (tool-system/validate-inputs replace-tool
-                                                 {:file_path (get-file-path)
-                                                  :form_type "defn"
-                                                  :content "(defn example-fn [x] (* x 2))"}))
+                                                  {:file_path (get-file-path)
+                                                   :form_type "defn"
+                                                   :content "(defn example-fn [x] (* x 2))"}))
             "Should throw exception when form_name is missing"))
-      
+
       (testing "Docstring validation checks required parameters"
         (let [valid-inputs {:file_path (get-file-path)
                             :form_name "example-fn"
@@ -171,14 +171,14 @@
           (is (= "example-fn" (:form_name validated)))
           (is (= "defn" (:form_type validated)))
           (is (= "New docstring" (:docstring validated))))
-        
+
         (is (thrown? clojure.lang.ExceptionInfo
                      (tool-system/validate-inputs docstring-tool
-                                                 {:file_path (get-file-path)
-                                                  :form_name "example-fn"
-                                                  :form_type "defn"}))
+                                                  {:file_path (get-file-path)
+                                                   :form_name "example-fn"
+                                                   :form_type "defn"}))
             "Should throw exception when docstring is missing"))
-      
+
       (testing "Comment block validation checks required parameters"
         (let [valid-inputs {:file_path (get-file-path)
                             :comment_substring "Test comment"
@@ -187,13 +187,13 @@
           (is (= (get-file-path) (:file_path validated)))
           (is (= "Test comment" (:comment_substring validated)))
           (is (= ";; Updated comment" (:new_content validated))))
-        
+
         (is (thrown? clojure.lang.ExceptionInfo
                      (tool-system/validate-inputs comment-tool
-                                                 {:file_path (get-file-path)
-                                                  :new_content ";; Updated comment"}))
+                                                  {:file_path (get-file-path)
+                                                   :new_content ";; Updated comment"}))
             "Should throw exception when comment_substring is missing"))
-      
+
       (testing "File structure validation handles optional parameters"
         (let [valid-inputs-1 {:file_path (get-file-path)}
               valid-inputs-2 {:file_path (get-file-path)
@@ -215,18 +215,18 @@
           docstring-reg (sut/docstring-edit-tool client-atom)
           comment-reg (sut/comment-block-edit-tool client-atom)
           structure-reg (sut/clojure-file-outline-tool client-atom)]
-      
+
       (testing "Registration maps have correct structure"
         (is (string? (:name replace-reg)))
         (is (string? (:description replace-reg)))
         (is (string? (:schema replace-reg))) ;; Schema is serialized as JSON string
         (is (fn? (:tool-fn replace-reg)))
-        
+
         (is (string? (:name before-reg)))
         (is (string? (:description before-reg)))
         (is (string? (:schema before-reg))) ;; Schema is serialized as JSON string
         (is (fn? (:tool-fn before-reg)))
-        
+
         (is (string? (:name comment-reg)))
         (is (string? (:description comment-reg)))
         (is (string? (:schema comment-reg))) ;; Schema is serialized as JSON string
@@ -240,7 +240,7 @@
           docstring-tool (sut/create-edit-docstring-tool client-atom)
           comment-tool (sut/create-edit-comment-block-tool client-atom)
           structure-tool (sut/create-file-structure-tool client-atom)]
-      
+
       (testing "Replace form tool can modify files"
         (let [file-path (get-file-path)
               inputs {:file_path file-path
@@ -258,15 +258,15 @@
           (is (str/includes? file-content "(defn example-fn [x]"))
           (is (str/includes? file-content "(* x 2)"))
           (is (not (str/includes? file-content "(+ x y)")))))
-      
+
       (testing "Docstring tool can update docstrings"
         (let [file-path (get-file-path)
               ;; Write a file with proper docstring to fix test setup
               _ (spit file-path (str "(ns test.core)\n\n"
-                                    "(defn example-fn\n  \"Original docstring\"\n  [x y]\n  (+ x y))\n\n"
-                                    "(def a 1)\n\n"
-                                    "(comment\n  (example-fn 1 2))\n\n"
-                                    ";; Test comment\n;; spans multiple lines"))
+                                     "(defn example-fn\n  \"Original docstring\"\n  [x y]\n  (+ x y))\n\n"
+                                     "(def a 1)\n\n"
+                                     "(comment\n  (example-fn 1 2))\n\n"
+                                     ";; Test comment\n;; spans multiple lines"))
               inputs {:file_path file-path
                       :form_name "example-fn"
                       :form_type "defn"
@@ -280,7 +280,7 @@
           (is (some? (:offsets formatted)))
           (is (str/includes? file-content "Updated docstring for testing"))
           (is (not (str/includes? file-content "Original docstring")))))
-      
+
       (testing "Comment tool can update comment blocks"
         (let [file-path (get-file-path)
               inputs {:file_path file-path
@@ -296,7 +296,7 @@
           (is (str/includes? file-content "Updated test comment"))
           (is (str/includes? file-content "with multiple lines"))
           (is (not (str/includes? file-content "Test comment\n;; spans multiple")))))
-      
+
       (testing "File structure tool can generate outlines"
         (let [file-path (get-file-path)
               inputs {:file_path file-path}
@@ -315,6 +315,69 @@
           (is (str/includes? outline "(comment"))
           (is (not (str/includes? outline "(+ x y)"))))))))
 
+(deftest defmethod-handling-test
+  (testing "Tool correctly handles defmethod forms"
+    (let [client-atom *client-atom*
+          replace-tool (sut/create-edit-replace-form-tool client-atom)
+          file-path (get-file-path)
+
+          ;; First create a file with defmulti and defmethod forms
+          _ (spit file-path (str "(ns test.multimethods)\n\n"
+                                 "(defmulti area :shape)\n\n"
+                                 "(defmethod area :rectangle [rect]\n  (* (:width rect) (:height rect)))\n\n"
+                                 "(defmethod area :circle [circle]\n  (* Math/PI (:radius circle) (:radius circle)))\n"))]
+
+      (testing "Can update defmethod with just the multimethod name"
+        (let [inputs {:file_path file-path
+                      :form_name "area" ;; Just the multimethod name
+                      :form_type "defmethod"
+                      :content "(defmethod area :rectangle [rect]\n  ;; Updated implementation\n  (let [w (:width rect)\n        h (:height rect)]\n    (* w h)))"}
+              validated (tool-system/validate-inputs replace-tool inputs)
+              result (tool-system/execute-tool replace-tool validated)
+              formatted (tool-system/format-results replace-tool result)
+              file-content (slurp file-path)]
+
+          (is (false? (:error formatted)))
+          (is (vector? (:result formatted)))
+          (is (some? (:offsets formatted)))
+          (is (str/includes? file-content "Updated implementation"))
+          (is (str/includes? file-content "(let [w (:width rect)"))
+          (is (not (str/includes? file-content "(* (:width rect) (:height rect))")))))
+
+      (testing "Can update defmethod with multimethod name and dispatch value"
+        (let [inputs {:file_path file-path
+                      :form_name "area :circle" ;; Compound name with dispatch value
+                      :form_type "defmethod"
+                      :content "(defmethod area :circle [circle]\n  ;; Updated circle implementation\n  (let [r (:radius circle)]\n    (* Math/PI r r)))"}
+              validated (tool-system/validate-inputs replace-tool inputs)
+              result (tool-system/execute-tool replace-tool validated)
+              formatted (tool-system/format-results replace-tool result)
+              file-content (slurp file-path)]
+
+          (is (false? (:error formatted)))
+          (is (vector? (:result formatted)))
+          (is (some? (:offsets formatted)))
+          (is (str/includes? file-content "Updated circle implementation"))
+          (is (str/includes? file-content "(let [r (:radius circle)]"))
+          (is (not (str/includes? file-content "(* Math/PI (:radius circle) (:radius circle))")))))
+
+      (testing "Inserting new defmethod implementation"
+        (let [inputs {:file_path file-path
+                      :form_name "area :circle" ;; Insert after circle implementation
+                      :form_type "defmethod"
+                      :content "(defmethod area :triangle [triangle]\n  (* 0.5 (:base triangle) (:height triangle)))"}
+              before-tool (sut/create-edit-insert-after-form-tool client-atom)
+              validated (tool-system/validate-inputs before-tool inputs)
+              result (tool-system/execute-tool before-tool validated)
+              formatted (tool-system/format-results before-tool result)
+              file-content (slurp file-path)]
+
+          (is (false? (:error formatted)))
+          (is (vector? (:result formatted)))
+          (is (some? (:offsets formatted)))
+          (is (str/includes? file-content "area :triangle"))
+          (is (str/includes? file-content "(* 0.5 (:base triangle) (:height triangle))")))))))
+
 ;; Tool-fn tests through the callback interface
 (deftest tool-fn-test
   (testing "Tool-fn works with callbacks"
@@ -322,17 +385,17 @@
           replace-reg (sut/top-level-form-edit-tool client-atom)
           replace-fn (:tool-fn replace-reg)
           [p1 cb1] (make-callback)
-          
+
           comment-reg (sut/comment-block-edit-tool client-atom)
           comment-fn (:tool-fn comment-reg)
           [p2 cb2] (make-callback)
-          
+
           structure-reg (sut/clojure-file-outline-tool client-atom)
           structure-fn (:tool-fn structure-reg)
           [p3 cb3] (make-callback)]
-      
+
       (testing "Replace form tool works via callback"
-        (replace-fn nil 
+        (replace-fn nil
                     {"file_path" (get-file-path)
                      "form_name" "example-fn"
                      "form_type" "defn"
@@ -342,7 +405,7 @@
           (is (false? (:error result))) ;; Error is false, not nil
           (is (vector? (:result result)))
           (is (str/includes? (slurp (get-file-path)) "(str \"result: \" (* x 3))"))))
-      
+
       (testing "Comment tool works via callback"
         (comment-fn nil
                     {"file_path" (get-file-path)
@@ -353,7 +416,7 @@
           (is (false? (:error result))) ;; Error is false, not nil
           (is (vector? (:result result)))
           (is (str/includes? (slurp (get-file-path)) "(example-fn 10 20)"))))
-      
+
       (testing "Structure tool works via callback"
         (structure-fn nil
                       {"file_path" (get-file-path)}

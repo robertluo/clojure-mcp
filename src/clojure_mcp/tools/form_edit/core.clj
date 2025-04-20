@@ -14,19 +14,41 @@
 
 (defn is-top-level-form?
   "Check if a sexp is a top-level definition with a specific tag and name.
+   Supports defmethod forms with dispatch values.
+   
+   For defmethod forms, the name can be either:
+   - Just the method name (e.g., 'area') - will match ANY defmethod with that name
+   - A compound name with dispatch value (e.g., 'area :rectangle') - will match only that specific implementation
    
    Arguments:
    - zloc: The zipper location to check
-   - tag: The definition tag (e.g., 'defn, 'def)
-   - dname: The name of the definition
+   - tag: The definition tag (e.g., 'defn, 'def, 'defmethod)
+   - dname: The name of the definition, which can include dispatch value for defmethod
    
-   Returns true if the sexp matches the pattern (tag dname ...)"
+   Returns true if the sexp matches the pattern."
   [zloc tag dname]
   (try
     (let [sexp (z/sexpr zloc)]
-      (and (list? sexp)
-           (= (first sexp) (symbol tag))
-           (= (second sexp) (symbol dname))))
+      (if (and (list? sexp) (= (first sexp) (symbol tag)))
+        ;; Special handling for defmethod forms
+        (if (= (symbol tag) 'defmethod)
+          (let [method-name (second sexp)
+                dispatch-value (nth sexp 2 nil)
+                ;; Parse the provided name to see if it includes a dispatch value
+                [name-part dispatch-part] (if (string? dname)
+                                            (let [parts (str/split dname #"\s+")]
+                                              [(first parts)
+                                               (when (> (count parts) 1)
+                                                 (try
+                                                   (read-string (second parts))
+                                                   (catch Exception _ nil)))])
+                                            [dname nil])]
+            (and (= method-name (symbol name-part))
+                 (or (nil? dispatch-part)
+                     (= dispatch-value dispatch-part))))
+          ;; Standard handling for other forms
+          (= (second sexp) (symbol dname)))
+        false))
     (catch Exception _ false)))
 
 (defn find-top-level-form
@@ -198,44 +220,44 @@
         (nil? loc)
         (let [;; Process line by line to find comment blocks
               result (reduce
-                     (fn [[blocks current-block] [idx line]]
-                       (cond
+                      (fn [[blocks current-block] [idx line]]
+                        (cond
                          ;; If we're already tracking a block and the line is a comment
-                         (and current-block
-                              (str/starts-with? (str/trim line) ";;"))
-                         [blocks (update current-block :lines conj line)]
+                          (and current-block
+                               (str/starts-with? (str/trim line) ";;"))
+                          [blocks (update current-block :lines conj line)]
 
                          ;; If we're tracking a block and hit a non-comment line
-                         current-block
-                         [(conj blocks (assoc current-block :end (dec idx))) nil]
+                          current-block
+                          [(conj blocks (assoc current-block :end (dec idx))) nil]
 
                          ;; If this is a new comment line
-                         (str/starts-with? (str/trim line) ";;")
-                         [blocks {:start idx
-                                  :lines [line]}]
+                          (str/starts-with? (str/trim line) ";;")
+                          [blocks {:start idx
+                                   :lines [line]}]
 
                          ;; Otherwise, continue
-                         :else
-                         [blocks nil]))
-                     [[] nil]
-                     (map-indexed vector lines))
-              
+                          :else
+                          [blocks nil]))
+                      [[] nil]
+                      (map-indexed vector lines))
+
               ;; Extract the blocks and potential unfinished block
               [blocks current-block] result
-              
+
               ;; Finalize blocks, including any unfinished block at EOF
               final-blocks (if current-block
-                             (conj blocks (assoc current-block 
-                                                 :end (+ (:start current-block) 
+                             (conj blocks (assoc current-block
+                                                 :end (+ (:start current-block)
                                                          (dec (count (:lines current-block))))))
                              blocks)
-              
+
               ;; Find the first consecutive comment block containing the substring
               matching-block (first (filter #(some (fn [line]
                                                      (str/includes? line comment-substring))
                                                    (:lines %))
                                             final-blocks))]
-          
+
           (when matching-block
             {:type :line-comments
              :start (:start matching-block)
@@ -429,29 +451,50 @@
       {:success false
        :message (str "Failed to save file: " (.getMessage e))})))
 
+(defn extract-dispatch-from-defmethod
+  "Extracts the method name and dispatch value from defmethod source code.
+   Returns [method-name dispatch-value-str] or nil if parsing fails.
+   
+   Arguments:
+   - source-code: The defmethod source code as a string
+   
+   Returns:
+   - A vector of [method-name dispatch-value-str] or nil if parsing fails"
+  [source-code]
+  (try
+    (let [zloc (z/of-string source-code)
+          sexp (z/sexpr zloc)]
+      (when (and (list? sexp)
+                 (= (first sexp) 'defmethod)
+                 (>= (count sexp) 3))
+        (let [method-name (name (second sexp))
+              dispatch-value (nth sexp 2)
+              dispatch-str (pr-str dispatch-value)]
+          [method-name dispatch-str])))
+    (catch Exception _ nil)))
+
 (comment
   ;; Examples of using the functions
   (def source "(ns example.core)\n\n(defn my-fn [x y]\n  (+ x y))\n\n(def a 1)")
   (def zloc (z/of-string source))
-  
+
   ;; Find a function
   (def fn-zloc (find-top-level-form zloc "defn" "my-fn"))
-  
+
   ;; Get function summary
   (get-form-summary fn-zloc)
-  
+
   ;; Edit a function
-  (def edited-zloc (edit-top-level-form zloc "defn" "my-fn" 
-                                       "(defn my-fn [x y]\n  (* x y))" 
-                                       :replace))
-  
+  (def edited-zloc (edit-top-level-form zloc "defn" "my-fn"
+                                        "(defn my-fn [x y]\n  (* x y))"
+                                        :replace))
+
   ;; Format source
   (format-source-string (z/root-string edited-zloc))
-  
+
   ;; Test comment functions
   (def comment-source "(ns example.core)\n\n;; This is a test comment\n;; with multiple lines\n\n(comment\n  (+ 1 2)\n  (* 3 4))")
   (def comment-source2 "(ns example.core)\n\n\n\n(comment\n  (+ 1 2)\n  (* 3 4)) ;; This is a test comment\n;; with multiple lines")
   (find-comment-block comment-source2 "test comment")
   (find-comment-block comment-source2 "(+ 1 2)")
-  (edit-comment-block comment-source2 "test comment" ";; Updated comment\n;; with new content")
-  )
+  (edit-comment-block comment-source2 "test comment" ";; Updated comment\n;; with new content"))
