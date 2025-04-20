@@ -39,7 +39,7 @@ Emacs notify switch
 - [x] File-Write Tool
 - [x] List-Directory Tool
 - [x] Namespace Tools (current-namespace, list-namespaces, list-vars-in-namespace)
-- [ ] Symbol information tools
+- [x] Symbol information tools (symbol-completions, symbol-metadata, symbol-documentation, source-code, symbol-search)
 - [ ] Top-level form editing tools
 
 ## Adapt tools and prompts from OtherCl implementation

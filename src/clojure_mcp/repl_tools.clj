@@ -16,7 +16,8 @@
    [clojure-mcp.tools.glob-files.tool :as new-glob-files-tool]
    [clojure-mcp.tools.file-write.tool :as new-file-write-tool]
    [clojure-mcp.tools.list-directory.tool :as new-list-directory-tool]
-   [clojure-mcp.tools.namespace.tool :as new-namespace-tool]))
+   [clojure-mcp.tools.namespace.tool :as new-namespace-tool]
+   [clojure-mcp.tools.symbol.tool :as new-symbol-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
@@ -25,11 +26,11 @@
   (concat
    [#_(eval-tools/eval-code nrepl-client-atom)
     #_(namespace-tools/current-namespace nrepl-client-atom)
-    (symbol-tools/symbol-completions nrepl-client-atom)
-    (symbol-tools/symbol-metadata nrepl-client-atom)
-    (symbol-tools/symbol-documentation nrepl-client-atom)
-    (symbol-tools/source-code nrepl-client-atom)
-    (symbol-tools/symbol-search nrepl-client-atom)
+    #_(symbol-tools/symbol-completions nrepl-client-atom)
+    #_(symbol-tools/symbol-metadata nrepl-client-atom)
+    #_(symbol-tools/symbol-documentation nrepl-client-atom)
+    #_(symbol-tools/source-code nrepl-client-atom)
+    #_(symbol-tools/symbol-search nrepl-client-atom)
     #_(namespace-tools/list-namespaces nrepl-client-atom)
     #_(namespace-tools/list-vars-in-namespace nrepl-client-atom)
     (history-tools/eval-history nrepl-client-atom)
@@ -50,8 +51,13 @@
     (new-list-directory-tool/list-directory-tool nrepl-client-atom)
     (new-namespace-tool/current-namespace-tool nrepl-client-atom)
     (new-namespace-tool/list-namespaces-tool nrepl-client-atom)
-    (new-namespace-tool/list-vars-in-namespace-tool nrepl-client-atom)]
-   ;; All filesystem tools have been refactored to the new architecture
+    (new-namespace-tool/list-vars-in-namespace-tool nrepl-client-atom)
+    (new-symbol-tool/symbol-completions-tool nrepl-client-atom)
+    (new-symbol-tool/symbol-metadata-tool nrepl-client-atom)
+    (new-symbol-tool/symbol-documentation-tool nrepl-client-atom)
+    (new-symbol-tool/source-code-tool nrepl-client-atom)
+    (new-symbol-tool/symbol-search-tool nrepl-client-atom)]
+   ;; All filesystem and symbol tools have been refactored to the new architecture
    [])))
 
 (comment

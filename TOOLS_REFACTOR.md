@@ -231,6 +231,23 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
    - Improved error handling and reporting
    - Added multimethod implementations for all tools
 
+9. **Symbol Tools** ✓
+   - **New Implementation**: 
+     - `src/clojure_mcp/tools/symbol/core.clj` (Business logic)
+     - `src/clojure_mcp/tools/symbol/tool.clj` (MCP interface)
+   - **Old Implementation**: 
+     - `src/clojure_mcp/repl_tools/symbol.clj`
+   - Refactored five tools into one combined namespace:
+     - symbol-completions: Provides completion candidates for a symbol prefix
+     - symbol-metadata: Returns complete metadata for a symbol
+     - symbol-documentation: Extracts docstring and arglists from symbol metadata
+     - source-code: Returns the source code for a given symbol
+     - symbol-search: Searches for symbols containing a string across all namespaces
+   - Created comprehensive tests with real nREPL server integration
+   - Improved error handling with standardized response format
+   - Added multimethod implementations for all tools
+   - Made each tool's functionality more focused and maintainable
+
 ## Troubleshooting Common Issues
 
 1. **Namespace/Path Mismatch**
@@ -256,10 +273,11 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 ## Current Progress
 
 1. **Refactoring Phase**: 
-   - 10 of ~13 tools completed (~75%)
+   - 11 of ~13 tools completed (~85%)
    - Core architecture in place and proven
    - All filesystem tools completely refactored and old implementation removed
    - All namespace tools completely refactored
+   - All symbol information tools completely refactored
    - Established consistent patterns for tool implementation
 
 2. **Testing Infrastructure**:
@@ -267,6 +285,7 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
    - Established patterns for testing tool components separately
    - Renamed old tests to .bak files to avoid conflicts
    - Added comprehensive real-world tests for filesystem operations
+   - Added tests with real nREPL server integration for symbol and namespace tools
 
 3. **Backward Compatibility**:
    - Each tool provides compatibility functions for smooth migration
@@ -276,7 +295,6 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 ## Next Steps
 
 1. Continue refactoring remaining tools:
-   - Symbol information tools
    - Top-level form editing tools
 
 2. Update the main registration process in `src/clojure_mcp/repl_tools.clj` to use the new tool system
@@ -286,6 +304,10 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 4. Document the new architecture and patterns for extensibility
 
 ## Recent Commits
+- Refactored symbol information tools to new multimethod architecture
+- Implemented five symbol tools in a unified module (completions, metadata, documentation, source, search)
+- Created comprehensive tests using real nREPL server
+- Updated repl_tools.clj to use the new symbol tool implementations
 - Refactored namespace tools to new multimethod architecture
 - Combined all namespace functionality in a single module
 - Created comprehensive tests using real nREPL server
@@ -309,4 +331,4 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 - Moved directory-tree functionality to dedicated namespace
 - Fixed Java collections handling in keywordize function
 
-The project is now demonstrating clear patterns for the refactoring process, with approximately 75% of the tools converted to the new architecture.
+The project is now demonstrating clear patterns for the refactoring process, with approximately 85% of the tools converted to the new architecture.
