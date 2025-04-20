@@ -58,7 +58,7 @@
     (new-symbol-tool/source-code-tool nrepl-client-atom)
     (new-symbol-tool/symbol-search-tool nrepl-client-atom)]
    ;; All filesystem and symbol tools have been refactored to the new architecture
-   [])))
+   []))
 
 (comment
   ;; Example of testing tools directly
