@@ -191,30 +191,30 @@
 
 (deftest tool-execution-test
   (testing "symbol-completions tool execution"
-    (let [result ((test-tool-execution :symbol-completions {"prefix" "ma"}))]
+    (let [result (test-tool-execution :symbol-completions {"prefix" "ma"})]
       (is (false? (:error? result)))
       (is (= ["map" "mapv"] (:result result)))))
   
   (testing "symbol-metadata tool execution"
-    (let [result ((test-tool-execution :symbol-metadata {"symbol" "map"}))]
+    (let [result (test-tool-execution :symbol-metadata {"symbol" "map"})]
       (is (false? (:error? result)))
       (is (= 1 (count (:result result))))
       (is (string? (first (:result result))))))
   
   (testing "symbol-documentation tool execution"
-    (let [result ((test-tool-execution :symbol-documentation {"symbol" "map"}))]
+    (let [result (test-tool-execution :symbol-documentation {"symbol" "map"})]
       (is (false? (:error? result)))
       (is (= 1 (count (:result result))))
       (is (string? (first (:result result))))
       (is (str/includes? (first (:result result)) "Doc"))))
   
   (testing "source-code tool execution"
-    (let [result ((test-tool-execution :source-code {"symbol" "map"}))]
+    (let [result (test-tool-execution :source-code {"symbol" "map"})]
       (is (false? (:error? result)))
       (is (= ["(defn map [f coll] ...)"] (:result result)))))
   
   (testing "symbol-search tool execution"
-    (let [result ((test-tool-execution :symbol-search {"search-str" "map"}))]
+    (let [result (test-tool-execution :symbol-search {"search-str" "map"})]
       (is (false? (:error? result)))
       (is (= ["clojure.core/map"] (:result result))))))
 
@@ -231,4 +231,4 @@
         (is (string? (:name reg-map)))
         (is (string? (:description reg-map)))
         (is (string? (:schema reg-map)))
-        (is (fn? (:tool-fn reg-map))))))))
+        (is (fn? (:tool-fn reg-map)))))))

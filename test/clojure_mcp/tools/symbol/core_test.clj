@@ -126,4 +126,4 @@
       (is (map? result))
       (is (vector? (:matches result)))
       (is (= ["No matches found"] (:matches result)))
-      (is (false? (:error result)))))
+      (is (false? (:error result))))))
