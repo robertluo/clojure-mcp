@@ -15,7 +15,8 @@
    [clojure-mcp.tools.grep.tool :as new-grep-tool]
    [clojure-mcp.tools.glob-files.tool :as new-glob-files-tool]
    [clojure-mcp.tools.file-write.tool :as new-file-write-tool]
-   [clojure-mcp.tools.list-directory.tool :as new-list-directory-tool]))
+   [clojure-mcp.tools.list-directory.tool :as new-list-directory-tool]
+   [clojure-mcp.tools.namespace.tool :as new-namespace-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
@@ -23,14 +24,14 @@
   [nrepl-client-atom]
   (concat
    [#_(eval-tools/eval-code nrepl-client-atom)
-    (namespace-tools/current-namespace nrepl-client-atom)
+    #_(namespace-tools/current-namespace nrepl-client-atom)
     (symbol-tools/symbol-completions nrepl-client-atom)
     (symbol-tools/symbol-metadata nrepl-client-atom)
     (symbol-tools/symbol-documentation nrepl-client-atom)
     (symbol-tools/source-code nrepl-client-atom)
     (symbol-tools/symbol-search nrepl-client-atom)
-    (namespace-tools/list-namespaces nrepl-client-atom)
-    (namespace-tools/list-vars-in-namespace nrepl-client-atom)
+    #_(namespace-tools/list-namespaces nrepl-client-atom)
+    #_(namespace-tools/list-vars-in-namespace nrepl-client-atom)
     (history-tools/eval-history nrepl-client-atom)
     (edit-tools/top-level-form-edit-tool nrepl-client-atom)
     (edit-tools/top-level-form-insert-before-tool nrepl-client-atom)
@@ -46,7 +47,10 @@
     (new-grep-tool/grep-tool nrepl-client-atom)
     (new-glob-files-tool/glob-files-tool nrepl-client-atom)
     (new-file-write-tool/file-write-tool nrepl-client-atom)
-    (new-list-directory-tool/list-directory-tool nrepl-client-atom)]
+    (new-list-directory-tool/list-directory-tool nrepl-client-atom)
+    (new-namespace-tool/current-namespace-tool nrepl-client-atom)
+    (new-namespace-tool/list-namespaces-tool nrepl-client-atom)
+    (new-namespace-tool/list-vars-in-namespace-tool nrepl-client-atom)]
    ;; All filesystem tools have been refactored to the new architecture
    [])))
 
