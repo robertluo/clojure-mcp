@@ -37,7 +37,8 @@
 
 ;; Removed format-search-results function (replaced by glob-files)
 
-(defn create-fs-list-directory-tool
+;; Commented out - replaced by the new tool-system implementation in clojure-mcp.tools.list-directory
+#_(defn create-fs-list-directory-tool
   "Creates a tool that lists files and directories at a specified path"
   [nrepl-client-atom]
   {:name "fs_list_directory"
@@ -291,7 +292,7 @@ Use this tool when you need to find files containing specific patterns."
       (throw (ex-info "Missing ::allowed-directories in nREPL client"
                       {:client-keys (keys nrepl-client)})))
 
-    [(create-fs-list-directory-tool nrepl-client-atom)
+    [#_(create-fs-list-directory-tool nrepl-client-atom) ;; Commented out - replaced by the new tool-system implementation
      #_(create-fs-read-file-tool nrepl-client-atom {:max-lines 2000 :max-line-length 1000})
      #_(create-directory-tree-tool nrepl-client-atom) ;; Commented out - replaced by the new tool-system implementation
      #_(create-glob-files-tool nrepl-client-atom) ;; Commented out - replaced by the new tool-system implementation

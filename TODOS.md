@@ -16,6 +16,11 @@ agent to research information to solve a problem
 very clear that we need a separate mode with no editing tools available 
   to do design work and thinking
 
+glob tool should support searching in the root directory with "**/README.md" pattern
+
+have claude compare the tools and suggest tweaks
+
+
 let's add the last few file tools
 edit_file - should lint format output if clojure
 create_directory
@@ -24,6 +29,18 @@ move_file
 read-file needs to check mod time like clod
 
 Emacs notify switch
+
+## Tool System Refactoring Progress
+- [x] Eval Tool
+- [x] Read-File Tool  
+- [x] Directory-Tree Tool
+- [x] Grep Tool
+- [x] Glob-Files Tool
+- [x] File-Write Tool
+- [x] List-Directory Tool
+- [ ] Namespace exploration tools
+- [ ] Symbol information tools
+- [ ] Top-level form editing tools
 
 ## Adapt tools and prompts from OtherCl implementation
 * prompt is still misbehaving, so far working without the prompt seems to be better

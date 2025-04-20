@@ -205,6 +205,18 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
    - Created comprehensive tests for both core functionality and MCP integration
    - Added proper error handling and input validation
 
+7. **List-Directory Tool** ✓
+   - **New Implementation**: 
+     - `src/clojure_mcp/tools/list_directory/core.clj` (Business logic)
+     - `src/clojure_mcp/tools/list_directory/tool.clj` (MCP interface)
+   - **Old Implementation**: 
+     - `src/clojure_mcp/repl_tools/filesystem/tools.clj` (in `create-fs-list-directory-tool` function)
+     - Used `src/clojure_mcp/repl_tools/filesystem/core.clj` (list-directory function)
+   - Moved implementation to the new tool-system architecture
+   - Maintained the same directory listing formatting
+   - Created comprehensive tests for both core functionality and MCP integration
+   - Added validation, execution, and formatting multimethods
+
 ## Troubleshooting Common Issues
 
 1. **Namespace/Path Mismatch**
@@ -230,9 +242,9 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 ## Current Progress
 
 1. **Refactoring Phase**: 
-   - 6 of ~10 tools completed (~60%)
+   - 7 of ~10 tools completed (~70%)
    - Core architecture in place and proven
-   - Four filesystem tools completely refactored
+   - Five filesystem tools completely refactored
    - Established consistent patterns for tool implementation
 
 2. **Testing Infrastructure**:
@@ -249,7 +261,6 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 ## Next Steps
 
 1. Continue refactoring remaining tools:
-   - Remaining filesystem tool (list_directory)
    - Namespace exploration tools
    - Symbol information tools
    - Top-level form editing tools
@@ -261,6 +272,9 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 4. Document the new architecture and patterns for extensibility
 
 ## Recent Commits
+- Refactored list-directory tool using the new multimethod pattern
+- Added comprehensive tests for list-directory with test directories
+- Updated registration in repl_tools.clj with proper filtering
 - Refactored file-write tool using the new multimethod pattern
 - Added comprehensive tests for file-write tool with various file types
 - Updated registration in repl_tools.clj with proper filtering
@@ -275,4 +289,4 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 - Moved directory-tree functionality to dedicated namespace
 - Fixed Java collections handling in keywordize function
 
-The project is now demonstrating clear patterns for the refactoring process, with approximately 60% of the tools converted to the new architecture.
+The project is now demonstrating clear patterns for the refactoring process, with approximately 70% of the tools converted to the new architecture.
