@@ -29,48 +29,30 @@
 
 (use-fixtures :once test-nrepl-fixture)
 
-;; Helper function to evaluate code for tests
-(defn eval-helper [client code]
-  (nrepl/tool-eval-code client code))
-
-;; Mock the completions-fn and lookup-fn for testing
-(defn prepare-test-client [client]
-  (let [test-completions [{:candidate "map"} {:candidate "mapv"} {:candidate "mapcat"}]
-        test-metadata {:name 'map
-                       :doc "Returns a lazy sequence..."
-                       :arglists '([f coll] [f c1 c2] [f c1 c2 c3] [f c1 c2 c3 & colls])}]
-    (-> client
-        (assoc :completions-fn (fn [_] test-completions))
-        (assoc :lookup-fn (fn [_] test-metadata)))))
+;; We'll use the actual nREPL implementation for real results
 
 (deftest get-symbol-completions-test
-  (testing "get-symbol-completions returns completions"
-    (let [test-client (prepare-test-client @*nrepl-client-atom*)
-          result (sut/get-symbol-completions test-client "ma")]
+  (testing "get-symbol-completions returns completions for real REPL"
+    (let [client @*nrepl-client-atom*
+          result (sut/get-symbol-completions client "ma")]
       (is (map? result))
       (is (vector? (:completions result)))
-      (is (= ["map" "mapv" "mapcat"] (:completions result)))
-      (is (false? (:error result)))))
-  
-  (testing "get-symbol-completions handles errors"
-    (let [error-client (assoc @*nrepl-client-atom* :completions-fn (fn [_] (throw (Exception. "Test error"))))
-          result (sut/get-symbol-completions error-client "ma")]
-      (is (map? result))
-      (is (true? (:error result)))
-      (is (string? (:message result)))
-      (is (str/includes? (:message result) "Test error")))))
+      (is (some #(= % "map") (:completions result)) "Should include 'map' in completions")
+      (is (some #(= % "mapv") (:completions result)) "Should include 'mapv' in completions")
+      (is (false? (:error result))))))
 
 (deftest get-symbol-metadata-test
   (testing "get-symbol-metadata returns metadata for a valid symbol"
-    (let [test-client (prepare-test-client @*nrepl-client-atom*)
-          result (sut/get-symbol-metadata test-client "map")]
+    (let [client @*nrepl-client-atom*
+          result (sut/get-symbol-metadata client "map")]
       (is (map? result))
-      (is (= (:name (:metadata result)) 'map))
+      (is (map? (:metadata result)))
+      (is (= (str (:name (:metadata result))) "map") "Name should be map")
       (is (false? (:error result)))))
   
   (testing "get-symbol-metadata handles missing symbols"
-    (let [not-found-client (assoc @*nrepl-client-atom* :lookup-fn (fn [_] nil))
-          result (sut/get-symbol-metadata not-found-client "nonexistent")]
+    (let [client @*nrepl-client-atom*
+          result (sut/get-symbol-metadata client "this-symbol-does-not-exist-anywhere")]
       (is (map? result))
       (is (true? (:error result)))
       (is (string? (:message result)))
@@ -78,16 +60,18 @@
 
 (deftest get-symbol-documentation-test
   (testing "get-symbol-documentation returns doc and arglists for a valid symbol"
-    (let [test-client (prepare-test-client @*nrepl-client-atom*)
-          result (sut/get-symbol-documentation test-client "map")]
+    (let [client @*nrepl-client-atom*
+          result (sut/get-symbol-documentation client "map")]
       (is (map? result))
-      (is (= (:arglists result) '([f coll] [f c1 c2] [f c1 c2 c3] [f c1 c2 c3 & colls])))
-      (is (= (:doc result) "Returns a lazy sequence..."))
+      (is (sequential? (:arglists result)))
+      (is (not (empty? (:arglists result))))
+      (is (string? (:doc result)))
+      (is (str/includes? (:doc result) "Returns a lazy"))
       (is (false? (:error result)))))
   
   (testing "get-symbol-documentation handles missing symbols"
-    (let [not-found-client (assoc @*nrepl-client-atom* :lookup-fn (fn [_] nil))
-          result (sut/get-symbol-documentation not-found-client "nonexistent")]
+    (let [client @*nrepl-client-atom*
+          result (sut/get-symbol-documentation client "this-symbol-does-not-exist-anywhere")]
       (is (map? result))
       (is (true? (:error result)))
       (is (string? (:message result)))
@@ -95,16 +79,17 @@
 
 (deftest get-source-code-test
   (testing "get-source-code returns source for a valid symbol"
-    ;; Define a mock eval-fn that returns mock source code
-    (let [mock-eval-fn (fn [_ _] "\"(defn test-fn [x] (* x x))\"")
-          result (sut/get-source-code @*nrepl-client-atom* mock-eval-fn "test-fn")]
+    (let [client @*nrepl-client-atom*
+          ;; Use a well-known function to test source retrieval
+          result (sut/get-source-code client "map")]
       (is (map? result))
-      (is (= (:source result) "(defn test-fn [x] (* x x))"))
+      (is (string? (:source result)))
+      (is (str/includes? (:source result) "(defn map"))
       (is (false? (:error result)))))
   
   (testing "get-source-code handles missing source"
-    (let [mock-eval-fn (fn [_ _] "nil")
-          result (sut/get-source-code @*nrepl-client-atom* mock-eval-fn "nonexistent")]
+    (let [client @*nrepl-client-atom*
+          result (sut/get-source-code client "this-symbol-does-not-exist-anywhere")]
       (is (map? result))
       (is (true? (:error result)))
       (is (string? (:message result)))
@@ -112,17 +97,17 @@
 
 (deftest search-symbols-test
   (testing "search-symbols returns matches for a valid search"
-    ;; Define a mock eval-fn that returns mock search results
-    (let [mock-eval-fn (fn [_ _] "(clojure.core/map clojure.core/mapv)")
-          result (sut/search-symbols @*nrepl-client-atom* mock-eval-fn "map")]
+    (let [client @*nrepl-client-atom*
+          result (sut/search-symbols client "map")]
       (is (map? result))
       (is (vector? (:matches result)))
-      (is (= ["clojure.core/map" "clojure.core/mapv"] (:matches result)))
+      (is (some #(= % "clojure.core/map") (:matches result)))
+      (is (some #(= % "clojure.core/mapv") (:matches result)))
       (is (false? (:error result)))))
   
   (testing "search-symbols handles empty results"
-    (let [mock-eval-fn (fn [_ _] "()")
-          result (sut/search-symbols @*nrepl-client-atom* mock-eval-fn "nonexistent")]
+    (let [client @*nrepl-client-atom*
+          result (sut/search-symbols client "xyz123nonexistent")]
       (is (map? result))
       (is (vector? (:matches result)))
       (is (= ["No matches found"] (:matches result)))

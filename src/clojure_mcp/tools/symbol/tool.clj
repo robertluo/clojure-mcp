@@ -53,9 +53,7 @@
   {:tool-type :symbol-search
    :nrepl-client-atom nrepl-client-atom})
 
-;; Common implementation of the eval function used across symbol tools
-(defn eval-code-helper [client code]
-  (nrepl/tool-eval-code client code))
+;; This helper is no longer needed as we directly use nrepl functions
 
 ;; ===== Symbol Completions Tool Implementation =====
 
@@ -170,7 +168,7 @@
     {:symbol symbol}))
 
 (defmethod tool-system/execute-tool :source-code [{:keys [nrepl-client-atom]} inputs]
-  (core/get-source-code @nrepl-client-atom eval-code-helper (:symbol inputs)))
+  (core/get-source-code @nrepl-client-atom (:symbol inputs)))
 
 (defmethod tool-system/format-results :source-code [_ result]
   (if (:error result)
@@ -200,7 +198,7 @@
     {:search-str search-str}))
 
 (defmethod tool-system/execute-tool :symbol-search [{:keys [nrepl-client-atom]} inputs]
-  (core/search-symbols @nrepl-client-atom eval-code-helper (:search-str inputs)))
+  (core/search-symbols @nrepl-client-atom (:search-str inputs)))
 
 (defmethod tool-system/format-results :symbol-search [_ result]
   (if (:error result)

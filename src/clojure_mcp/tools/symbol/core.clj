@@ -2,7 +2,8 @@
   "Core implementation for symbol-related tools.
    This namespace contains the pure functionality without any MCP-specific code."
   (:require
-   [clojure.string :as string]))
+   [clojure.string :as string]
+   [clojure-mcp.nrepl :as nrepl]))
 
 (defn get-symbol-completions
   "Returns completions for a given prefix in the current namespace.
@@ -16,7 +17,8 @@
    - :error - Set to true if there was an error during retrieval"
   [nrepl-client prefix]
   (try
-    (let [completions-raw (some-> nrepl-client :completions-fn (apply [prefix]))
+    ;; Use the completions function directly from clojure-mcp.nrepl
+    (let [completions-raw (clojure-mcp.nrepl/completions nrepl-client prefix)
           candidates (mapv :candidate completions-raw)]
       {:completions candidates :error false})
     (catch Exception e
@@ -34,7 +36,7 @@
    - :error - Set to true if there was an error or the symbol was not found"
   [nrepl-client symbol-name]
   (try
-    (if-let [metadata (some-> nrepl-client :lookup-fn (apply [symbol-name]))]
+    (if-let [metadata (nrepl/lookup nrepl-client symbol-name)]
       {:metadata metadata :error false}
       {:error true :message (str "Symbol '" symbol-name "' not found")})
     (catch Exception e
@@ -53,7 +55,7 @@
    - :error - Set to true if there was an error or the symbol was not found"
   [nrepl-client symbol-name]
   (try
-    (if-let [metadata (some-> nrepl-client :lookup-fn (apply [symbol-name]))]
+    (if-let [metadata (nrepl/lookup nrepl-client symbol-name)]
       {:arglists (:arglists metadata)
        :doc (:doc metadata)
        :error false}
@@ -66,15 +68,14 @@
    
    Parameters:
    - nrepl-client: The nREPL client to use for evaluation
-   - eval-fn: A function that takes a client and code string, and returns a result string
    - symbol-name: The name of the symbol to get source for (as a string)
    
    Returns a map with:
    - :source - The source code as a string
    - :error - Set to true if there was an error during evaluation"
-  [nrepl-client eval-fn symbol-name]
+  [nrepl-client symbol-name]
   (let [code (pr-str `(clojure.repl/source-fn (symbol ~symbol-name)))
-        result-str (eval-fn nrepl-client code)]
+        result-str (nrepl/tool-eval-code nrepl-client code)]
     (if result-str
       (try
         (let [source (read-string result-str)]
@@ -90,15 +91,14 @@
    
    Parameters:
    - nrepl-client: The nREPL client to use for evaluation
-   - eval-fn: A function that takes a client and code string, and returns a result string
    - search-str: The string to search for in symbol names
    
    Returns a map with:
    - :matches - A vector of matching symbol names
    - :error - Set to true if there was an error during evaluation"
-  [nrepl-client eval-fn search-str]
+  [nrepl-client search-str]
   (let [code (pr-str `(clojure.repl/apropos ~search-str))
-        result-str (eval-fn nrepl-client code)]
+        result-str (nrepl/tool-eval-code nrepl-client code)]
     (if result-str
       (try
         (let [matches (some->> (read-string result-str)
