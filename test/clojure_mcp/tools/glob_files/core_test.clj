@@ -38,4 +38,31 @@
           result (sut/glob-files current-dir "**/*.clj" :max-results 1)]
       (is (not (:error result)) "Should not return an error")
       (is (= 1 (count (:filenames result))) "Should return exactly 1 result")
-      (is (:truncated result) "Should indicate results were truncated"))))
+      (is (:truncated result) "Should indicate results were truncated")))
+
+  (testing "Finding files in root directory with **/*.ext pattern"
+    (let [current-dir (System/getProperty "user.dir")
+          ;; Get files using both patterns for comparison
+          standard-result (sut/glob-files current-dir "**/*.md")
+          root-only-result (sut/glob-files current-dir "*.md")
+          ;; Count root-level .md files using Java file operations
+          root-file-count (count (filter #(and (.isFile %)
+                                               (.endsWith (.getName %) ".md"))
+                                         (.listFiles (io/file current-dir))))]
+      ;; The **/*.md pattern should also find files in the root directory
+      (is (>= (count (:filenames standard-result)) root-file-count)
+          "**/*.md pattern should find all root-level files")
+      ;; Compare with direct root pattern to ensure we find the same files
+      (is (= (count (:filenames root-only-result)) root-file-count)
+          "*.md pattern should find all root-level files")
+      ;; Check if root files exist in the results
+      (let [path-obj (Paths/get current-dir (into-array String []))
+            root-files-in-results (filter
+                                   (fn [file-path]
+                                     (let [file-obj (Paths/get file-path (into-array String []))
+                                           rel-path (.relativize path-obj file-obj)]
+                                       (and (= (.getNameCount rel-path) 1)
+                                            (.endsWith (str rel-path) ".md"))))
+                                   (:filenames standard-result))]
+        (is (= (count root-files-in-results) root-file-count)
+            "**/*.md pattern should find all root-level md files")))))

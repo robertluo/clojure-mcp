@@ -25,7 +25,12 @@
         dir-file (io/file dir)]
     (if (and (.exists dir-file) (.isDirectory dir-file))
       (try
-        (let [path (Paths/get (.getAbsolutePath dir-file) (into-array String []))
+        ;; Special case for "**/*.ext" pattern to also include root files
+        (let [should-check-root? (re-matches #"^\*\*/\*\.\w+$" pattern)
+              root-pattern (when should-check-root?
+                             (subs pattern 3)) ; Remove the "**/" prefix
+
+              path (Paths/get (.getAbsolutePath dir-file) (into-array String []))
               matcher (try
                         (.getPathMatcher (FileSystems/getDefault) (str "glob:" pattern))
                         (catch Exception e
@@ -34,8 +39,22 @@
                             (throw (ex-info
                                     (str "Invalid glob pattern: " (.getMessage e))
                                     {:durationMs (- end start)})))))
+              root-matcher (when should-check-root?
+                             (try
+                               (.getPathMatcher (FileSystems/getDefault) (str "glob:" root-pattern))
+                               (catch Exception _ nil)))
               matches (atom [])
               truncated (atom false)]
+
+          ;; Add special handling for root files if using the "**/*.ext" pattern
+          (when (and should-check-root? root-matcher)
+            (doseq [file (.listFiles dir-file)]
+              (when (and (.isFile file)
+                         (< (count @matches) max-results)
+                         (.matches root-matcher
+                                   (Paths/get (.getName file) (into-array String []))))
+                (swap! matches conj {:path (str file)
+                                     :mtime (.lastModified file)}))))
 
           (Files/walkFileTree
            path
@@ -48,7 +67,12 @@
              (visitFile [file _attrs]
                (let [rel (.relativize path file)]
                  (when (and (< (count @matches) max-results)
-                            (.matches matcher rel))
+                            (.matches matcher rel)
+                            ;; Skip root files we've already added with the special case
+                            (not (and should-check-root?
+                                      (= (.getNameCount rel) 1)
+                                      root-matcher
+                                      (.matches root-matcher (.getFileName rel)))))
                    (swap! matches conj {:path (str file)
                                         :mtime (.lastModified (.toFile file))}))
                  (when (>= (count @matches) max-results)
