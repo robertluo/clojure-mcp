@@ -2,6 +2,7 @@
   (:require [clojure.test :refer :all]
             [clojure-mcp.tools.grep.tool :as sut]
             [clojure-mcp.tool-system :as tool-system]
+            [clojure.string :as str]
             [clojure.data.json :as json]))
 
 (deftest tool-name-test
@@ -74,7 +75,8 @@
                     {:called-with {:path path
                                    :pattern pattern
                                    :include include
-                                   :max-results max-results}})]
+                                   :max-results max-results}
+                     :truncated (> 58 max-results)})]
 
       (testing "with only required parameters"
         (let [result (tool-system/execute-tool
@@ -83,7 +85,8 @@
           (is (= {:called-with {:path "/test/path"
                                 :pattern "test.*pattern"
                                 :include nil
-                                :max-results 1000}} result))))
+                                :max-results 1000}
+                  :truncated false} result))))
 
       (testing "with all parameters"
         (let [result (tool-system/execute-tool
@@ -91,31 +94,47 @@
                       {:path "/test/path"
                        :pattern "test.*pattern"
                        :include "*.clj"
-                       :max-results 500})]
+                       :max-results 5})]
           (is (= {:called-with {:path "/test/path"
                                 :pattern "test.*pattern"
                                 :include "*.clj"
-                                :max-results 500}} result)))))))
+                                :max-results 5}
+                  :truncated true} result)))))))
 
 (deftest format-results-test
   (testing "format-results correctly formats successful results with files"
     (let [result {:filenames ["file1.clj" "file2.clj"]
                   :numFiles 2
-                  :durationMs 123}
+                  :truncated false}
           formatted (tool-system/format-results {:tool-type :grep} result)]
-      (is (= {:result [(json/write-str result :escape-slash false)]
+      (is (= {:result ["Found 2 files\nfile1.clj\nfile2.clj"]
               :error false} formatted))))
 
   (testing "format-results correctly formats successful results with no files"
+    (let [result {:filenames []
+                  :numFiles 0
+                  :truncated false}
+          formatted (tool-system/format-results {:tool-type :grep} result)]
+      (is (= {:result ["No files found"]
+              :error false} formatted))))
+
+  (testing "format-results correctly formats results with nil filenames"
     (let [result {:filenames nil
                   :durationMs 42}
+          formatted (tool-system/format-results {:tool-type :grep} result)]
+      (is (= {:result ["No files found"]
+              :error false} formatted))))
+
+  (testing "format-results correctly formats truncated results"
+    (let [files (vec (map #(str "file" %) (range 1 6)))
+          result {:filenames files
+                  :numFiles 58
+                  :truncated true}
           formatted (tool-system/format-results {:tool-type :grep} result)
-          parsed-json (json/read-str (first (:result formatted)))]
-      (is (= false (:error formatted)))
-      (is (= [] (get parsed-json "filenames")))
-      (is (= 0 (get parsed-json "numFiles")))
-      (is (= 42 (get parsed-json "durationMs")))
-      (is (string? (get parsed-json "message")))))
+          result-str (first (:result formatted))]
+      (is (false? (:error formatted)))
+      (is (str/starts-with? result-str "Found 58 files"))
+      (is (str/includes? result-str "truncated"))))
 
   (testing "format-results correctly formats error results"
     (let [result {:error "Some error occurred"}

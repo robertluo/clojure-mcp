@@ -6,7 +6,6 @@
    [clojure.java.shell :as shell]
    [clojure.java.io :as io]))
 
-
 (defn grep-with-command
   "Uses the system grep command to search file contents.
    Uses extended regular expression syntax (-E flag) for advanced patterns.
@@ -42,6 +41,7 @@
             duration (- end-time start-time)
             matching-files (when (seq (:out result))
                              (str/split-lines (:out result)))
+            file-count (count matching-files)
             file-times (when matching-files
                          (map (fn [file-path]
                                 {:path file-path
@@ -53,8 +53,9 @@
                                    (take max-results $)
                                    (mapv :path $))]
         {:filenames sorted-limited-files
-         :numFiles (count sorted-limited-files)
-         :durationMs duration})
+         :numFiles file-count
+         :durationMs duration
+         :truncated (> file-count max-results)})
       {:error (str "grep error: " (:err result))
        :durationMs (- (System/currentTimeMillis) start-time)})))
 
@@ -79,11 +80,12 @@
    Returns a map with:
    - :filenames - Vector of matching file paths sorted by modification time
    - :numFiles - Number of files containing matches
-   - :durationMs - Time taken for the search in milliseconds"
+   - :durationMs - Time taken for the search in milliseconds
+   - :truncated - Boolean indicating if results were truncated"
   [path pattern include max-results]
   (let [start-time (System/currentTimeMillis)
         dir-file (io/file path)
-        matches (atom [])
+        all-matches (atom [])
         include-pattern (when include
                           (re-pattern (str ".*\\.("
                                            (-> include
@@ -95,41 +97,42 @@
 
     ;; Recursive function to search files
     (letfn [(search-directory [dir]
-              (when (< (count @matches) max-results)
-                (doseq [file (.listFiles dir)]
-                  (when (< (count @matches) max-results)
-                    (cond
-                      (and (.isDirectory file)
-                           (not (str/starts-with? (.getName file) ".")))
-                      (search-directory file)
+              (doseq [file (.listFiles dir)]
+                (cond
+                  (and (.isDirectory file)
+                       (not (str/starts-with? (.getName file) ".")))
+                  (search-directory file)
 
-                      (.isFile file)
-                      (let [file-path (.getAbsolutePath file)
-                            file-name (.getName file)]
-                        (when (or (nil? include-pattern)
-                                  (re-matches include-pattern file-name))
-                          (try
-                            (with-open [rdr (io/reader file)]
-                              (loop [lines (line-seq rdr)]
-                                (when (and (seq lines) (< (count @matches) max-results))
-                                  (if (re-find pattern-regex (first lines))
-                                    (swap! matches conj {:path file-path
+                  (.isFile file)
+                  (let [file-path (.getAbsolutePath file)
+                        file-name (.getName file)]
+                    (when (or (nil? include-pattern)
+                              (re-matches include-pattern file-name))
+                      (try
+                        (with-open [rdr (io/reader file)]
+                          (loop [lines (line-seq rdr)]
+                            (when (seq lines)
+                              (if (re-find pattern-regex (first lines))
+                                (swap! all-matches conj {:path file-path
                                                          :mtime (.lastModified file)})
-                                    (recur (rest lines))))))
-                            (catch Exception _ nil)))))))))]
+                                (recur (rest lines))))))
+                        (catch Exception _ nil)))))))]
 
       ;; Start the search
       (search-directory dir-file)
 
       (let [end-time (System/currentTimeMillis)
             duration (- end-time start-time)
-            sorted-results (->> @matches
+            total-count (count @all-matches)
+            sorted-results (->> @all-matches
                                 (sort-by :mtime >)
+                                (take max-results)
                                 (map :path)
                                 vec)]
         {:filenames sorted-results
-         :numFiles (count sorted-results)
-         :durationMs duration}))))
+         :numFiles total-count
+         :durationMs duration
+         :truncated (> total-count max-results)}))))
 
 (defn grep-files
   "Fast content search tool that searches file contents using regular expressions.

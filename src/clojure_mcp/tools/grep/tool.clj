@@ -69,17 +69,21 @@ Use this tool when you need to find files containing specific patterns.")
     ;; If there's an error, return it with error flag true
     {:result [(:error result)]
      :error true}
-    ;; Otherwise, format the results as JSON
-    (let [output (json/write-str
-                  (if (nil? (:filenames result))
-                    {:filenames []
-                     :numFiles 0
-                     :durationMs (:durationMs result)
-                     :message "No matching files found. Try broadening your search pattern or path."}
-                    {:filenames (:filenames result)
-                     :numFiles (:numFiles result)
-                     :durationMs (:durationMs result)})
-                  :escape-slash false)]
+    ;; Otherwise, format the results in a human-readable way
+    (let [{:keys [filenames numFiles truncated]} result
+          output (cond
+                   (nil? filenames)
+                   "No files found"
+
+                   (zero? numFiles)
+                   "No files found"
+
+                   :else
+                   (let [base-message (str "Found " numFiles " file" (when-not (= numFiles 1) "s") "\n"
+                                           (clojure.string/join "\n" filenames))]
+                     (if truncated
+                       (str base-message "\n(Results are truncated. Consider using a more specific path or pattern.)")
+                       base-message)))]
       {:result [output]
        :error false})))
 
