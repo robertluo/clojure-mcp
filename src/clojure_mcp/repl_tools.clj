@@ -13,7 +13,8 @@
    [clojure-mcp.tools.eval.tool :as new-eval-tool]
    [clojure-mcp.tools.read-file.tool :as new-read-file-tool]
    [clojure-mcp.tools.directory-tree.tool :as new-directory-tree-tool]
-   [clojure-mcp.tools.grep.tool :as new-grep-tool]))
+   [clojure-mcp.tools.grep.tool :as new-grep-tool]
+   [clojure-mcp.tools.glob-files.tool :as new-glob-files-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
@@ -37,13 +38,15 @@
     (edit-tools/comment-block-edit-tool nrepl-client-atom)
     (edit-tools/docstring-edit-tool nrepl-client-atom)
     (project-inspect/inspect-project-tool nrepl-client-atom)
-    ;; New tool-system tools - commented out for now to avoid name conflicts
-    ;; Uncomment when ready to replace the original tools
+    ;; New tool-system tools
     (new-eval-tool/eval-code nrepl-client-atom)
     (new-read-file-tool/read-file-tool nrepl-client-atom)
     (new-directory-tree-tool/directory-tree-tool nrepl-client-atom)
-    (new-grep-tool/grep-tool nrepl-client-atom)]
-   (filesystem-tools/get-all-filesystem-tools nrepl-client-atom)))
+    (new-grep-tool/grep-tool nrepl-client-atom)
+    (new-glob-files-tool/glob-files-tool nrepl-client-atom)]
+   ;; Remove glob-files tool from filesystem-tools
+   (let [filesystem-tools (filesystem-tools/get-all-filesystem-tools nrepl-client-atom)]
+     (filter #(not= "glob_files" (:name %)) filesystem-tools))))
 
 (comment
   ;; Example of testing tools directly

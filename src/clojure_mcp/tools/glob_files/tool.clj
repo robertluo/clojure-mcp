@@ -1,0 +1,79 @@
+(ns clojure-mcp.tools.glob-files.tool
+  "Implementation of the glob-files tool using the tool-system multimethod approach."
+  (:require
+   [clojure-mcp.tool-system :as tool-system]
+   [clojure-mcp.tools.glob-files.core :as core]
+   [clojure-mcp.repl-tools.utils :as utils]
+   [clojure.data.json :as json]))
+
+;; Factory function to create the tool configuration
+(defn create-glob-files-tool
+  "Creates the glob-files tool configuration.
+   
+   Parameters:
+   - nrepl-client-atom: Atom containing the nREPL client"
+  [nrepl-client-atom]
+  {:tool-type :glob-files
+   :nrepl-client-atom nrepl-client-atom})
+
+;; Implement the required multimethods for the glob-files tool
+(defmethod tool-system/tool-name :glob-files [_]
+  "glob_files")
+
+(defmethod tool-system/tool-description :glob-files [_]
+  "Fast file pattern matching tool that works with any codebase size.
+Supports glob patterns like \"**/*.clj\" or \"src/**/*.cljs\".
+Returns matching file paths sorted by modification time (most recent first).
+Use this tool when you need to find files by name patterns.")
+
+(defmethod tool-system/tool-schema :glob-files [_]
+  {:type :object
+   :properties {:path {:type :string
+                       :description "Root directory to start the search from"}
+                :pattern {:type :string
+                          :description "Glob pattern (e.g. \"**/*.clj\", \"src/**/*.tsx\")"}
+                :max_results {:type :integer
+                              :description "Maximum number of results to return (default: 1000)"}}
+   :required [:path :pattern]})
+
+(defmethod tool-system/validate-inputs :glob-files [{:keys [nrepl-client-atom]} inputs]
+  (let [{:keys [path pattern max_results]} inputs
+        nrepl-client @nrepl-client-atom]
+    (when-not path
+      (throw (ex-info "Missing required parameter: path" {:inputs inputs})))
+
+    (when-not pattern
+      (throw (ex-info "Missing required parameter: pattern" {:inputs inputs})))
+
+    ;; Use the existing validate-path-with-client function
+    (let [validated-path (utils/validate-path-with-client path nrepl-client)]
+      ;; Return validated inputs with normalized path
+      (cond-> {:path validated-path
+               :pattern pattern}
+        ;; Only include max_results if provided
+        max_results (assoc :max-results max_results)))))
+
+(defmethod tool-system/execute-tool :glob-files [_ inputs]
+  (let [{:keys [path pattern max-results]} inputs]
+    (core/glob-files path pattern :max-results (or max-results 1000))))
+
+(defmethod tool-system/format-results :glob-files [_ result]
+  (if (:error result)
+    ;; If there's an error, return it with error flag true
+    {:result [(:error result)]
+     :error true}
+    ;; Otherwise, format the results as JSON
+    (let [output (json/write-str
+                  (select-keys result [:filenames :numFiles :durationMs :truncated])
+                  :escape-slash false)]
+      {:result [output]
+       :error false})))
+
+;; Backward compatibility function that returns the registration map
+(defn glob-files-tool
+  "Returns the registration map for the glob-files tool.
+   
+   Parameters:
+   - nrepl-client-atom: Atom containing the nREPL client"
+  [nrepl-client-atom]
+  (tool-system/registration-map (create-glob-files-tool nrepl-client-atom)))

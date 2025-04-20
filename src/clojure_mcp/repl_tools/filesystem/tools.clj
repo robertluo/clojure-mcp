@@ -294,7 +294,7 @@ Use this tool when you need to find files containing specific patterns."
     [(create-fs-list-directory-tool nrepl-client-atom)
      #_(create-fs-read-file-tool nrepl-client-atom {:max-lines 2000 :max-line-length 1000})
      #_(create-directory-tree-tool nrepl-client-atom) ;; Commented out - replaced by the new tool-system implementation
-     (create-glob-files-tool nrepl-client-atom)
+     #_(create-glob-files-tool nrepl-client-atom) ;; Commented out - replaced by the new tool-system implementation
      #_(create-grep-tool nrepl-client-atom) ;; Commented out - replaced by the new tool-system implementation
      (create-file-write-tool nrepl-client-atom)]))
 
