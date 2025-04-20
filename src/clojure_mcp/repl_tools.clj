@@ -17,7 +17,8 @@
    [clojure-mcp.tools.file-write.tool :as new-file-write-tool]
    [clojure-mcp.tools.list-directory.tool :as new-list-directory-tool]
    [clojure-mcp.tools.namespace.tool :as new-namespace-tool]
-   [clojure-mcp.tools.symbol.tool :as new-symbol-tool]))
+   [clojure-mcp.tools.symbol.tool :as new-symbol-tool]
+   [clojure-mcp.tools.form-edit.tool :as new-form-edit-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
@@ -34,12 +35,13 @@
     #_(namespace-tools/list-namespaces nrepl-client-atom)
     #_(namespace-tools/list-vars-in-namespace nrepl-client-atom)
     (history-tools/eval-history nrepl-client-atom)
-    (edit-tools/top-level-form-edit-tool nrepl-client-atom)
-    (edit-tools/top-level-form-insert-before-tool nrepl-client-atom)
-    (edit-tools/top-level-form-insert-after-tool nrepl-client-atom)
-    (edit-tools/clojure-file-outline-tool nrepl-client-atom)
-    (edit-tools/comment-block-edit-tool nrepl-client-atom)
-    (edit-tools/docstring-edit-tool nrepl-client-atom)
+    ;; Commented out old form editing tools in favor of new multimethod-based implementations
+    #_(edit-tools/top-level-form-edit-tool nrepl-client-atom)
+    #_(edit-tools/top-level-form-insert-before-tool nrepl-client-atom)
+    #_(edit-tools/top-level-form-insert-after-tool nrepl-client-atom)
+    #_(edit-tools/clojure-file-outline-tool nrepl-client-atom)
+    #_(edit-tools/comment-block-edit-tool nrepl-client-atom)
+    #_(edit-tools/docstring-edit-tool nrepl-client-atom)
     (project-inspect/inspect-project-tool nrepl-client-atom)
     ;; New tool-system tools
     (new-eval-tool/eval-code nrepl-client-atom)
@@ -56,8 +58,15 @@
     (new-symbol-tool/symbol-metadata-tool nrepl-client-atom)
     (new-symbol-tool/symbol-documentation-tool nrepl-client-atom)
     (new-symbol-tool/source-code-tool nrepl-client-atom)
-    (new-symbol-tool/symbol-search-tool nrepl-client-atom)]
-   ;; All filesystem and symbol tools have been refactored to the new architecture
+    (new-symbol-tool/symbol-search-tool nrepl-client-atom)
+    ;; New form editing tools
+    (new-form-edit-tool/top-level-form-edit-tool nrepl-client-atom)
+    (new-form-edit-tool/top-level-form-insert-before-tool nrepl-client-atom)
+    (new-form-edit-tool/top-level-form-insert-after-tool nrepl-client-atom)
+    (new-form-edit-tool/docstring-edit-tool nrepl-client-atom)
+    (new-form-edit-tool/comment-block-edit-tool nrepl-client-atom)
+    (new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)]
+   ;; All tools have been refactored to the new architecture!
    []))
 
 (comment
@@ -74,6 +83,29 @@
                    (deliver prom {:res res :error error})))
         @prom)))
 
-  ;; Example using tools directly from their namespaces
-  (def edit-tester (make-test-tool (edit-tools/top-level-form-edit-tool client-atom)))
-  (def eval-tester (make-test-tool (eval-tools/eval-code client-atom))))
+  ;; Example using old tools directly from their namespaces
+  (def old-edit-tester (make-test-tool (edit-tools/top-level-form-edit-tool client-atom)))
+  (def old-eval-tester (make-test-tool (eval-tools/eval-code client-atom)))
+  
+  ;; Example using new multimethod-based tools
+  (def edit-tester (make-test-tool (new-form-edit-tool/top-level-form-edit-tool client-atom)))
+  (def docstring-tester (make-test-tool (new-form-edit-tool/docstring-edit-tool client-atom)))
+  (def comment-tester (make-test-tool (new-form-edit-tool/comment-block-edit-tool client-atom)))
+  (def outline-tester (make-test-tool (new-form-edit-tool/clojure-file-outline-tool client-atom)))
+  
+  ;; Example usage of new form editing tools
+  (edit-tester {"file_path" "/path/to/file.clj"
+                "form_name" "example-fn"
+                "form_type" "defn"
+                "content" "(defn example-fn [x] (* x 2))"})
+  
+  (docstring-tester {"file_path" "/path/to/file.clj"
+                     "form_name" "example-fn"
+                     "form_type" "defn"
+                     "docstring" "Updated documentation for the function"})
+  
+  (comment-tester {"file_path" "/path/to/file.clj"
+                   "comment_substring" "TODO"
+                   "new_content" ";; DONE: implemented feature"})
+  
+  (outline-tester {"file_path" "/path/to/file.clj"}))

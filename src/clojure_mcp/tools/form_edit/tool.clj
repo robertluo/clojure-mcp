@@ -421,7 +421,7 @@
 
 (comment
   ;; === Examples of using the form editing tools ===
-  
+
   ;; Setup for REPL-based testing
   (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
   (clojure-mcp.nrepl/start-polling @client-atom)
