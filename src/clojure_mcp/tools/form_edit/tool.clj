@@ -327,22 +327,18 @@
 ;; Implement the required multimethods for comment block edit tool
 
 (defmethod tool-system/tool-name :clojure-edit-comment-block [_]
-  "clojure_edit_comment_block")
+  "clojure_edit_replace_comment_block")
 
 (defmethod tool-system/tool-description :clojure-edit-comment-block [_]
-  "Edits a comment block in a Clojure file.
-   
-   This tool can find and update comment blocks using a substring search. It works with
-   both line comments (;; style) and comment forms ((comment ...)).
-   
-   Example: Update a comment block containing 'TODO':
-   - file_path: \"/path/to/file.clj\"
-   - comment_substring: \"TODO\"
-   - new_content: \";; DONE: Implemented feature X\"
-   
-   The tool will find the comment block containing the substring, replace it with the
-   new content, and format the result. It returns the updated file content, the location
-   offsets, and a diff of the changes.")
+  "Replaces an entire comment block in a Clojure file by finding the first block containing the specified substring.
+
+For line comments (;;): A 'block' is a contiguous sequence of comment lines with no blank lines or code between them.
+
+For comment forms: A 'block' is the entire (comment ...) form including all of its contents. When editing a comment form, you must include the (comment ...) wrapper in your new content.
+
+The function searches for the first occurrence of the comment_substring in comment blocks and replaces the entire containing block with the new content. It cannot make partial edits within a block.
+
+For reliable results, use a unique substring that appears in only one comment block.")
 
 (defmethod tool-system/tool-schema :clojure-edit-comment-block [_]
   {:type :object
@@ -351,7 +347,7 @@
                 :comment_substring {:type :string
                                    :description "Substring to identify the comment block"}
                 :new_content {:type :string
-                             :description "New content for the comment block"}}
+                             :description "The replacement comment block"}}
    :required [:file_path :comment_substring :new_content]})
 
 (defmethod tool-system/validate-inputs :clojure-edit-comment-block [_ inputs]
