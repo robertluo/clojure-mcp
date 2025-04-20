@@ -18,7 +18,7 @@
       (is (> (count (tool-system/tool-description tool-config)) 10))
       (let [schema (tool-system/tool-schema tool-config)]
         (is (map? schema))
-        (is (= #{:path :pattern} (set (:required schema))))
+        (is (= #{:pattern} (set (:required schema))))
         (is (= #{:path :pattern :max_results} (set (keys (:properties schema))))))))
 
   (testing "Input validation"
@@ -32,11 +32,6 @@
         (is (map? validated))
         (is (= #{:path :pattern :max-results} (set (keys validated))))
         (is (string? (:path validated))))
-
-      ;; Missing path test
-      (is (thrown-with-msg?
-           Exception #"Missing required parameter: path"
-           (tool-system/validate-inputs tool-config {:pattern "**/*.clj"})))
 
       ;; Missing pattern test
       (is (thrown-with-msg?

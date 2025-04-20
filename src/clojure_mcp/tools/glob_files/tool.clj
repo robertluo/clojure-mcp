@@ -30,24 +30,26 @@ Use this tool when you need to find files by name patterns.")
 (defmethod tool-system/tool-schema :glob-files [_]
   {:type :object
    :properties {:path {:type :string
-                       :description "Root directory to start the search from"}
+                       :description "Root directory to start the search from (defaults to current working directory)"}
                 :pattern {:type :string
                           :description "Glob pattern (e.g. \"**/*.clj\", \"src/**/*.tsx\")"}
                 :max_results {:type :integer
                               :description "Maximum number of results to return (default: 1000)"}}
-   :required [:path :pattern]})
+   :required [:pattern]})
 
 (defmethod tool-system/validate-inputs :glob-files [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [path pattern max_results]} inputs
-        nrepl-client @nrepl-client-atom]
-    (when-not path
-      (throw (ex-info "Missing required parameter: path" {:inputs inputs})))
+        effective-path (or path
+                           (get @nrepl-client-atom :clojure-mcp.core/nrepl-user-dir))]
+
+    (when-not effective-path
+      (throw (ex-info "No path provided and no nrepl-user-dir available" {:inputs inputs})))
 
     (when-not pattern
       (throw (ex-info "Missing required parameter: pattern" {:inputs inputs})))
 
     ;; Use the existing validate-path-with-client function
-    (let [validated-path (utils/validate-path-with-client path nrepl-client)]
+    (let [validated-path (utils/validate-path-with-client effective-path @nrepl-client-atom)]
       ;; Return validated inputs with normalized path
       (cond-> {:path validated-path
                :pattern pattern}
