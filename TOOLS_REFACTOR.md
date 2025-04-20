@@ -244,7 +244,7 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 1. **Refactoring Phase**: 
    - 7 of ~10 tools completed (~70%)
    - Core architecture in place and proven
-   - Five filesystem tools completely refactored
+   - All filesystem tools completely refactored and old implementation removed
    - Established consistent patterns for tool implementation
 
 2. **Testing Infrastructure**:
@@ -272,6 +272,9 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 4. Document the new architecture and patterns for extensibility
 
 ## Recent Commits
+- Removed legacy filesystem implementation entirely
+- Made read-file tool independent of old filesystem code
+- Updated repl_tools.clj to remove references to filesystem-tools
 - Refactored list-directory tool using the new multimethod pattern
 - Added comprehensive tests for list-directory with test directories
 - Updated registration in repl_tools.clj with proper filtering
