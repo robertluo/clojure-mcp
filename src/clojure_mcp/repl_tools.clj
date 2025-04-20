@@ -18,7 +18,8 @@
    [clojure-mcp.tools.list-directory.tool :as new-list-directory-tool]
    [clojure-mcp.tools.namespace.tool :as new-namespace-tool]
    [clojure-mcp.tools.symbol.tool :as new-symbol-tool]
-   [clojure-mcp.tools.form-edit.tool :as new-form-edit-tool]))
+   [clojure-mcp.tools.form-edit.tool :as new-form-edit-tool]
+   [clojure-mcp.tools.project.tool :as new-project-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
@@ -42,7 +43,7 @@
     #_(edit-tools/clojure-file-outline-tool nrepl-client-atom)
     #_(edit-tools/comment-block-edit-tool nrepl-client-atom)
     #_(edit-tools/docstring-edit-tool nrepl-client-atom)
-    (project-inspect/inspect-project-tool nrepl-client-atom)
+    #_(project-inspect/inspect-project-tool nrepl-client-atom) ;; Deprecated version
     ;; New tool-system tools
     (new-eval-tool/eval-code nrepl-client-atom)
     (new-read-file-tool/read-file-tool nrepl-client-atom)
@@ -65,7 +66,9 @@
     (new-form-edit-tool/top-level-form-insert-after-tool nrepl-client-atom)
     (new-form-edit-tool/docstring-edit-tool nrepl-client-atom)
     (new-form-edit-tool/comment-block-edit-tool nrepl-client-atom)
-    (new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)]
+    (new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)
+    ;; New project inspection tool
+    (new-project-tool/inspect-project-tool nrepl-client-atom)]
    ;; All tools have been refactored to the new architecture!
    []))
 

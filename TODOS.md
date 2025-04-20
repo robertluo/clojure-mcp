@@ -5,8 +5,6 @@ Look into how thinking is used in clod
 Need to have an official scratch area for temp files.
  Maybe a tool can handle this for us return a scrath file
 
-clojure_edit_replace_form
-
 Agents provide a way to reduce the growing context and keep things relevant
 agent to handle troublesome edits
 agent to handle parenthesis edits
@@ -19,8 +17,7 @@ very clear that we need a separate mode with no editing tools available
 have claude compare the tools and suggest tweaks
 
 should the fs_read_file tool provide line numbers as in the clod
-
-Symbol tools are not working
+should diffs have line numbers?
 
 let's add the last few file tools
 edit_file - should lint format output if clojure
@@ -28,10 +25,6 @@ create_directory
 move_file
 
 write-file needs to check mod time like clod
-
-Emacs notify shouldn't block or needs a timeout
-
-Emacs notify switch
 
 ## Tool System Refactoring Progress
 - [x] Eval Tool
@@ -43,7 +36,8 @@ Emacs notify switch
 - [x] List-Directory Tool
 - [x] Namespace Tools (current-namespace, list-namespaces, list-vars-in-namespace)
 - [x] Symbol information tools (symbol-completions, symbol-metadata, symbol-documentation, source-code, symbol-search)
-- [ ] Top-level form editing tools
+- [x] Top-level form editing tools (replaced with form-edit tools)
+- [x] Project inspection tool
 
 ## Adapt tools and prompts from OtherCl implementation
 * prompt is still misbehaving, so far working without the prompt seems to be better
