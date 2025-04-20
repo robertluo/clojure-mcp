@@ -278,6 +278,8 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
    - All filesystem tools completely refactored and old implementation removed
    - All namespace tools completely refactored
    - All symbol information tools completely refactored
+   - Implemented pipeline architecture for form editing operations
+   - Fixed critical issue with comment editing
    - Established consistent patterns for tool implementation
 
 2. **Testing Infrastructure**:
@@ -286,6 +288,9 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
    - Renamed old tests to .bak files to avoid conflicts
    - Added comprehensive real-world tests for filesystem operations
    - Added tests with real nREPL server integration for symbol and namespace tools
+   - Created robust tests for form editing operations with test file fixtures
+   - Implemented specific tests for comment editing edge cases, including end-of-file comments
+   - Added tests to verify no zipper data serialization in comment editing
 
 3. **Backward Compatibility**:
    - Each tool provides compatibility functions for smooth migration
@@ -303,7 +308,55 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 
 4. Document the new architecture and patterns for extensibility
 
+## Top-Level Form Editing Tools Migration Checklist
+
+### Core Infrastructure
+- [x] Create directory structure in `src/clojure_mcp/tools/form_edit/`
+- [x] Implement `core.clj` with shared utility functions:
+  - [x] `is-top-level-form?` and `find-top-level-form`
+  - [x] `edit-top-level-form` function
+  - [x] Offset calculation functions
+  - [x] Form summary functions
+- [x] Implement `pipeline.clj` with:
+  - [x] Thread context function
+  - [x] Context map specs
+  - [x] Common pipeline steps
+  - [x] Form, docstring and comment editing pipelines
+  - [x] File outline pipeline
+- [x] Set up testing support for zipper operations
+
+### Form Editing Tools
+- [ ] Implement `form_edit.clj`:
+  - [ ] Replace form logic
+  - [ ] Insert before form logic
+  - [ ] Insert after form logic
+- [ ] Implement tool.clj with multimethod implementations:
+  - [ ] `clojure_edit_replace_form`
+  - [ ] `clojure_edit_insert_before_form` 
+  - [ ] `clojure_edit_insert_after_form`
+- [ ] Create comprehensive tests for form editing
+
+### Specialized Tools
+- [x] Implement comment editing functions in pipeline.clj
+- [x] Implement docstring editing functions in pipeline.clj  
+- [x] Implement file outline functions in pipeline.clj
+- [ ] Implement tool.clj with multimethod implementations:
+  - [ ] `clojure_file_structure`
+  - [ ] `clojure_edit_comment_block`
+  - [ ] `clojure_edit_replace_docstring`
+- [x] Create tests for comment block editing
+- [x] Create tests for docstring editing 
+- [x] Create tests for file outline generation
+
+### Integration
+- [ ] Update `repl_tools.clj` to use new implementations
+- [ ] Ensure backward compatibility
+- [ ] Verify Emacs integration functionality
+
 ## Recent Commits
+- Fixed comment editing in pipeline to prevent zipper data serialization
+- Implemented comprehensive pipeline architecture for form editing operations
+- Added extensive tests for comment editing with improved validations
 - Refactored symbol information tools to new multimethod architecture
 - Implemented five symbol tools in a unified module (completions, metadata, documentation, source, search)
 - Created comprehensive tests using real nREPL server
