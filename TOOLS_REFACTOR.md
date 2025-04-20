@@ -26,6 +26,30 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
    - Centralized validation with clear error messages
    - Consistent response format for both success and error states
 
+## Refactoring Workflow Best Practices
+
+1. **Test-Driven Development**
+   - Write tests before implementing functionality
+   - Run tests after each significant change
+   - Ensure all tests pass before committing changes
+
+2. **Code Validation**
+   - Use `clojure_eval` with `:reload` to verify file modifications after editing
+   - Load and test new namespaces in REPL to check for syntax errors early
+   - Verify functionality with small test cases before integrating
+
+3. **Efficient Code Editing**
+   - Use specialized `clojure_edit_*` tools for targeted edits instead of rewriting entire files
+   - Use `clojure_edit_replace_form` for updating specific functions or namespaces
+   - Use `clojure_edit_insert_before_form` and `clojure_edit_insert_after_form` for adding new code
+
+4. **Integration Process**
+   - Implement core functionality first, then MCP interface
+   - Test individual components before integrating
+   - Comment out old implementation rather than deleting immediately
+   - Update main tool registration in `repl_tools.clj`
+   - Filter out old tools to prevent duplicates
+
 ## Completed Tools
 
 1. **Eval Tool** ✓
@@ -75,12 +99,25 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
    - Created robust tests with both controlled test directories and real project files
    - Commented out old implementation in filesystem/tools.clj
 
+5. **Glob-Files Tool** ✓
+   - **New Implementation**: 
+     - `src/clojure_mcp/tools/glob_files/core.clj` (Business logic)
+     - `src/clojure_mcp/tools/glob_files/tool.clj` (MCP interface)
+   - **Old Implementation**: 
+     - `src/clojure_mcp/repl_tools/filesystem/tools.clj` (in `create-glob-files-tool` function)
+     - Used `src/clojure_mcp/repl_tools/filesystem/core.clj` (glob-files function)
+   - Enhanced error handling for invalid glob patterns
+   - Implemented proper exception handling with detailed error messages
+   - Created test suite covering various use cases including invalid patterns
+   - Updated `repl_tools.clj` to filter out old implementation to prevent duplicates
+
 ## Current Progress
 
 1. **Refactoring Phase**: 
-   - 4 of ~10 tools completed (~40%)
+   - 5 of ~10 tools completed (~50%)
    - Core architecture in place and proven
-   - Two filesystem tools completely refactored
+   - Three filesystem tools completely refactored
+   - Established consistent patterns for tool implementation
 
 2. **Testing Infrastructure**:
    - Created test utilities in `test/clojure_mcp/tools/test_utils.clj`
@@ -96,7 +133,7 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 ## Next Steps
 
 1. Continue refactoring remaining tools:
-   - Remaining filesystem tools (list_directory, glob_files, file_write)
+   - Remaining filesystem tools (list_directory, file_write)
    - Namespace exploration tools
    - Symbol information tools
    - Top-level form editing tools
@@ -108,12 +145,15 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 4. Document the new architecture and patterns for extensibility
 
 ## Recent Commits
+- Refactored glob-files tool using the new multimethod pattern
+- Improved error handling for invalid glob patterns
+- Added test coverage for both core and tool implementations
+- Integrated with repl_tools.clj with backward compatibility
 - Refactored grep tool using new multimethod pattern
 - Added comprehensive tests for grep tool with real project directories
 - Improved error handling in grep tests to handle implementation differences
 - Refactored directory-tree tool using new architecture
 - Moved directory-tree functionality to dedicated namespace
-- Maintained backward compatibility for existing code
 - Fixed Java collections handling in keywordize function
 
-The project is now demonstrating clear patterns for the refactoring process, with approximately 40% of the tools converted to the new architecture.
+The project is now demonstrating clear patterns for the refactoring process, with approximately 50% of the tools converted to the new architecture.
