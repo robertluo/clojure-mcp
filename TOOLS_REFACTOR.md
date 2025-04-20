@@ -217,6 +217,20 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
    - Created comprehensive tests for both core functionality and MCP integration
    - Added validation, execution, and formatting multimethods
 
+8. **Namespace Tools** ✓
+   - **New Implementation**: 
+     - `src/clojure_mcp/tools/namespace/core.clj` (Business logic)
+     - `src/clojure_mcp/tools/namespace/tool.clj` (MCP interface)
+   - **Old Implementation**: 
+     - `src/clojure_mcp/repl_tools/namespace.clj`
+   - Refactored three tools into one combined namespace:
+     - current-namespace: Returns the current namespace
+     - list-namespaces: Lists all loaded namespaces
+     - list-vars-in-namespace: Gets metadata for vars in a namespace
+   - Created comprehensive tests with real nREPL server integration
+   - Improved error handling and reporting
+   - Added multimethod implementations for all tools
+
 ## Troubleshooting Common Issues
 
 1. **Namespace/Path Mismatch**
@@ -242,9 +256,10 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 ## Current Progress
 
 1. **Refactoring Phase**: 
-   - 7 of ~10 tools completed (~70%)
+   - 10 of ~13 tools completed (~75%)
    - Core architecture in place and proven
    - All filesystem tools completely refactored and old implementation removed
+   - All namespace tools completely refactored
    - Established consistent patterns for tool implementation
 
 2. **Testing Infrastructure**:
@@ -261,7 +276,6 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 ## Next Steps
 
 1. Continue refactoring remaining tools:
-   - Namespace exploration tools
    - Symbol information tools
    - Top-level form editing tools
 
@@ -272,6 +286,10 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 4. Document the new architecture and patterns for extensibility
 
 ## Recent Commits
+- Refactored namespace tools to new multimethod architecture
+- Combined all namespace functionality in a single module
+- Created comprehensive tests using real nREPL server
+- Updated repl_tools.clj to use the new namespace tool implementations
 - Removed legacy filesystem implementation entirely
 - Made read-file tool independent of old filesystem code
 - Updated repl_tools.clj to remove references to filesystem-tools
@@ -287,9 +305,8 @@ We're refactoring the Clojure Model Context Protocol (MCP) tools into a new exte
 - Integrated with repl_tools.clj with backward compatibility
 - Refactored grep tool using new multimethod pattern
 - Added comprehensive tests for grep tool with real project directories
-- Improved error handling in grep tests to handle implementation differences
 - Refactored directory-tree tool using new architecture
 - Moved directory-tree functionality to dedicated namespace
 - Fixed Java collections handling in keywordize function
 
-The project is now demonstrating clear patterns for the refactoring process, with approximately 70% of the tools converted to the new architecture.
+The project is now demonstrating clear patterns for the refactoring process, with approximately 75% of the tools converted to the new architecture.

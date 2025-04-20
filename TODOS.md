@@ -38,7 +38,7 @@ Emacs notify switch
 - [x] Glob-Files Tool
 - [x] File-Write Tool
 - [x] List-Directory Tool
-- [ ] Namespace exploration tools
+- [x] Namespace Tools (current-namespace, list-namespaces, list-vars-in-namespace)
 - [ ] Symbol information tools
 - [ ] Top-level form editing tools
 
