@@ -36,8 +36,8 @@
   (with-redefs [core/get-symbol-completions (fn [_ _] {:completions ["map" "mapv"] :error false})
                 core/get-symbol-metadata (fn [_ _] {:metadata {:name 'map :doc "Doc" :arglists '([f coll])} :error false})
                 core/get-symbol-documentation (fn [_ _] {:arglists '([f coll]) :doc "Doc" :error false})
-                core/get-source-code (fn [_ _ _] {:source "(defn map [f coll] ...)" :error false})
-                core/search-symbols (fn [_ _ _] {:matches ["clojure.core/map"] :error false})]
+                core/get-source-code (fn [_ _] {:source "(defn map [f coll] ...)" :error false})
+                core/search-symbols (fn [_ _] {:matches ["clojure.core/map"] :error false})]
     (f)))
 
 ;; Helper to directly invoke the tool function from our tool registration map
