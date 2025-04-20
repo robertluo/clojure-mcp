@@ -2,7 +2,7 @@
   (:require [clojure.test :refer :all]
             [clojure-mcp.tools.glob-files.tool :as sut]
             [clojure-mcp.tool-system :as tool-system]
-            [clojure.data.json :as json]))
+            [clojure.string :as str]))
 
 (defn create-test-client
   "Creates a test client with the required settings"
@@ -52,13 +52,26 @@
   (testing "Result formatting"
     (let [tool-config {:tool-type :glob-files}
 
-          ;; Test successful result
+          ;; Test successful result with files
           success-result {:filenames ["file1.clj" "file2.clj"]
                           :numFiles 2
                           :durationMs 10
                           :truncated false}
           formatted-success (tool-system/format-results tool-config success-result)
-          parsed-success (json/read-str (first (:result formatted-success)))
+
+          ;; Test successful result with truncation
+          truncated-result {:filenames ["file1.clj" "file2.clj"]
+                            :numFiles 2
+                            :durationMs 10
+                            :truncated true}
+          formatted-truncated (tool-system/format-results tool-config truncated-result)
+
+          ;; Test empty result
+          empty-result {:filenames []
+                        :numFiles 0
+                        :durationMs 5
+                        :truncated false}
+          formatted-empty (tool-system/format-results tool-config empty-result)
 
           ;; Test error result
           error-result {:error "Test error message"}
@@ -68,7 +81,18 @@
       (is (false? (:error formatted-success)))
       (is (= 1 (count (:result formatted-success))))
       (is (string? (first (:result formatted-success))))
-      (is (= 2 (get parsed-success "numFiles")))
+      (is (= "file1.clj\nfile2.clj" (first (:result formatted-success))))
+
+      ;; Check truncated result format
+      (is (false? (:error formatted-truncated)))
+      (is (= 1 (count (:result formatted-truncated))))
+      (is (string? (first (:result formatted-truncated))))
+      (is (str/includes? (first (:result formatted-truncated)) "Results are truncated"))
+
+      ;; Check empty result format
+      (is (false? (:error formatted-empty)))
+      (is (= 1 (count (:result formatted-empty))))
+      (is (= "No files found" (first (:result formatted-empty))))
 
       ;; Check error result format
       (is (true? (:error formatted-error)))
@@ -95,7 +119,8 @@
 
         ;; Check the result format
         (let [result @p
-              parsed (json/read-str (first (:result result)))]
-          (is (= 2 (count (get parsed "filenames"))))
-          (is (= 2 (get parsed "numFiles")))
+              output (first (:result result))]
+          (is (string? output))
+          (is (pos? (count output)))
+          (is (str/includes? output "(Results are truncated"))
           (is (false? (:error result))))))))

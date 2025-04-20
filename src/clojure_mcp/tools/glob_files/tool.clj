@@ -4,7 +4,8 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.glob-files.core :as core]
    [clojure-mcp.repl-tools.utils :as utils]
-   [clojure.data.json :as json]))
+   [clojure.data.json :as json]
+   [clojure.string :as string]))
 
 ;; Factory function to create the tool configuration
 (defn create-glob-files-tool
@@ -62,10 +63,14 @@ Use this tool when you need to find files by name patterns.")
     ;; If there's an error, return it with error flag true
     {:result [(:error result)]
      :error true}
-    ;; Otherwise, format the results as JSON
-    (let [output (json/write-str
-                  (select-keys result [:filenames :numFiles :durationMs :truncated])
-                  :escape-slash false)]
+    ;; Format the results as a plain text list of filenames
+    (let [{:keys [filenames truncated]} result
+          output (cond
+                   (empty? filenames) "No files found"
+
+                   :else (str (string/join "\n" filenames)
+                              (when truncated
+                                "\n(Results are truncated. Consider using a more specific path or pattern.)")))]
       {:result [output]
        :error false})))
 
