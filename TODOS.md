@@ -16,17 +16,20 @@ agent to research information to solve a problem
 very clear that we need a separate mode with no editing tools available 
   to do design work and thinking
 
-glob tool should support searching in the root directory with "**/README.md" pattern
-
 have claude compare the tools and suggest tweaks
 
+should the fs_read_file tool provide line numbers as in the clod
+
+Symbol tools are not working
 
 let's add the last few file tools
 edit_file - should lint format output if clojure
 create_directory
 move_file
 
-read-file needs to check mod time like clod
+write-file needs to check mod time like clod
+
+Emacs notify shouldn't block or needs a timeout
 
 Emacs notify switch
 
