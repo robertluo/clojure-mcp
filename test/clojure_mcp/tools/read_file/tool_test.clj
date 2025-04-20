@@ -47,7 +47,7 @@
     (let [tool-instance (read-file-tool/create-read-file-tool *nrepl-client-atom*)
           reg-map (tool-system/registration-map tool-instance)]
       (is (map? reg-map))
-      (is (= "read_file" (:name reg-map)))
+      (is (= "fs_read_file" (:name reg-map)))
       (is (string? (:description reg-map)))
       (is (string? (:schema reg-map)))
       (is (fn? (:tool-fn reg-map))))))
