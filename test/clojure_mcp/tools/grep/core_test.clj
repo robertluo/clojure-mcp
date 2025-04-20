@@ -108,9 +108,22 @@
         (is (.contains (:error result) "not a valid directory"))))
 
     (testing "invalid regex pattern handling"
-      (try
-        (let [result (sut/grep-files (System/getProperty "java.io.tmpdir") "[invalid regex)]")]
-          ;; Just checking that execution continues and returns something
-          (is (contains? result :filenames)))
-        (catch Exception e
-          (is false "Should not throw exception for invalid regex"))))))
+      (let [temp-dir (io/file (System/getProperty "java.io.tmpdir") "grep-error-test")]
+        (try
+          (.mkdirs temp-dir)
+          (spit (io/file temp-dir "test.txt") "test content")
+
+          (let [result (sut/grep-files (.getAbsolutePath temp-dir) "[invalid regex)]")]
+            ;; Either it has :error or it has :filenames (depending on if using grep or Java implementation)
+            (is (map? result))
+            (is (contains? result :durationMs))
+            (is (or
+                 ;; Command line grep might return an error
+                 (contains? result :error)
+                 ;; Java implementation might handle it and return empty results
+                 (and (contains? result :filenames)
+                      (zero? (:numFiles result))))))
+
+          (finally
+            (io/delete-file (io/file temp-dir "test.txt") true)
+            (io/delete-file temp-dir true)))))))
