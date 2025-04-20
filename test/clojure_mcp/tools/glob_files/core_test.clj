@@ -1,7 +1,8 @@
 (ns clojure-mcp.tools.glob-files.core-test
   (:require [clojure.test :refer :all]
             [clojure-mcp.tools.glob-files.core :as sut]
-            [clojure.java.io :as io]))
+            [clojure.java.io :as io])
+  (:import (java.nio.file Paths)))
 
 (deftest glob-files-test
   (testing "Basic glob patterns with existing directory"
