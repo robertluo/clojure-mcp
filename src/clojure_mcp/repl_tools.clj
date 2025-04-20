@@ -8,7 +8,6 @@
    [clojure-mcp.repl-tools.symbol :as symbol-tools]
    [clojure-mcp.repl-tools.top-level-form-edit-pipeline :as edit-tools]
    [clojure-mcp.repl-tools.project.inspect :as project-inspect]
-   [clojure-mcp.repl-tools.filesystem.tools :as filesystem-tools]
    ;; New tool-system tools
    [clojure-mcp.tools.eval.tool :as new-eval-tool]
    [clojure-mcp.tools.read-file.tool :as new-read-file-tool]
@@ -48,9 +47,8 @@
     (new-glob-files-tool/glob-files-tool nrepl-client-atom)
     (new-file-write-tool/file-write-tool nrepl-client-atom)
     (new-list-directory-tool/list-directory-tool nrepl-client-atom)]
-   ;; Filter out tools that have been refactored to the new architecture
-   (let [filesystem-tools (filesystem-tools/get-all-filesystem-tools nrepl-client-atom)]
-     (filter #(not (contains? #{"glob_files" "file_write" "fs_list_directory"} (:name %))) filesystem-tools))))
+   ;; All filesystem tools have been refactored to the new architecture
+   [])))
 
 (comment
   ;; Example of testing tools directly
