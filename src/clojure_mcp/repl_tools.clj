@@ -14,7 +14,8 @@
    [clojure-mcp.tools.form-edit.tool :as new-form-edit-tool]
    [clojure-mcp.tools.project.tool :as new-project-tool]
    [clojure-mcp.tools.move-file.tool :as new-move-file-tool]
-   [clojure-mcp.tools.create-directory.tool :as new-create-directory-tool]))
+   [clojure-mcp.tools.create-directory.tool :as new-create-directory-tool]
+   [clojure-mcp.tools.file-edit.tool :as new-file-edit-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
@@ -43,7 +44,8 @@
    (new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)
    (new-project-tool/inspect-project-tool nrepl-client-atom)
    (new-move-file-tool/move-file-tool nrepl-client-atom)
-   (new-create-directory-tool/create-directory-tool-registration nrepl-client-atom)])
+   (new-create-directory-tool/create-directory-tool-registration nrepl-client-atom)
+   (new-file-edit-tool/file-edit-tool nrepl-client-atom)])
 
 (comment
   ;; Example of testing tools directly
