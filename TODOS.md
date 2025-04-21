@@ -19,11 +19,10 @@ have claude compare the tools and suggest tweaks
 should the fs_read_file tool provide line numbers as in the clod
 should diffs have line numbers?
 
-clojure_edit_insert_after is returning the whole file. same with replace_docstring
+clojure_edit_insert_after
 - rename to clojure_edit_definition_replace
 - maybe move to any definition not just top level
 - maybe move to clojure_edit_definition_insert with :before and :after args
-- must all return diffs
 
 need the clojure_edit_replace_sexp
 

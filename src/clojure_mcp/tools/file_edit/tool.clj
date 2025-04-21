@@ -76,15 +76,16 @@ To make a file edit, provide the file_path, old_string (the text to replace), an
 
 (defmethod tool-system/execute-tool :file-edit [_ inputs]
   (let [{:keys [file_path old_string new_string]} inputs
-        ;; Use the pipeline to handle file editing
         result (pipeline/file-edit-pipeline file_path old_string new_string)]
-    
-    ;; Return the pipeline result directly
-    result))
+    (pipeline/format-result result)))
 
-(defmethod tool-system/format-results :file-edit [_ result]
-  ;; Use the pipeline's format-result function to format the result
-  (pipeline/format-result result))
+(defmethod tool-system/format-results :file-edit [_ {:keys [error message diff type]}]
+  (if error
+    {:error true
+     :result [message]}
+    {:error false
+     :result [diff]
+     :type type}))
 
 ;; Backward compatibility function that returns the registration map
 (defn file-edit-tool [nrepl-client-atom]

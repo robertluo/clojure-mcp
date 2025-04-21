@@ -103,7 +103,7 @@
       
       ;; Verify the tool results - should report error due to syntax issue
       (is (:error formatted-result) "Operation should fail with invalid Clojure syntax")
-      (is (str/includes? (:message formatted-result) "Syntax errors") "Error should mention syntax issues")
+      (is (str/includes? (first (:result formatted-result)) "Syntax errors") "Error should mention syntax issues")
       
       ;; Verify file was not modified
       (is (= original-content (slurp file-path)) "File should not be modified when syntax errors detected")))
@@ -124,7 +124,7 @@
       
       ;; Verify the tool results - should report error due to syntax issue
       (is (:error formatted-result) "Operation should fail with invalid Clojure syntax")
-      (is (str/includes? (:message formatted-result) "Syntax errors") "Error should mention syntax issues")
+      (is (str/includes? (first (:result formatted-result)) "Syntax errors") "Error should mention syntax issues")
       
       ;; Verify file was not created
       (is (not (.exists (io/file file-path))) "File should not be created when syntax errors detected")))
@@ -145,7 +145,9 @@
       ;; Verify the tool results
       (is (not (:error formatted-result)) "Operation should succeed")
       (is (= "update" (:type formatted-result)) "Should have update type")
-      (is (string? (:diff formatted-result)) "Should contain a diff")
+      (is (string? (:diff result))
+          "Should contain a diff")
+      (is (= (:result formatted-result) [(:diff result)]) "Should contain a diff")
       
       ;; Verify the actual file content
       (let [content (slurp file-path)]
@@ -211,7 +213,7 @@
         
         ;; Verify the error is reported
         (is (:error formatted-result) "Should report an error for non-unique match")
-        (is (str/includes? (:message formatted-result) "matches") 
+        (is (str/includes? (first (:result formatted-result)) "matches") 
             "Error message should mention multiple matches"))))
   
   (testing "Error case: file doesn't exist"
@@ -228,7 +230,7 @@
       
       ;; Verify the error is reported
       (is (:error formatted-result) "Should report an error for non-existent file")
-      (is (str/includes? (:message formatted-result) "not found") 
+      (is (str/includes? (first (:result formatted-result)) "not found") 
           "Error message should mention file doesn't exist"))))
 
 ;; Registration function test
