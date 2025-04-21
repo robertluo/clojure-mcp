@@ -9,6 +9,7 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.form-edit.core :as core]
    [clojure-mcp.tools.form-edit.pipeline :as pipeline]
+   [clojure-mcp.repl-tools.utils :as utils]
    [clojure.string :as str]))
 
 ;; Factory functions to create the tool configurations
@@ -76,13 +77,15 @@
 ;; Common validation functions
 
 (defn validate-file-path
-  "Validates that a file path is provided"
-  [inputs]
-  (let [{:keys [file_path]} inputs]
+  "Validates that a file path is provided and within allowed directories"
+  [inputs nrepl-client-atom]
+  (let [{:keys [file_path]} inputs
+        nrepl-client @nrepl-client-atom]
     (when-not file_path
       (throw (ex-info "Missing required parameter: file_path"
                       {:inputs inputs})))
-    file_path))
+    ;; Use the utils/validate-path-with-client function to ensure path is valid
+    (utils/validate-path-with-client file_path nrepl-client)))
 
 ;; Implement the required multimethods for the form replacement tool
 
@@ -120,8 +123,8 @@
                           :description "New content to replace the form with"}}
    :required [:file_path :form_name :form_type :content]})
 
-(defmethod tool-system/validate-inputs :clojure-edit-replace-form [_ inputs]
-  (let [file-path (validate-file-path inputs)
+(defmethod tool-system/validate-inputs :clojure-edit-replace-form [{:keys [nrepl-client-atom]} inputs]
+  (let [file-path (validate-file-path inputs nrepl-client-atom)
         {:keys [form_name form_type content]} inputs]
     (when-not form_name
       (throw (ex-info "Missing required parameter: form_name"
@@ -187,8 +190,8 @@
                           :description "Content to insert before the form"}}
    :required [:file_path :form_name :form_type :content]})
 
-(defmethod tool-system/validate-inputs :clojure-edit-insert-before-form [_ inputs]
-  (let [file-path (validate-file-path inputs)
+(defmethod tool-system/validate-inputs :clojure-edit-insert-before-form [{:keys [nrepl-client-atom]} inputs]
+  (let [file-path (validate-file-path inputs nrepl-client-atom)
         {:keys [form_name form_type content]} inputs]
     (when-not form_name
       (throw (ex-info "Missing required parameter: form_name"
@@ -254,8 +257,8 @@
                           :description "Content to insert after the form"}}
    :required [:file_path :form_name :form_type :content]})
 
-(defmethod tool-system/validate-inputs :clojure-edit-insert-after-form [_ inputs]
-  (let [file-path (validate-file-path inputs)
+(defmethod tool-system/validate-inputs :clojure-edit-insert-after-form [{:keys [nrepl-client-atom]} inputs]
+  (let [file-path (validate-file-path inputs nrepl-client-atom)
         {:keys [form_name form_type content]} inputs]
     (when-not form_name
       (throw (ex-info "Missing required parameter: form_name"
@@ -317,8 +320,8 @@
                             :description "New docstring content"}}
    :required [:file_path :form_name :form_type :docstring]})
 
-(defmethod tool-system/validate-inputs :clojure-edit-replace-docstring [_ inputs]
-  (let [file-path (validate-file-path inputs)
+(defmethod tool-system/validate-inputs :clojure-edit-replace-docstring [{:keys [nrepl-client-atom]} inputs]
+  (let [file-path (validate-file-path inputs nrepl-client-atom)
         {:keys [form_name form_type docstring]} inputs]
     (when-not form_name
       (throw (ex-info "Missing required parameter: form_name"
@@ -374,8 +377,8 @@ For reliable results, use a unique substring that appears in only one comment bl
                               :description "The replacement comment block"}}
    :required [:file_path :comment_substring :new_content]})
 
-(defmethod tool-system/validate-inputs :clojure-edit-comment-block [_ inputs]
-  (let [file-path (validate-file-path inputs)
+(defmethod tool-system/validate-inputs :clojure-edit-comment-block [{:keys [nrepl-client-atom]} inputs]
+  (let [file-path (validate-file-path inputs nrepl-client-atom)
         {:keys [comment_substring new_content]} inputs]
     (when-not comment_substring
       (throw (ex-info "Missing required parameter: comment_substring"
@@ -429,8 +432,8 @@ For reliable results, use a unique substring that appears in only one comment bl
                                  :description "Optional list of symbol names to show in expanded form"}}
    :required [:file_path]})
 
-(defmethod tool-system/validate-inputs :clojure-file-structure [_ inputs]
-  (let [file-path (validate-file-path inputs)
+(defmethod tool-system/validate-inputs :clojure-file-structure [{:keys [nrepl-client-atom]} inputs]
+  (let [file-path (validate-file-path inputs nrepl-client-atom)
         expand-symbols (get inputs :expand_symbols [])]
     ;; Return validated inputs
     {:file_path file-path
