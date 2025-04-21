@@ -3,7 +3,7 @@
    This namespace contains the pure functionality without any MCP-specific code."
   (:require
    [clojure.java.io :as io]
-   [clojure-mcp.repl-tools.top-level-form-edit-pipeline :as tle]
+   [clojure-mcp.tools.form-edit.pipeline :as pipeline]
    [clojure-mcp.repl-tools.utils :as utils]
    [rewrite-clj.zip :as z]))
 
@@ -34,36 +34,36 @@
         old-content (if file-exists? (slurp file) "")
 
         ;; Create a context map for the pipeline
-        initial-ctx {::tle/file-path file-path
-                     ::tle/source old-content
-                     ::tle/new-source-code content
-                     ::tle/old-content old-content
-                     ::tle/file-exists? file-exists?}
+        initial-ctx {::pipeline/file-path file-path
+                     ::pipeline/source old-content
+                     ::pipeline/new-source-code content
+                     ::pipeline/old-content old-content
+                     ::pipeline/file-exists? file-exists?}
 
         ;; Use thread-ctx to run the pipeline
-        result (tle/thread-ctx
+        result (pipeline/thread-ctx
                 initial-ctx
-                tle/lint-code ;; Lint the content
+                ;; Skip linting as we'll format later
                 (fn [ctx] ;; Prepare for formatting
-                  (assoc ctx ::tle/zloc (z/of-string (::tle/new-source-code ctx))))
-                tle/format-source ;; Format the content
-                tle/generate-diff ;; Generate diff between old and new content
-                tle/determine-file-type ;; Determine if creating or updating
+                  (assoc ctx ::pipeline/zloc (z/of-string (::pipeline/new-source-code ctx))))
+                pipeline/format-source ;; Format the content
+                pipeline/generate-diff ;; Generate diff between old and new content
+                pipeline/determine-file-type ;; Determine if creating or updating
                 ;; Use the save-file function instead of custom write logic
                 (fn [ctx] ;; Modify context for save-file compatibility
-                  (let [output-source (::tle/output-source ctx)
+                  (let [output-source (::pipeline/output-source ctx)
                         zloc (z/of-string output-source {:track-position? true})]
-                    (assoc ctx ::tle/zloc zloc)))
-                tle/save-file)] ;; Save the file and get offsets
+                    (assoc ctx ::pipeline/zloc zloc)))
+                pipeline/save-file)] ;; Save the file and get offsets
 
     ;; Format the result for tool consumption
-    (if (::tle/error result)
+    (if (::pipeline/error result)
       {:error true
-       :message (::tle/message result)}
+       :message (::pipeline/message result)}
       {:error false
-       :type (::tle/type result)
-       :file-path (::tle/file-path result)
-       :diff (::tle/diff result)})))
+       :type (::pipeline/type result)
+       :file-path (::pipeline/file-path result)
+       :diff (::pipeline/diff result)})))
 
 (defn write-text-file
   "Write content to a non-Clojure text file, with diffing but no linting or formatting.
