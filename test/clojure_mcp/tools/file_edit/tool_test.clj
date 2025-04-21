@@ -1,0 +1,203 @@
+(ns clojure-mcp.tools.file-edit.tool-test
+  (:require [clojure.test :refer :all]
+            [clojure-mcp.tools.file-edit.tool :as tool]
+            [clojure-mcp.tool-system :as tool-system]
+            [clojure.java.io :as io]
+            [clojure.string :as str]))
+
+;; Create a real nREPL client atom with paths set to the project directory
+(def project-dir (System/getProperty "user.dir"))
+(def tmp-dir (str project-dir "/tmp/file-edit-test"))
+(def test-client-atom 
+  (atom {:clojure-mcp.core/nrepl-user-dir project-dir
+         :clojure-mcp.core/allowed-directories [project-dir]}))
+
+;; Test fixtures
+(defn setup-tmp-dir [f]
+  ;; Clean up any previous directories
+  (let [dir (io/file tmp-dir)]
+    (when (.exists dir)
+      (doseq [file (file-seq (io/file tmp-dir))]
+        (when (.isFile file)
+          (.delete file))))
+    (when (.exists dir)
+      (doseq [file (reverse (file-seq (io/file tmp-dir)))]
+        (.delete file))))
+  
+  ;; Create fresh tmp directory and test files
+  (let [dir (io/file tmp-dir)]
+    (.mkdirs dir)
+    ;; Create a test file
+    (spit (io/file tmp-dir "test-file.txt") "This is line one\nThis is line two\nThis is line three\n"))
+  
+  ;; Run the test
+  (f)
+  
+  ;; Clean up after test
+  (doseq [file (file-seq (io/file tmp-dir))]
+    (when (.isFile file)
+      (.delete file)))
+  (doseq [file (reverse (file-seq (io/file tmp-dir)))]
+    (.delete file)))
+
+(use-fixtures :each setup-tmp-dir)
+
+;; Tool configuration tests
+(deftest tool-config-test
+  (testing "Tool name is correct"
+    (let [tool-config (tool/create-file-edit-tool test-client-atom)]
+      (is (= "file_edit" (tool-system/tool-name tool-config)))))
+  
+  (testing "Tool schema has required properties"
+    (let [tool-config (tool/create-file-edit-tool test-client-atom)
+          schema (tool-system/tool-schema tool-config)]
+      (is (= :object (:type schema)))
+      (is (contains? (:properties schema) :file_path))
+      (is (contains? (:properties schema) :old_string))
+      (is (contains? (:properties schema) :new_string))
+      (is (= [:file_path :old_string :new_string] (:required schema))))))
+
+;; Integration tests with actual file operations
+(deftest file-edit-integration-test
+  (testing "Editing an existing file"
+    (let [tool-config (tool/create-file-edit-tool test-client-atom)
+          file-path (str tmp-dir "/test-file.txt")
+          old-string "This is line two"
+          new-string "This is line two - EDITED"
+          
+          ;; Execute the validation and editing steps
+          inputs {:file_path file-path
+                  :old_string old-string
+                  :new_string new-string}
+          validated-inputs (tool-system/validate-inputs tool-config inputs)
+          result (tool-system/execute-tool tool-config validated-inputs)
+          formatted-result (tool-system/format-results tool-config result)]
+      
+      ;; Verify the tool results
+      (is (not (:error formatted-result)) "Operation should succeed")
+      (is (= "update" (:type formatted-result)) "Should have update type")
+      (is (string? (:diff formatted-result)) "Should contain a diff")
+      
+      ;; Verify the actual file content
+      (let [content (slurp file-path)]
+        (is (str/includes? content new-string) "File should contain the new string"))))
+  
+  (testing "Creating a new file"
+    (let [tool-config (tool/create-file-edit-tool test-client-atom)
+          file-path (str tmp-dir "/new-file.txt")
+          new-content "This is a brand new file\nWith multiple lines\nCreated by file_edit tool"
+          
+          ;; Execute the validation and editing steps
+          inputs {:file_path file-path
+                  :old_string ""
+                  :new_string new-content}
+          validated-inputs (tool-system/validate-inputs tool-config inputs)
+          result (tool-system/execute-tool tool-config validated-inputs)
+          formatted-result (tool-system/format-results tool-config result)]
+      
+      ;; Verify the tool results
+      (is (not (:error formatted-result)) "Operation should succeed")
+      (is (= "create" (:type formatted-result)) "Should have create type")
+      
+      ;; Verify the actual file was created with correct content
+      (is (.exists (io/file file-path)) "File should exist")
+      (is (= new-content (slurp file-path)) "File should contain the exact content")))
+  
+  (testing "Creating a file with nested directories"
+    (let [tool-config (tool/create-file-edit-tool test-client-atom)
+          nested-dir (str tmp-dir "/nested/dirs")
+          file-path (str nested-dir "/deep-file.txt")
+          new-content "File in nested directories"
+          
+          ;; Execute the validation and editing steps
+          inputs {:file_path file-path
+                  :old_string ""
+                  :new_string new-content}
+          validated-inputs (tool-system/validate-inputs tool-config inputs)
+          result (tool-system/execute-tool tool-config validated-inputs)
+          formatted-result (tool-system/format-results tool-config result)]
+      
+      ;; Verify the tool results
+      (is (not (:error formatted-result)) "Operation should succeed")
+      
+      ;; Verify the nested directories were created
+      (is (.exists (io/file nested-dir)) "Nested directory should exist")
+      (is (.exists (io/file file-path)) "File should exist")
+      (is (= new-content (slurp file-path)) "File should contain the exact content")))
+  
+  (testing "Error case: non-unique match"
+    (let [;; Create a file with duplicate lines
+          dupe-file-path (str tmp-dir "/duplicate.txt")
+          _ (spit dupe-file-path "Duplicate line\nDuplicate line\nDuplicate line\n")
+          
+          tool-config (tool/create-file-edit-tool test-client-atom)
+          inputs {:file_path dupe-file-path
+                  :old_string "Duplicate line"
+                  :new_string "Modified line"}]
+      
+      ;; Validation should pass since we don't check uniqueness until execution
+      (let [validated-inputs (tool-system/validate-inputs tool-config inputs)
+            result (tool-system/execute-tool tool-config validated-inputs)
+            formatted-result (tool-system/format-results tool-config result)]
+        
+        ;; Verify the error is reported
+        (is (:error formatted-result) "Should report an error for non-unique match")
+        (is (str/includes? (:message formatted-result) "matches") 
+            "Error message should mention multiple matches"))))
+  
+  (testing "Error case: file doesn't exist"
+    (let [tool-config (tool/create-file-edit-tool test-client-atom)
+          non-existent-file (str tmp-dir "/does-not-exist.txt")
+          inputs {:file_path non-existent-file
+                  :old_string "Some content"
+                  :new_string "New content"}
+          
+          ;; Validate inputs should pass since this is a path validation only
+          validated-inputs (tool-system/validate-inputs tool-config inputs)
+          result (tool-system/execute-tool tool-config validated-inputs)
+          formatted-result (tool-system/format-results tool-config result)]
+      
+      ;; Verify the error is reported
+      (is (:error formatted-result) "Should report an error for non-existent file")
+      (is (str/includes? (:message formatted-result) "not found") 
+          "Error message should mention file doesn't exist"))))
+
+;; Registration function test
+(deftest registration-function-test
+  (testing "file-edit-tool function returns a valid registration map"
+    (let [reg-map (tool/file-edit-tool test-client-atom)]
+      (is (= "file_edit" (:name reg-map)))
+      (is (string? (:description reg-map)))
+      (is (string? (:schema reg-map)))
+      (is (fn? (:tool-fn reg-map))))))
+
+;; Tool function execution test (simulating how Claude would call it)
+(deftest tool-fn-execution-test
+  (testing "Tool function handles arguments and callback properly"
+    (let [tool-reg-map (tool/file-edit-tool test-client-atom)
+          tool-fn (:tool-fn tool-reg-map)
+          file-path (str tmp-dir "/tool-fn-test.txt")
+          test-content "Test content for tool-fn\nSecond line\nThird line"
+          _ (spit file-path test-content)
+          
+          ;; Track callback invocation
+          callback-result (atom nil)
+          callback-fn (fn [result error] (reset! callback-result {:result result :error error}))]
+      
+      ;; Call the tool function as Claude would
+      (tool-fn nil 
+              {"file_path" file-path
+               "old_string" "Second line"
+               "new_string" "Second line - MODIFIED"} 
+              callback-fn)
+      
+      ;; Wait a bit for async execution to complete
+      (Thread/sleep 100)
+      
+      ;; Check callback was called with correct result
+      (is (not (nil? @callback-result)) "Callback should have been called")
+      (is (not (:error @callback-result)) "Should not report an error")
+      
+      ;; Verify the file was actually modified
+      (let [updated-content (slurp file-path)]
+        (is (str/includes? updated-content "Second line - MODIFIED") "File should be modified")))))
