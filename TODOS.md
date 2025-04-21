@@ -19,25 +19,32 @@ have claude compare the tools and suggest tweaks
 should the fs_read_file tool provide line numbers as in the clod
 should diffs have line numbers?
 
-let's add the last few file tools
-edit_file - should lint format output if clojure
-create_directory
-move_file
+clojure_list_vars_in_namespace needs to be formatted
 
-write-file needs to check mod time like clod
+clojure_edit_insert_after is returning the whole file. same with replace_docstring
+- rename to clojure_edit_definition_replace
+- maybe move to any definition not just top level
+- maybe move to clojure_edit_definition_insert with :before and :after args
+- must all return diffs
 
-## Tool System Refactoring Progress
-- [x] Eval Tool
-- [x] Read-File Tool  
-- [x] Directory-Tree Tool
-- [x] Grep Tool
-- [x] Glob-Files Tool
-- [x] File-Write Tool
-- [x] List-Directory Tool
-- [x] Namespace Tools (current-namespace, list-namespaces, list-vars-in-namespace)
-- [x] Symbol information tools (symbol-completions, symbol-metadata, symbol-documentation, source-code, symbol-search)
-- [x] Top-level form editing tools (replaced with form-edit tools)
-- [x] Project inspection tool
+need the clojure_edit_replace_sexp
+
+get_all_namespaces could take a search substring
+
+read_file 
+ - needs to store the read time
+
+edit_file 
+ - should lint format output if clojure
+ - also needs to check the write time
+ - maybe it needs the longer prompt?
+
+write-file 
+ - needs to check mod time like clod 
+
+emacs switch to buffer and then switch back to the originial context option
+
+need to test all the tools
 
 ## Adapt tools and prompts from OtherCl implementation
 * prompt is still misbehaving, so far working without the prompt seems to be better
