@@ -20,8 +20,15 @@
   "file_write")
 
 (defmethod tool-system/tool-description :file-write [_]
-  "Write a file to the local filesystem. Overwrites the existing file if there is one. 
-The content will be linted and formatted according to Clojure standards before writing.
+  "Write a file to the local filesystem. Overwrites the existing file if there is one.
+
+For Clojure files (.clj, .cljs, .cljc, .edn):
+- Content will be linted for syntax errors before writing
+- Content will be formatted according to Clojure standards
+- Writing will fail if linting detects syntax errors
+
+For other file types:
+- Content is written directly without linting or formatting
 
 Returns information about whether the file was created or updated, along with a diff 
 showing the changes made.
@@ -30,6 +37,7 @@ Before using this tool:
 1. Use the read_file tool to understand the file's contents and context
 2. Directory Verification (only applicable when creating new files):
    - Use the list_directory tool to verify the parent directory exists and is the correct location
+3. For Clojure files, ensure code is syntactically correct
 
 # Example:
 # file_write(

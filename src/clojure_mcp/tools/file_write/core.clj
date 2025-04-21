@@ -5,6 +5,7 @@
    [clojure.java.io :as io]
    [clojure-mcp.tools.form-edit.pipeline :as pipeline]
    [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.linting :as linting]
    [rewrite-clj.zip :as z]))
 
 (defn is-clojure-file?
@@ -43,7 +44,8 @@
         ;; Use thread-ctx to run the pipeline
         result (pipeline/thread-ctx
                 initial-ctx
-                ;; Skip linting as we'll format later
+                ;; First check for syntax errors with linting for Clojure files
+                pipeline/lint-code
                 (fn [ctx] ;; Prepare for formatting
                   (assoc ctx ::pipeline/zloc (z/of-string (::pipeline/new-source-code ctx))))
                 pipeline/format-source ;; Format the content

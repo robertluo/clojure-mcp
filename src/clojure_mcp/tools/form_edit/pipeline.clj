@@ -84,7 +84,9 @@
   (let [lint-result (linting/lint (::new-source-code ctx))]
     (if (and lint-result (:error? lint-result))
       {::error :lint-failure
-       ::message (str "Linting issues in code:\n" (:report lint-result))}
+       ::message (str "Syntax errors detected in Clojure code:\n" 
+                      (:report lint-result) 
+                      "\nPlease fix the syntax errors before saving.")}
       (assoc ctx ::lint-result lint-result))))
 
 (defn enhance-defmethod-name
