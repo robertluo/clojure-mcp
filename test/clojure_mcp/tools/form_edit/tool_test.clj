@@ -44,6 +44,41 @@
     [p (fn [result error]
          (deliver p {:result result :error error}))]))
 
+(defn validate-mcp-result
+  "Validates that a result conforms to the MCP result format.
+   Can also validate content if diff-pattern-fn is provided.
+   
+   Parameters:
+   - result: The formatted result from tool-system/format-results
+   - expected-error: Whether the result should indicate an error (default: false)
+   - diff-pattern-fn: Optional function that takes the first string in :result
+                      and returns true if the content matches expectations"
+  ([result]
+   (validate-mcp-result result false nil))
+  ([result expected-error]
+   (validate-mcp-result result expected-error nil))
+  ([result expected-error diff-pattern-fn]
+   ;; Test response structure
+   (is (map? result) "Response should be a map")
+   (is (contains? result :result) "Response should contain :result key")
+   (is (contains? result :error) "Response should contain :error key")
+   (is (instance? Boolean (:error result)) "Error flag should be a boolean")
+   (is (= expected-error (:error result)) 
+       (str "Error flag should be " (if expected-error "true" "false")))
+   
+   ;; Test result content format
+   (is (vector? (:result result)) "Result should be a vector")
+   (is (every? string? (:result result)) "All result items should be strings")
+   (is (not (empty? (:result result))) "Result should not be empty")
+   
+   ;; Test specific content pattern if provided
+   (when (and diff-pattern-fn (not (empty? (:result result))))
+     (is (diff-pattern-fn (first (:result result))) 
+         "Result content should match expected pattern"))
+   
+   ;; Return result for further testing
+   result))
+
 ;; Tests for tool configurations
 (deftest tool-configurations-test
   (testing "Tool factory functions create correct configurations"
@@ -245,87 +280,110 @@
 
 ;; Functional tests with tool execution
 (deftest tool-execution-test
-  (testing "Tool execution works correctly"
-    (let [client-atom *client-atom*
-          replace-tool (sut/create-edit-replace-form-tool client-atom)
-          docstring-tool (sut/create-edit-docstring-tool client-atom)
-          comment-tool (sut/create-edit-comment-block-tool client-atom)
-          structure-tool (sut/create-file-structure-tool client-atom)]
+  (let [client-atom *client-atom*
+        replace-tool (sut/create-edit-replace-form-tool client-atom)
+        docstring-tool (sut/create-edit-docstring-tool client-atom)
+        comment-tool (sut/create-edit-comment-block-tool client-atom)
+        structure-tool (sut/create-file-structure-tool client-atom)]
 
-      (testing "Replace form tool can modify files"
-        (let [file-path (get-file-path)
-              inputs {:file_path file-path
-                      :form_name "example-fn"
-                      :form_type "defn"
-                      :content "(defn example-fn [x]\n  (* x 2))"}
-              validated (tool-system/validate-inputs replace-tool inputs)
-              result (tool-system/execute-tool replace-tool validated)
-              formatted (tool-system/format-results replace-tool result)
-              file-content (slurp file-path)]
-          (is (false? (:error formatted)))
-          (is (vector? (:result formatted)))
-          (is (= (:result formatted) [(:diff result)]))
-          (is (not (nil? (:diff result))))
-          (is (str/includes? file-content "(defn example-fn [x]"))
-          (is (str/includes? file-content "(* x 2)"))
-          (is (not (str/includes? file-content "(+ x y)")))))
+    (testing "Replace form tool can modify files"
+      (let [file-path (get-file-path)
+            inputs {:file_path file-path
+                    :form_name "example-fn"
+                    :form_type "defn"
+                    :content "(defn example-fn [x]\n  (* x 2))"}
+            validated (tool-system/validate-inputs replace-tool inputs)
+            result (tool-system/execute-tool replace-tool validated)
+            formatted (tool-system/format-results replace-tool result)
+            file-content (slurp file-path)]
+        
+        ;; Validate MCP result format using the common function
+        (validate-mcp-result formatted false #(and (str/includes? % "+++")
+                                                   (str/includes? % "@@ ")))
+        
+        ;; Specific test for this tool
+        (is (= (:result formatted) [(:diff result)]) "Result should contain the diff")
+        (is (not (nil? (:diff result))) "Diff should not be nil")
+        
+        ;; Validate file was actually modified
+        (is (str/includes? file-content "(defn example-fn [x]") "Function signature should be updated")
+        (is (str/includes? file-content "(* x 2)") "Function body should be updated")
+        (is (not (str/includes? file-content "(+ x y)")) "Old function body should be removed")))
+    
 
-      (testing "Docstring tool can update docstrings"
-        (let [file-path (get-file-path)
-              ;; Write a file with proper docstring to fix test setup
-              _ (spit file-path (str "(ns test.core)\n\n"
-                                     "(defn example-fn\n  \"Original docstring\"\n  [x y]\n  (+ x y))\n\n"
-                                     "(def a 1)\n\n"
-                                     "(comment\n  (example-fn 1 2))\n\n"
-                                     ";; Test comment\n;; spans multiple lines"))
-              inputs {:file_path file-path
-                      :form_name "example-fn"
-                      :form_type "defn"
-                      :docstring "Updated docstring for testing"}
-              validated (tool-system/validate-inputs docstring-tool inputs)
-              result (tool-system/execute-tool docstring-tool validated)
-              formatted (tool-system/format-results docstring-tool result)
-              file-content (slurp file-path)]
-          (is (false? (:error formatted)))
-          (is (vector? (:result formatted)))
-          (is (= (:result formatted) [(:diff result)]))
-          (is (str/includes? file-content "Updated docstring for testing"))
-          (is (not (str/includes? file-content "Original docstring")))))
 
-      (testing "Comment tool can update comment blocks"
-        (let [file-path (get-file-path)
-              inputs {:file_path file-path
-                      :comment_substring "Test comment"
-                      :new_content ";; Updated test comment\n;; with multiple lines"}
-              validated (tool-system/validate-inputs comment-tool inputs)
-              result (tool-system/execute-tool comment-tool validated)
-              formatted (tool-system/format-results comment-tool result)
-              file-content (slurp file-path)]
-          (is (false? (:error formatted)))
-          (is (vector? (:result formatted)))
-          (is (= (:result formatted) [(:diff result)]))
-          (is (str/includes? file-content "Updated test comment"))
-          (is (str/includes? file-content "with multiple lines"))
-          (is (not (str/includes? file-content "Test comment\n;; spans multiple")))))
+    (testing "Docstring tool can update docstrings"
+      (let [file-path (get-file-path)
+            ;; Write a file with proper docstring to fix test setup
+            _ (spit file-path (str "(ns test.core)\n\n"
+                                   "(defn example-fn\n  \"Original docstring\"\n  [x y]\n  (+ x y))\n\n"
+                                   "(def a 1)\n\n"
+                                   "(comment\n  (example-fn 1 2))\n\n"
+                                   ";; Test comment\n;; spans multiple lines"))
+            inputs {:file_path file-path
+                    :form_name "example-fn"
+                    :form_type "defn"
+                    :docstring "Updated docstring for testing"}
+            validated (tool-system/validate-inputs docstring-tool inputs)
+            result (tool-system/execute-tool docstring-tool validated)
+            formatted (tool-system/format-results docstring-tool result)
+            file-content (slurp file-path)]
+        
+        ;; Validate MCP result format
+        (validate-mcp-result formatted false #(str/includes? % "docstring"))
+        
+        ;; Specific test for this tool
+        (is (= (:result formatted) [(:diff result)]) "Result should contain the diff")
+        
+        ;; Validate file was actually modified
+        (is (str/includes? file-content "Updated docstring for testing") "New docstring should be in the file")
+        (is (not (str/includes? file-content "Original docstring")) "Old docstring should be removed")))
 
-      (testing "File structure tool can generate outlines"
-        (let [file-path (get-file-path)
-              inputs {:file_path file-path}
-              validated (tool-system/validate-inputs structure-tool inputs)
-              result (tool-system/execute-tool structure-tool validated)
-              formatted (tool-system/format-results structure-tool result)
-              outline (first (:result formatted))
-              _ (println "Outline content:" outline)] ;; Add debugging
-          (is (false? (:error formatted)))
-          (is (vector? (:result formatted)))
-          (is (= (:result formatted) (:result result)))
-          (is (string? outline))
-          (is (str/includes? outline "(ns test.core)"))
-          ;; Update expectation - file has [x y] not [x]
-          (is (str/includes? outline "(defn example-fn [x y]"))
-          (is (str/includes? outline "(def a ...)"))
-          (is (str/includes? outline "(comment"))
-          (is (not (str/includes? outline "(+ x y)"))))))))
+    (testing "Comment tool can update comment blocks"
+      (let [file-path (get-file-path)
+            inputs {:file_path file-path
+                    :comment_substring "Test comment"
+                    :new_content ";; Updated test comment\n;; with multiple lines"}
+            validated (tool-system/validate-inputs comment-tool inputs)
+            result (tool-system/execute-tool comment-tool validated)
+            formatted (tool-system/format-results comment-tool result)
+            file-content (slurp file-path)]
+        
+        ;; Validate MCP result format
+        (validate-mcp-result formatted false #(str/includes? % "comment"))
+        
+        ;; Specific test for this tool
+        (is (= (:result formatted) [(:diff result)]) "Result should contain the diff")
+        
+        ;; Validate file was actually modified
+        (is (str/includes? file-content "Updated test comment") "New comment should be in the file")
+        (is (str/includes? file-content "with multiple lines") "Comment should have multiple lines")
+        (is (not (str/includes? file-content "Test comment\n;; spans multiple")) "Old comment should be removed")))
+
+    (testing "File structure tool can generate outlines"
+      (let [file-path (get-file-path)
+            inputs {:file_path file-path}
+            validated (tool-system/validate-inputs structure-tool inputs)
+            result (tool-system/execute-tool structure-tool validated)
+            formatted (tool-system/format-results structure-tool result)
+            outline (first (:result formatted))
+            _ (println "Outline content:" outline)] ;; Add debugging
+        
+        ;; Validate MCP result format
+        (validate-mcp-result formatted false #(and (str/includes? % "(ns test.core)")
+                                                   (str/includes? % "example-fn")))
+        
+        ;; Specific test for this tool
+        (is (= (:result formatted) (:result result)) "Result should match expected structure")
+        (is (string? outline) "Outline should be a string")
+        
+        ;; Validate outline content
+        (is (str/includes? outline "(ns test.core)") "Namespace should be included")
+        ;; Update expectation - file has [x y] not [x]
+        (is (str/includes? outline "(defn example-fn [x y]") "Function signature should be included")
+        (is (str/includes? outline "(def a ...)") "Vars should be collapsed")
+        (is (str/includes? outline "(comment") "Comments should be included")
+        (is (not (str/includes? outline "(+ x y)")) "Function body should be collapsed")))))
 
 (deftest defmethod-handling-test
   (testing "Tool correctly handles defmethod forms"
@@ -349,11 +407,13 @@
               formatted (tool-system/format-results replace-tool result)
               file-content (slurp file-path)]
 
-          (is (false? (:error formatted)))
-          (is (vector? (:result formatted)))
-          (is (str/includes? file-content "Updated implementation"))
-          (is (str/includes? file-content "(let [w (:width rect)"))
-          (is (not (str/includes? file-content "(* (:width rect) (:height rect))")))))
+          ;; Validate MCP result format
+          (validate-mcp-result formatted false #(str/includes? % "defmethod"))
+          
+          ;; Validate file was actually modified
+          (is (str/includes? file-content "Updated implementation") "New implementation comment should be in the file")
+          (is (str/includes? file-content "(let [w (:width rect)") "New implementation code should be in the file")
+          (is (not (str/includes? file-content "(* (:width rect) (:height rect))")) "Old implementation should be removed"))
 
       (testing "Can update defmethod with multimethod name and dispatch value"
         (let [inputs {:file_path file-path
@@ -365,11 +425,14 @@
               formatted (tool-system/format-results replace-tool result)
               file-content (slurp file-path)]
 
-          (is (false? (:error formatted)))
-          (is (vector? (:result formatted)))
-          (is (str/includes? file-content "Updated circle implementation"))
-          (is (str/includes? file-content "(let [r (:radius circle)]"))
-          (is (not (str/includes? file-content "(* Math/PI (:radius circle) (:radius circle))")))))
+          ;; Validate MCP result format
+          (validate-mcp-result formatted false #(and (str/includes? % "defmethod") 
+                                                   (str/includes? % ":circle")))
+          
+          ;; Validate file was actually modified
+          (is (str/includes? file-content "Updated circle implementation") "New implementation comment should be in the file")
+          (is (str/includes? file-content "(let [r (:radius circle)]") "New implementation code should be in the file")
+          (is (not (str/includes? file-content "(* Math/PI (:radius circle) (:radius circle))")) "Old implementation should be removed"))
 
       (testing "Inserting new defmethod implementation"
         (let [inputs {:file_path file-path
@@ -382,10 +445,13 @@
               formatted (tool-system/format-results before-tool result)
               file-content (slurp file-path)]
 
-          (is (false? (:error formatted)))
-          (is (vector? (:result formatted)))
-          (is (str/includes? file-content "area :triangle"))
-          (is (str/includes? file-content "(* 0.5 (:base triangle) (:height triangle))")))))))
+          ;; Validate MCP result format
+          (validate-mcp-result formatted false #(and (str/includes? % "defmethod") 
+                                                   (str/includes? % ":triangle")))
+          
+          ;; Validate file was actually modified
+          (is (str/includes? file-content "area :triangle") "New triangle method should be in the file")
+          (is (str/includes? file-content "(* 0.5 (:base triangle) (:height triangle))") "Triangle implementation should be in the file"))))))
 
 ;; Tool-fn tests through the callback interface
 (deftest tool-fn-test
@@ -411,9 +477,11 @@
                      "content" "(defn example-fn [x]\n  (str \"result: \" (* x 3)))"}
                     cb1)
         (let [result @p1]
-          (is (false? (:error result))) ;; Error is false, not nil
-          (is (vector? (:result result)))
-          (is (str/includes? (slurp (get-file-path)) "(str \"result: \" (* x 3))"))))
+          ;; Validate MCP response format
+          (validate-mcp-result result)
+          ;; Verify the actual file modification
+          (is (str/includes? (slurp (get-file-path)) "(str \"result: \" (* x 3))") 
+              "The file should contain the updated function implementation")))
 
       (testing "Comment tool works via callback"
         (comment-fn nil
@@ -422,9 +490,11 @@
                      "new_content" "(comment\n  (example-fn 10 20))"}
                     cb2)
         (let [result @p2]
-          (is (false? (:error result))) ;; Error is false, not nil
-          (is (vector? (:result result)))
-          (is (str/includes? (slurp (get-file-path)) "(example-fn 10 20)"))))
+          ;; Validate MCP response format
+          (validate-mcp-result result)
+          ;; Verify the actual file modification
+          (is (str/includes? (slurp (get-file-path)) "(example-fn 10 20)")
+              "The file should contain the updated comment")))
 
       (testing "Structure tool works via callback"
         (structure-fn nil
@@ -432,8 +502,9 @@
                       cb3)
         (let [result @p3
               outline (first (:result result))]
-          (is (false? (:error result))) ;; Error is false, not nil
-          (is (vector? (:result result)))
-          (is (string? outline))
-          (is (str/includes? outline "(ns test.core)"))
-          (is (str/includes? outline "(defn example-fn")))))))
+          ;; Validate MCP response format
+          (validate-mcp-result result)
+          ;; Verify the outline content
+          (is (string? outline) "The outline should be a string")
+          (is (str/includes? outline "(ns test.core)") "The outline should include the namespace")
+          (is (str/includes? outline "(defn example-fn") "The outline should include function signatures"))))))))
