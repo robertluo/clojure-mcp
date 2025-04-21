@@ -8,6 +8,7 @@
    [clojure-mcp.repl-tools.utils :as utils]
    [rewrite-clj.zip :as z]
    [rewrite-clj.parser :as p]
+   [clojure-mcp.linting :as linting]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]))
 
@@ -75,6 +76,16 @@
       (-> ctx
           (assoc ::source (:content result))
           (assoc ::old-content (:content result))))))
+
+(defn lint-code
+  "Lints the new source code to be inserted.
+   Adds ::lint-result to the context."
+  [ctx]
+  (let [lint-result (linting/lint (::new-source-code ctx))]
+    (if (and lint-result (:error? lint-result))
+      {::error :lint-failure
+       ::message (str "Linting issues in code:\n" (:report lint-result))}
+      (assoc ctx ::lint-result lint-result))))
 
 (defn enhance-defmethod-name
   "If this is a defmethod form without a dispatch value in its name,
@@ -358,9 +369,9 @@
     ::new-source-code content-str
     ::edit-type edit-type
     ::config config}
+   lint-code
    determine-file-type
    load-source
-   ;; Add our new pipeline step to handle defmethod forms
    enhance-defmethod-name
    parse-source
    find-form
