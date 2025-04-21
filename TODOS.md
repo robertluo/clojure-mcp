@@ -19,8 +19,6 @@ have claude compare the tools and suggest tweaks
 should the fs_read_file tool provide line numbers as in the clod
 should diffs have line numbers?
 
-clojure_list_vars_in_namespace needs to be formatted
-
 clojure_edit_insert_after is returning the whole file. same with replace_docstring
 - rename to clojure_edit_definition_replace
 - maybe move to any definition not just top level
@@ -38,6 +36,7 @@ edit_file
  - should lint format output if clojure
  - also needs to check the write time
  - maybe it needs the longer prompt?
+ - is not returning diff?
 
 write-file 
  - needs to check mod time like clod 

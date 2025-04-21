@@ -3,7 +3,8 @@
   (:require
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.namespace.core :as core]
-   [clojure-mcp.nrepl :as nrepl]))
+   [clojure-mcp.nrepl :as nrepl]
+   [clojure.string :as str]))
 
 ;; Factory functions for creating tool configurations
 
@@ -113,8 +114,22 @@
   (if (:error result)
     {:result [(:message result)]
      :error true}
-    {:result (mapv pr-str (:vars result))
-     :error false}))
+    (let [format-var (fn [var-meta]
+                       (let [name-str (str (:name var-meta))
+                             arglists-str (when-let [args (:arglists var-meta)]
+                                            (str "  " (pr-str args)))
+                             doc-str (when-let [doc (:doc var-meta)]
+                                       (str "  " doc))
+                             parts (cond-> [name-str]
+                                     arglists-str (conj arglists-str)
+                                     doc-str (conj doc-str))]
+                         (str/join "\n" parts)))
+          formatted-vars (mapv format-var (:vars result))
+          final-output (if (seq formatted-vars)
+                         (str/join "\n---\n" formatted-vars)
+                         "No public vars found in this namespace.")]
+      {:result [final-output]
+       :error false})))
 
 ;; ===== Backward Compatibility Functions =====
 

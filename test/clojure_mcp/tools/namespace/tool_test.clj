@@ -160,8 +160,9 @@
           success-result {:vars [var-meta] :error false}
           error-result {:error true :message "Namespace not found"}
           success-formatted (tool-system/format-results {:tool-type :list-vars-in-namespace} success-result)
-          error-formatted (tool-system/format-results {:tool-type :list-vars-in-namespace} error-result)]
-      (is (= {:result [(pr-str var-meta)] :error false} success-formatted))
+          error-formatted (tool-system/format-results {:tool-type :list-vars-in-namespace} error-result)
+          expected-format (str "join\n  ([coll] [separator coll])\n  Joins strings")]
+      (is (= {:result [expected-format] :error false} success-formatted))
       (is (= {:result ["Namespace not found"] :error true} error-formatted)))))
 
 (deftest tool-execution-test
@@ -183,10 +184,16 @@
     (let [result (test-tool-execution :list-vars-in-namespace {"namespace" "clojure.string"})]
       (is (false? (:error? result)))
       (is (vector? (:result result)))
-      (is (every? string? (:result result)))
-      (let [parsed-vars (map read-string (:result result))]
-        (is (some #(= 'join (:name %)) parsed-vars))
-        (is (some #(= 'split (:name %)) parsed-vars)))))
+      (is (= 1 (count (:result result)))) ; Now we return a single formatted string
+      (is (string? (first (:result result))))
+      ; Check that the output contains key function names
+      (let [output (first (:result result))]
+        (is (str/includes? output "join"))
+        (is (str/includes? output "split"))
+        ; Check that formatting is working (contains argument lists)
+        (is (str/includes? output "([coll]"))
+        ; Check that we have separators between functions
+        (is (str/includes? output "---")))))
   
   (testing "list-vars-in-namespace tool execution with invalid namespace"
     (let [result (test-tool-execution :list-vars-in-namespace {"namespace" "nonexistent.ns"})]

@@ -75,8 +75,19 @@ The project relies on the following key dependencies (from `deps.edn`):
   - Implementation: `src/clojure_mcp/tools/namespace/`
 - **`clojure_list_namespaces`**: Lists all available namespaces
   - Implementation: `src/clojure_mcp/tools/namespace/`
-- **`clojure_list_vars_in_namespace`**: Lists vars in a namespace
+- **`clojure_list_vars_in_namespace`**: Lists vars in a namespace with formatted output
   - Input: `{"namespace": "clojure.string"}`
+  - Output: Human-readable formatted display of functions with their argument lists and docstrings
+  - Example output:
+    ```
+    blank?
+      ([s])
+      True if s is nil, empty, or contains only whitespace.
+    ---
+    capitalize
+      ([s])
+      Converts first character of the string to upper-case, all other characters to lower-case.
+    ```
   - Implementation: `src/clojure_mcp/tools/namespace/`
 
 ### Symbol Information
@@ -92,7 +103,7 @@ The project relies on the following key dependencies (from `deps.edn`):
 - **`source_code`**: Views source code implementation
   - Input: `{"symbol": "map"}`
   - Implementation: `src/clojure_mcp/tools/symbol/`
-- **`symbol-search`**: Searches for symbols across namespaces
+- **`symbol_search`**: Searches for symbols across namespaces
   - Input: `{"search-str": "seq"}`
   - Implementation: `src/clojure_mcp/tools/symbol/`
 
@@ -129,6 +140,13 @@ The project relies on the following key dependencies (from `deps.edn`):
   - Best practices:
     - Use `read_file` first to understand file contents and context
     - Use `list_directory` to verify parent directories exist for new files
+
+- **`file_edit`**: Edits files by replacing specific text strings
+  - Input: `{"file_path": "/path/to/file.clj", "old_string": "text to replace", "new_string": "replacement text"}`
+  - Intended as a safety mechanism, requiring that the string to replace occurs exactly once
+  - Currently not returning expected diff output (see Known Issues)
+  - Implementation: `src/clojure_mcp/tools/file_edit/`
+  - Note: The specialized form editing tools are generally preferred for Clojure code changes
 
 ### Filesystem Tools
 - **`directory_tree`**: Shows a recursively indented tree view of files and directories
@@ -327,6 +345,48 @@ To extend this project:
 
 4. **Enhance the form editing pipeline**:
    - Add new steps in `src/clojure_mcp/tools/form_edit/pipeline.clj`
+
+## Known Issues and Special Considerations
+
+### Error Handling in Form Editing Tools
+- Form editing tools may fail silently when a requested form doesn't exist
+- The issue stems from error results not being properly formatted for MCP
+- The `format-results` method in form editing tools should be updated to properly handle errors:
+  ```clojure
+  (defmethod tool-system/format-results :clojure-edit-replace-form [_ result]
+    (if (:error result)
+      {:result [(:message result)]
+       :error true}
+    result))
+  ```
+
+### Working with defmethod Forms
+- Special handling is required for editing `defmethod` forms
+- The `form_name` parameter can be specified in two ways:
+  - Just the method name (e.g., `test-multi`) to edit the first matching method
+  - Method name with dispatch value (e.g., `test-multi :default`) to edit a specific implementation
+- The pipeline has an `enhance-defmethod-name` step that extracts dispatch values from replacement code
+
+### File System Tools Parameters
+- Parameters for `fs_read_file` include:
+  - `line-offset`: The starting line number for reading (0-based)
+  - `line-limit`: Maximum number of lines to read
+  - `byte-size`: Shows the total size of the file in bytes
+  - `line-count`: Shows the number of lines in the file
+  - `truncated`: Indicates if the output was truncated
+
+### MCP Result Format Requirements
+- All tools must return results in a specific format for the MCP system
+- Error results should always have the structure:
+  ```clojure
+  {:result ["Error message here"]
+   :error true}
+  ```
+- Success results should have:
+  ```clojure
+  {:result ["Output string 1", "Output string 2", ...]
+   :error false}
+  ```
 
 ## Project Goals
 
