@@ -2,6 +2,7 @@
   (:require
    [clojure.test :refer [deftest testing is use-fixtures]]
    [clojure-mcp.tools.form-edit.tool :as sut]
+   [clojure-mcp.tools.form-edit.pipeline :as pipeline]   
    [clojure-mcp.tool-system :as tool-system]
    [clojure.java.io :as io]
    [clojure.string :as str]))
@@ -253,8 +254,8 @@
               file-content (slurp file-path)]
           (is (false? (:error formatted)))
           (is (vector? (:result formatted)))
-          (is (some? (:offsets formatted)))
-          (is (not (nil? (:diff formatted))))
+          (is (= (:result formatted) [(:diff result)]))
+          (is (not (nil? (:diff result))))
           (is (str/includes? file-content "(defn example-fn [x]"))
           (is (str/includes? file-content "(* x 2)"))
           (is (not (str/includes? file-content "(+ x y)")))))
@@ -277,7 +278,7 @@
               file-content (slurp file-path)]
           (is (false? (:error formatted)))
           (is (vector? (:result formatted)))
-          (is (some? (:offsets formatted)))
+          (is (= (:result formatted) [(:diff result)]))
           (is (str/includes? file-content "Updated docstring for testing"))
           (is (not (str/includes? file-content "Original docstring")))))
 
@@ -292,7 +293,7 @@
               file-content (slurp file-path)]
           (is (false? (:error formatted)))
           (is (vector? (:result formatted)))
-          (is (some? (:offsets formatted)))
+          (is (= (:result formatted) [(:diff result)]))
           (is (str/includes? file-content "Updated test comment"))
           (is (str/includes? file-content "with multiple lines"))
           (is (not (str/includes? file-content "Test comment\n;; spans multiple")))))
@@ -307,6 +308,7 @@
               _ (println "Outline content:" outline)] ;; Add debugging
           (is (false? (:error formatted)))
           (is (vector? (:result formatted)))
+          (is (= (:result formatted) (:result result)))
           (is (string? outline))
           (is (str/includes? outline "(ns test.core)"))
           ;; Update expectation - file has [x y] not [x]
@@ -339,7 +341,6 @@
 
           (is (false? (:error formatted)))
           (is (vector? (:result formatted)))
-          (is (some? (:offsets formatted)))
           (is (str/includes? file-content "Updated implementation"))
           (is (str/includes? file-content "(let [w (:width rect)"))
           (is (not (str/includes? file-content "(* (:width rect) (:height rect))")))))
@@ -356,7 +357,6 @@
 
           (is (false? (:error formatted)))
           (is (vector? (:result formatted)))
-          (is (some? (:offsets formatted)))
           (is (str/includes? file-content "Updated circle implementation"))
           (is (str/includes? file-content "(let [r (:radius circle)]"))
           (is (not (str/includes? file-content "(* Math/PI (:radius circle) (:radius circle))")))))
@@ -374,7 +374,6 @@
 
           (is (false? (:error formatted)))
           (is (vector? (:result formatted)))
-          (is (some? (:offsets formatted)))
           (is (str/includes? file-content "area :triangle"))
           (is (str/includes? file-content "(* 0.5 (:base triangle) (:height triangle))")))))))
 

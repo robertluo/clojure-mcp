@@ -144,9 +144,12 @@
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
-(defmethod tool-system/format-results :clojure-edit-replace-form [_ result]
-  ;; The pipeline/format-result already formats results correctly
-  result)
+(defmethod tool-system/format-results :clojure-edit-replace-form [_ {:keys [error message diff]}]
+  (if error 
+    {:result [message]
+     :error true}
+    {:result [diff]
+     :error false}))
 
 ;; Implement the required multimethods for insert before form tool
 
@@ -208,9 +211,12 @@
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
-(defmethod tool-system/format-results :clojure-edit-insert-before-form [_ result]
-  ;; The pipeline/format-result already formats results correctly
-  result)
+(defmethod tool-system/format-results :clojure-edit-insert-before-form [_ {:keys [error message diff]}]
+  (if error 
+    {:result [message]
+     :error true}
+    {:result [diff]
+     :error false}))
 
 ;; Implement the required multimethods for insert after form tool
 
@@ -272,9 +278,12 @@
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
-(defmethod tool-system/format-results :clojure-edit-insert-after-form [_ result]
-  ;; The pipeline/format-result already formats results correctly
-  result)
+(defmethod tool-system/format-results :clojure-edit-insert-after-form [_ {:keys [error message diff]}]
+  (if error 
+    {:result [message]
+     :error true}
+    {:result [diff]
+     :error false}))
 
 ;; Implement the required multimethods for docstring edit tool
 
@@ -332,9 +341,12 @@
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
-(defmethod tool-system/format-results :clojure-edit-replace-docstring [_ result]
-  ;; The pipeline/format-result already formats results correctly
-  result)
+(defmethod tool-system/format-results :clojure-edit-replace-docstring [_ {:keys [error message diff]}]
+  (if error 
+    {:result [message]
+     :error true}
+    {:result [diff]
+     :error false}))
 
 ;; Implement the required multimethods for comment block edit tool
 
@@ -382,9 +394,12 @@ For reliable results, use a unique substring that appears in only one comment bl
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
-(defmethod tool-system/format-results :clojure-edit-comment-block [_ result]
-  ;; The pipeline/format-result already formats results correctly
-  result)
+(defmethod tool-system/format-results :clojure-edit-comment-block [_ {:keys [error message diff]}]
+  (if error 
+    {:result [message]
+     :error true}
+    {:result [diff]
+     :error false}))
 
 ;; Implement the required multimethods for file structure tool
 
@@ -427,9 +442,12 @@ For reliable results, use a unique substring that appears in only one comment bl
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
-(defmethod tool-system/format-results :clojure-file-structure [_ result]
-  ;; The pipeline/format-result already formats results correctly
-  result)
+(defmethod tool-system/format-results :clojure-file-structure [_ {:keys [error message result]}]
+  (if error 
+    {:result [message]
+     :error true}
+    {:result result
+     :error false}))
 
 ;; Backward compatibility functions
 
@@ -453,9 +471,11 @@ For reliable results, use a unique substring that appears in only one comment bl
 
 (comment
   ;; === Examples of using the form editing tools ===
-
+  (require 'clojure-mcp.nrepl)
   ;; Setup for REPL-based testing
-  (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
+  (def client-atom (atom (assoc
+                          (clojure-mcp.nrepl/create {:port 7888})
+                          :clojure-mcp.core/nrepl-user-dir (System/getProperty "user.dir"))))
   (clojure-mcp.nrepl/start-polling @client-atom)
 
   ;; Create tool instances
@@ -468,10 +488,10 @@ For reliable results, use a unique substring that appears in only one comment bl
 
   ;; Test the replace form tool
   (def replace-inputs
-    {:file_path "/tmp/test.clj"
-     :form_name "example-fn"
+    {:file_path "tmp/test.clj"
+     :form_name "power"
      :form_type "defn"
-     :content "(defn example-fn [x]\n  (* x 2))"})
+     :content "(defn power [x]\n  (* x 55))"})
   (def replace-validated (tool-system/validate-inputs replace-tool replace-inputs))
   (def replace-result (tool-system/execute-tool replace-tool replace-validated))
   (def replace-formatted (tool-system/format-results replace-tool replace-result))
