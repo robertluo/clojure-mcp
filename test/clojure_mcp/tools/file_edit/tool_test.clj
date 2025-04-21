@@ -59,6 +59,75 @@
 
 ;; Integration tests with actual file operations
 (deftest file-edit-integration-test
+  (testing "Editing a Clojure file with valid syntax"
+    (let [tool-config (tool/create-file-edit-tool test-client-atom)
+          file-path (str tmp-dir "/valid.clj")
+          ;; Create a valid Clojure file
+          _ (spit file-path "(ns test.valid)\n\n(defn test-fn [x]\n  (* x 2))")
+          old-string "(* x 2)"
+          new-string "(+ x 10)"
+          
+          ;; Execute the validation and editing steps
+          inputs {:file_path file-path
+                  :old_string old-string
+                  :new_string new-string}
+          validated-inputs (tool-system/validate-inputs tool-config inputs)
+          result (tool-system/execute-tool tool-config validated-inputs)
+          formatted-result (tool-system/format-results tool-config result)]
+      
+      ;; Verify the tool results - should succeed because syntax is valid
+      (is (not (:error formatted-result)) "Operation should succeed with valid Clojure syntax")
+      (is (= "update" (:type formatted-result)) "Should have update type")
+      
+      ;; Verify the actual file content
+      (let [content (slurp file-path)]
+        (is (str/includes? content "(+ x 10)") "File should contain the new valid code"))))
+  
+  (testing "Editing a Clojure file with syntax errors should fail"
+    (let [tool-config (tool/create-file-edit-tool test-client-atom)
+          file-path (str tmp-dir "/test.clj")
+          ;; Create a valid Clojure file
+          _ (spit file-path "(ns test.syntax)\n\n(defn valid-fn [x]\n  (+ x 1))")
+          original-content (slurp file-path)
+          old-string "(+ x 1)"
+          ;; Missing closing parenthesis - syntax error
+          new-string "(let [y (inc x]\n    (println y)"
+          
+          ;; Execute the validation and editing steps
+          inputs {:file_path file-path
+                  :old_string old-string
+                  :new_string new-string}
+          validated-inputs (tool-system/validate-inputs tool-config inputs)
+          result (tool-system/execute-tool tool-config validated-inputs)
+          formatted-result (tool-system/format-results tool-config result)]
+      
+      ;; Verify the tool results - should report error due to syntax issue
+      (is (:error formatted-result) "Operation should fail with invalid Clojure syntax")
+      (is (str/includes? (:message formatted-result) "Syntax errors") "Error should mention syntax issues")
+      
+      ;; Verify file was not modified
+      (is (= original-content (slurp file-path)) "File should not be modified when syntax errors detected")))
+  
+  (testing "Creating a new Clojure file with syntax errors should fail"
+    (let [tool-config (tool/create-file-edit-tool test-client-atom)
+          file-path (str tmp-dir "/invalid-new.clj")
+          ;; Content with syntax error - unbalanced parentheses
+          invalid-content "(ns test.new\n\n(defn broken-fn [x]\n  (+ x 1)"
+          
+          ;; Execute the validation and editing steps
+          inputs {:file_path file-path
+                  :old_string ""
+                  :new_string invalid-content}
+          validated-inputs (tool-system/validate-inputs tool-config inputs)
+          result (tool-system/execute-tool tool-config validated-inputs)
+          formatted-result (tool-system/format-results tool-config result)]
+      
+      ;; Verify the tool results - should report error due to syntax issue
+      (is (:error formatted-result) "Operation should fail with invalid Clojure syntax")
+      (is (str/includes? (:message formatted-result) "Syntax errors") "Error should mention syntax issues")
+      
+      ;; Verify file was not created
+      (is (not (.exists (io/file file-path))) "File should not be created when syntax errors detected")))
   (testing "Editing an existing file"
     (let [tool-config (tool/create-file-edit-tool test-client-atom)
           file-path (str tmp-dir "/test-file.txt")

@@ -5,7 +5,9 @@
   (:require
    [clojure-mcp.tools.file-edit.core :as core]
    [clojure-mcp.tools.form-edit.pipeline :as form-pipeline]
+   [clojure-mcp.tools.file-write.core :as file-write-core]
    [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.linting :as linting]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [clojure.java.io :as io]))
@@ -51,6 +53,28 @@
                          (core/perform-file-edit file-path old-string new-string source))]
     (assoc ctx ::form-pipeline/output-source edited-content)))
 
+(defn lint-clojure-content
+  "Lints the output source if it's a Clojure file.
+   Catches syntax errors before attempting to save the file.
+   Requires ::form-pipeline/file-path and ::form-pipeline/output-source in the context."
+  [ctx]
+  (let [file-path (::form-pipeline/file-path ctx)
+        output-source (::form-pipeline/output-source ctx)]
+    ;; Only lint Clojure files
+    (if (and (file-write-core/is-clojure-file? file-path) output-source)
+      ;; Check for syntax errors
+      (let [lint-result (linting/lint output-source)]
+        (if (and lint-result (:error? lint-result))
+          ;; Report linting errors
+          {::form-pipeline/error true
+           ::form-pipeline/message (str "Syntax errors detected in Clojure code:\n" 
+                                        (:report lint-result) 
+                                        "\nPlease fix the syntax errors before saving.")}
+          ;; No linting errors, continue
+          ctx))
+      ;; Not a Clojure file or no content, skip linting
+      ctx)))
+
 (defn save-file-with-dirs
   "Saves the updated source to the file, creating parent directories if needed.
    Requires ::form-pipeline/output-source and ::form-pipeline/file-path in the context."
@@ -93,6 +117,7 @@
        (assoc initial-ctx ::create-new-file true)
        validate-edit
        perform-edit
+       lint-clojure-content ;; Lint Clojure files to catch syntax errors
        form-pipeline/determine-file-type ;; This will mark as "create"
        form-pipeline/generate-diff
        form-pipeline/emacs-set-auto-revert
@@ -104,6 +129,7 @@
        form-pipeline/load-source ;; Load existing file
        validate-edit ;; Validate the edit (uniqueness, etc.)
        perform-edit ;; Perform the actual edit
+       lint-clojure-content ;; Lint Clojure files to catch syntax errors
        form-pipeline/determine-file-type ;; This will mark as "update"
        form-pipeline/generate-diff ;; Generate diff between old and new
        form-pipeline/emacs-set-auto-revert
