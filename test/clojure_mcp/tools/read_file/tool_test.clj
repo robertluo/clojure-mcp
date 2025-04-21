@@ -88,7 +88,7 @@
   (testing "Execute with offset and limit"
     (let [tool-instance (read-file-tool/create-read-file-tool *nrepl-client-atom*)
           validated {:path (.getAbsolutePath *test-file*)
-                    :offset 2
+                    :line_offset 2
                     :limit 2}
           result (tool-system/execute-tool tool-instance validated)]
       (is (map? result))
@@ -144,7 +144,7 @@
     (let [tool-instance (read-file-tool/create-read-file-tool *nrepl-client-atom*)
           tool-tester (test-utils/make-tool-tester tool-instance)
           result (tool-tester {"path" (.getAbsolutePath *test-file*)
-                              "offset" 1
+                              "line_offset" 1
                               "limit" 2})]
       (is (false? (:error? result)))
       (is (vector? (:result result)))

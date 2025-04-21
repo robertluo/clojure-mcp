@@ -40,7 +40,7 @@
   {:type :object
    :properties {:path {:type :string
                       :description "The path to the file to read."}
-                :offset {:type :integer
+                :line_offset {:type :integer
                          :description "Line number to start reading from (0-indexed)"}
                 :limit {:type :integer
                         :description "Maximum number of lines to read"}}
@@ -58,8 +58,8 @@
       (assoc inputs :path validated-path))))
 
 (defmethod tool-system/execute-tool :read-file [{:keys [max-lines max-line-length]} inputs]
-  (let [{:keys [path offset limit]} inputs
-        offset (or offset 0)
+  (let [{:keys [path line_offset limit]} inputs
+        offset (or line_offset 0)
         limit (or limit max-lines)]
     (core/read-file path offset limit :max-line-length max-line-length)))
 
@@ -72,10 +72,10 @@
     (let [file (io/file path)
           size (.length file)
           header (-> (str "<file-content path=\"" path "\" "
-                         "size=\"" size "\" "
+                         "byte-size=\"" size "\" "
                          "line-count=\"" line-count "\" "
-                         "offset=\"" offset "\" "
-                         "limit=\"" max-lines "\" "
+                         "line-offset=\"" offset "\" "
+                         "line-limit=\"" max-lines "\" "
                          "truncated=\"" (boolean truncated?) "\" ")
                     (cond-> 
                       truncated-by (str "truncated-by=\"" truncated-by "\" ")
