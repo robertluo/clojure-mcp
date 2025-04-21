@@ -4,7 +4,7 @@
             [clojure.data.json :as json]
             [clojure.edn :as edn]
             [clojure-mcp.nrepl :as mcp-nrepl]
-            [clojure-mcp.repl-tools.project.inspect :as inspect])
+            [clojure-mcp.tools.project.core :as project])
   (:import [io.modelcontextprotocol.spec McpSchema$Resource McpSchema$ReadResourceResult]))
 
 (defn read-file [full-path]
@@ -82,10 +82,10 @@
       (str working-dir "/CLAUDE.md"))
 
      ;; Add dynamic project info resource that uses the inspect-project-code function
-     (let [project-code (str (inspect/inspect-project-code))
+     (let [project-code (str (project/inspect-project-code))
            project-data (mcp-nrepl/tool-eval-code nrepl-client project-code)
            ;; Also need to parse this data with edn/read-string
-           project-markdown (inspect/format-project-info project-data)]
+           project-markdown (project/format-project-info project-data)]
        (create-string-resource
         "custom://project-info"
         "Clojure Project Info"
