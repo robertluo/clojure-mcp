@@ -19,7 +19,11 @@
   "file_edit")
 
 (defmethod tool-system/tool-description :file-edit [_]
-  "Edit a file by replacing a specific text string with a new one. For safety, this tool requires that the string to replace appears exactly once in the file. To make a file edit, provide the file_path, old_string (the text to replace), and new_string (the replacement text). The old_string must uniquely identify the specific instance you want to change, so include several lines of context before and after the change point. To create a new file, provide an empty old_string. Both files must be within allowed directories.")
+  "FIRST: the clojure_edit_... family of tools is prefered because they use precise structural rewrite-clj editing. They also incorporate linting and ensure balance parenthesis.
+
+WHEN the clojure_edit_... tools won't work or you have a small easy edit 
+
+Edit a file by replacing a specific text string with a new one. For safety, this tool requires that the string to replace appears exactly once in the file. To make a file edit, provide the file_path, old_string (the text to replace), and new_string (the replacement text). The old_string must uniquely identify the specific instance you want to change, so include several lines of context before and after the change point. To create a new file, provide an empty old_string. Both files must be within allowed directories.")
 
 (defmethod tool-system/tool-schema :file-edit [_]
   {:type :object
