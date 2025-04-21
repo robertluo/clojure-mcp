@@ -313,6 +313,9 @@
 
 ;; Form summary and visualization functions
 
+;; Forward declaration for extract-form-name to enable better organization
+(declare extract-form-name)
+
 (defn get-form-summary
   "Get a summarized representation of a Clojure form showing only up to the argument list.
    
@@ -325,11 +328,8 @@
     (let [sexpr (z/sexpr zloc)]
       (when (and (seq? sexpr) (symbol? (first sexpr)))
         (let [form-type (name (first sexpr))
-              form-name (when (> (count sexpr) 1)
-                          (let [second-item (second sexpr)]
-                            (when (symbol? second-item)
-                              (name second-item))))]
-
+              form-name (extract-form-name sexpr)]
+                
           (case form-type
             "defn" (let [vector-pos (count (take-while #(not (vector? %)) sexpr))
                          args (when (> (count sexpr) vector-pos)
@@ -345,9 +345,59 @@
             "deftest" (str "(deftest " form-name " ...)")
             "ns" (z/string zloc) ; Always show the full namespace
             (str "(" form-type " " (or form-name "") " ...)")))))
-    (catch Exception e
-      (str "Error in get-form-summary: " (pr-str (z/sexpr zloc))
-           " - " (.getMessage e))
+    (catch Exception _
+      ;; Provide a fallback in case of errors
+      (try
+        (let [raw-str (z/string zloc)]
+          (if (< (count raw-str) 60)
+            raw-str
+            (str (subs raw-str 0 57) "...")))
+        (catch Exception _
+          nil)))))
+
+(defn valid-form-to-include?
+  "Check if a form should be included in the collapsed view.
+   Excludes forms like comments, unevals, whitespace, etc.
+   
+   Arguments:
+   - zloc: The zipper location to check
+   
+   Returns:
+   - true if the form should be included, false otherwise"
+  [zloc]
+  (try
+    (when zloc
+      (let [tag (z/tag zloc)]
+        ;; Exclude specific node types we don't want to process
+        (not (or 
+              ;; Skip uneval forms (#_)
+              (= tag :uneval)
+              ;; Skip whitespace
+              (= tag :whitespace)
+              ;; Skip newlines
+              (= tag :newline)
+              ;; Skip comments
+              (= tag :comment)))))
+    (catch Exception _
+      ;; If we can't determine the type, skip it to be safe
+      false)))
+
+(defn extract-form-name
+  "Extract the name of a form from its sexpr representation.
+   For example, from (defn foo [x] ...) it extracts 'foo'.
+   
+   Arguments:
+   - sexpr: The S-expression to extract the name from
+   
+   Returns:
+   - The name as a string, or nil if no name could be extracted"
+  [sexpr]
+  (try
+    (when (and (seq? sexpr) 
+               (> (count sexpr) 1)
+               (symbol? (second sexpr)))
+      (name (second sexpr)))
+    (catch Exception _
       nil)))
 
 (defn generate-collapsed-file-view
@@ -372,18 +422,19 @@
           (str/join "\n\n" forms)
 
           ;; Process current form
-          (let [current-sexpr (try (z/sexpr loc) (catch Exception _ nil))
-                next-loc (try (z/right loc) (catch Exception _ nil))
-                form-name (when (and (seq? current-sexpr)
-                                     (> (count current-sexpr) 1)
-                                     (symbol? (second current-sexpr)))
-                            (name (second current-sexpr)))
-                should-expand (contains? expand-set form-name)
-                form-str (if should-expand
-                           (z/string loc)
-                           (get-form-summary loc))]
-            (if form-str
-              (recur next-loc (conj forms form-str))
+          (let [next-loc (try (z/right loc) (catch Exception _ nil))]
+            (if (valid-form-to-include? loc)
+              ;; Process includable forms
+              (let [current-sexpr (try (z/sexpr loc) (catch Exception _ nil))
+                    form-name (extract-form-name current-sexpr)
+                    should-expand (contains? expand-set form-name)
+                    form-str (if should-expand
+                               (z/string loc)
+                               (get-form-summary loc))]
+                (if form-str
+                  (recur next-loc (conj forms form-str))
+                  (recur next-loc forms)))
+              ;; Skip excluded forms
               (recur next-loc forms))))))
     (catch java.io.FileNotFoundException _
       (str "Error: File not found: " file-path))

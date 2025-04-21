@@ -18,8 +18,9 @@
     (.mkdirs test-dir)
     (let [test-file (io/file test-dir "test.clj")]
       (spit test-file (str "(ns test.core)\n\n"
-                           "(defn example-fn\n  \"Original docstring\"\n  [x y]\n  (+ x y))\n\n"
+                           "(defn example-fn\n  \"Original docstring\"\n  [x y]\n  #_(println \"debug value:\" x)\n  (+ x y))\n\n"
                            "(def a 1)\n\n"
+                           "#_(def unused-value 42)\n\n"
                            "(comment\n  (example-fn 1 2))\n\n"
                            ";; Test comment\n;; spans multiple lines"))
       (binding [*test-dir* test-dir
@@ -383,7 +384,67 @@
         (is (str/includes? outline "(defn example-fn [x y]") "Function signature should be included")
         (is (str/includes? outline "(def a ...)") "Vars should be collapsed")
         (is (str/includes? outline "(comment") "Comments should be included")
-        (is (not (str/includes? outline "(+ x y)")) "Function body should be collapsed")))))
+        (is (not (str/includes? outline "(+ x y)")) "Function body should be collapsed")
+        
+        ;; Validate uneval forms are handled properly
+        (is (not (str/includes? outline "#_(println \"debug value:\"")) "Uneval form in function should be excluded")
+        (is (not (str/includes? outline "unused-value")) "Top-level uneval form should be excluded")))
+    
+    (testing "File structure tool handles existing but invalid paths correctly"
+      (let [;; Using a file path that exists but is not a valid Clojure file
+            invalid-file-path (str (.getAbsolutePath *test-dir*) "/invalid_clojure.xyz")
+            _ (spit invalid-file-path "This is not a valid Clojure file { syntax error )")
+            inputs {:file_path invalid-file-path}
+            validated (tool-system/validate-inputs structure-tool inputs)
+            result (tool-system/execute-tool structure-tool validated)
+            formatted (tool-system/format-results structure-tool result)]
+        
+        ;; Validate MCP result format - should return an error
+        (validate-mcp-result formatted true #(str/includes? % "Error"))
+        
+        ;; Clean up test file
+        (io/delete-file invalid-file-path true)))
+    
+    (testing "File structure tool handles files that cause unsupported operations"
+      ;; Create a file that will trigger an "unsupported operation" error when processed
+      (let [test-file-path (str (.getAbsolutePath *test-dir*) "/unsupported.clj")
+            ;; This content is similar to core.clj which causes the unsupported operation error
+            content "(ns problematic.core
+  (:import [java.util.concurrent Executors ThreadFactory]
+           [java.util.function Function Consumer]
+           [javax.swing JFrame JLabel ImageIcon]
+           [javax.swing.text StyleContext]))
+
+(def unmatched-delim \"
+  This string has a curly brace { without a matching one
+  and also includes some unicode: 🔥 💻 🚀
+\")
+
+;; Include various kinds of problematic forms
+#_(defn will-never-be-defined [x]
+   (this would cause a reader error if not disabled))
+
+#_#_nested-uneval forms are extra tricky
+(they might cause problems if not handled properly)
+
+(defmethod some-multimethod :default [x]
+  ;; Deliberately introduce syntax issues
+  (loop [a 1
+         b 2
+    (let [c (+ a b)]
+      c))))"
+            _ (spit test-file-path content)
+            inputs {:file_path test-file-path}
+            validated (tool-system/validate-inputs structure-tool inputs)
+            result (tool-system/execute-tool structure-tool validated)
+            formatted (tool-system/format-results structure-tool result)]
+        
+        ;; Validate MCP result format - should be a properly formatted error
+        (validate-mcp-result formatted true #(or (str/includes? % "unsupported operation")
+                                                 (str/includes? % "Error generating")))
+        
+        ;; Clean up test file
+        (io/delete-file test-file-path true)))))
 
 (deftest defmethod-handling-test
   (testing "Tool correctly handles defmethod forms"
