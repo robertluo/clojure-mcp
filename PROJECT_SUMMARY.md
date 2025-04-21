@@ -109,25 +109,29 @@ The project relies on the following key dependencies (from `deps.edn`):
 
 ### Form Editing Tools
 - **`clojure_file_structure`**: Shows file structure with top-level forms
-  - Input: `{"file_path": "src/my_namespace/core.clj", "expand": ["my-function"]}`
+  - Input: `{"file_path": "src/my_namespace/core.clj", "expand_symbols": ["my-function"]}`
   - Implementation: `src/clojure_mcp/tools/form_edit/`
+  - Output shows collapsed view of the file with optional expanded functions
 - **`clojure_edit_replace_form`**: Updates top-level forms
-  - Input: `{"file_path": "...", "form_name": "my-function", "form_type": "defn", "new_implementation": "..."}`
+  - Input: `{"file_path": "...", "form_name": "my-function", "form_type": "defn", "content": "..."}`
   - Implementation: `src/clojure_mcp/tools/form_edit/`
   - Supports replacing a single form with multiple forms in one operation
+  - For defmethod forms, the form_name can be:
+    - Just the method name (e.g., "test-multi") to edit the first matching method
+    - Method name with dispatch value (e.g., "test-multi :default") to edit a specific implementation
 - **`clojure_edit_insert_before_form`**: Inserts code before existing forms
-  - Input: `{"file_path": "...", "before_form_name": "main-fn", "form_type": "defn", "new_form_str": "..."}`
+  - Input: `{"file_path": "...", "form_name": "main-fn", "form_type": "defn", "content": "..."}`
   - Implementation: `src/clojure_mcp/tools/form_edit/`
   - Supports inserting multiple forms in one operation
 - **`clojure_edit_insert_after_form`**: Inserts code after existing forms
-  - Input: `{"file_path": "...", "after_form_name": "helper-fn", "form_type": "defn", "new_form_str": "..."}`
+  - Input: `{"file_path": "...", "form_name": "helper-fn", "form_type": "defn", "content": "..."}`
   - Implementation: `src/clojure_mcp/tools/form_edit/`
   - Supports inserting multiple forms in one operation
 - **`clojure_edit_comment_block`**: Edits or updates comment blocks
   - Input: `{"file_path": "...", "comment_substring": "Example usage", "new_content": "..."}`
   - Implementation: `src/clojure_mcp/tools/form_edit/`
 - **`clojure_edit_replace_docstring`**: Updates function docstrings
-  - Input: `{"file_path": "...", "form_name": "my-function", "form_type": "defn", "new_docstring": "..."}`
+  - Input: `{"file_path": "...", "form_name": "my-function", "form_type": "defn", "docstring": "..."}`
   - Implementation: `src/clojure_mcp/tools/form_edit/`
 
 ### File Operations
@@ -272,6 +276,7 @@ For form editing operations, the project uses a standardized pipeline pattern:
    - `generate-diff`: Creates a human-readable diff of changes
    - `save-file`: Writes content to file with offset tracking
    - `emacs-set-auto-revert`, `highlight-form`: Provides integration with Emacs
+   - `enhance-defmethod-name`: Special handling for defmethod forms to extract dispatch values
 
 This pattern enables:
 - Clear separation of concerns
@@ -346,34 +351,31 @@ To extend this project:
 4. **Enhance the form editing pipeline**:
    - Add new steps in `src/clojure_mcp/tools/form_edit/pipeline.clj`
 
-## Known Issues and Special Considerations
+## Recent Fixes and Improvements
 
-### Error Handling in Form Editing Tools
-- Form editing tools may fail silently when a requested form doesn't exist
-- The issue stems from error results not being properly formatted for MCP
-- The `format-results` method in form editing tools should be updated to properly handle errors:
+### Fixed Error Handling in Form Editing Tools
+- **Issue**: Form editing tools were failing silently when requested forms didn't exist
+- **Root Cause**: Error results from pipelines weren't being properly formatted for MCP
+- **Fix Applied**: Updated all `format-results` methods in `form_edit/tool.clj` to properly handle error conditions:
   ```clojure
   (defmethod tool-system/format-results :clojure-edit-replace-form [_ result]
-    (if (:error result)
-      {:result [(:message result)]
+    (if (or (:error result) (:clojure-mcp.tools.form-edit.pipeline/error result))
+      {:result [(or (:message result) (:clojure-mcp.tools.form-edit.pipeline/message result))]
        :error true}
     result))
   ```
+- **Benefits**:
+  - Users now get clear error messages when editing non-existent forms or files
+  - Error messages are properly propagated through the MCP protocol
+  - Consistent error handling across all form editing tools
 
 ### Working with defmethod Forms
-- Special handling is required for editing `defmethod` forms
+- Special handling for editing `defmethod` forms is now working correctly
 - The `form_name` parameter can be specified in two ways:
   - Just the method name (e.g., `test-multi`) to edit the first matching method
   - Method name with dispatch value (e.g., `test-multi :default`) to edit a specific implementation
-- The pipeline has an `enhance-defmethod-name` step that extracts dispatch values from replacement code
-
-### File System Tools Parameters
-- Parameters for `fs_read_file` include:
-  - `line-offset`: The starting line number for reading (0-based)
-  - `line-limit`: Maximum number of lines to read
-  - `byte-size`: Shows the total size of the file in bytes
-  - `line-count`: Shows the number of lines in the file
-  - `truncated`: Indicates if the output was truncated
+- The pipeline's `enhance-defmethod-name` step extracts dispatch values from replacement code
+- When only specifying the method name, the tool automatically updates the first matching method by default
 
 ### MCP Result Format Requirements
 - All tools must return results in a specific format for the MCP system
@@ -400,3 +402,4 @@ The primary goal is to enable high-quality collaborative development between hum
 6. Efficient file and directory navigation and manipulation
 7. Secure file access with proper path validation
 8. Pattern-based file searching for quickly locating relevant code
+9. Clear error reporting for better user experience

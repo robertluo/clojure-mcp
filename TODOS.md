@@ -40,6 +40,7 @@ edit_file
 
 write-file 
  - needs to check mod time like clod 
+ - maybe shouldn't return full file diff- check clod behavior
 
 emacs switch to buffer and then switch back to the originial context option
 

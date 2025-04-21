@@ -17,6 +17,7 @@
 - **Namespaces**: Align with directory structure (`clojure-mcp.repl-tools`)
 - **Testing**: Use `deftest` with descriptive names; `testing` for subsections; `is` for assertions
 - **REPL Development**: Prefer REPL-driven development for rapid iteration and feedback
+- don't use the lint tool in the workflow
 
 ## MCP Tool Guidelines
 - Include clear tool `:description` for LLM guidance
