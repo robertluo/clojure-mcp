@@ -7,6 +7,7 @@
 - Only use `cond` for multiple condition branches
 - Prefer `if-let` and `when-let` for binding and testing a value in one step
 - Consider `when` for conditionals with single result and no else branch
+- consider `cond->`, and `cond->>`
 
 ### Variable Binding
 - Minimize code points by avoiding unnecessary `let` bindings
@@ -16,7 +17,8 @@
 
 ### Parameters & Destructuring
 - Use destructuring in function parameters when accessing multiple keys
-- Example: `[{:keys [::zloc ::match-form] :as ctx}]` instead of separate `let` bindings
+- Example: `[{:keys [::zloc ::match-form] :as ctx}]` for namespaced keys instead of separate `let` bindings
+- Example: `[{:keys [zloc match-form] :as ctx}]` for regular keywords
 
 ### Control Flow
 - Track actual values instead of boolean flags where possible
@@ -27,6 +29,11 @@
 - Include only essential comments that explain non-obvious behavior
 - Avoid comments that merely restate what the code does
 - Document the "why" more than the "what"
+- skip docstrings during development they are very expensive bc of the extra tokens
+- remove long docstrings during development, they can always be added later
+- when docstrings are created they should be concise and to the point, allow the arglists to document the fn
+- defer docstring addition until the user prompts for it
+
 
 ### Nesting
 - Minimize nesting levels by using proper control flow constructs
@@ -36,6 +43,9 @@
 - Functions should generally do one thing
 - Pure functions preferred over functions with side effects
 - Return useful values that can be used by callers
+- smaller functions make edits faster and reduce the number of tokens
+- reducing tokens makes me happy
+
 
 ### Testing Best Practices
 - Always reload namespaces before running tests with `:reload` flag: `(require '[namespace] :reload)`

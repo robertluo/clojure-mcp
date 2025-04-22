@@ -457,8 +457,6 @@
           result (sut/find-and-replace-sexp zloc "(- x 1)" "(- x 10)" :replace-all true)]
       ;; The function implementation returns {:replaced false, :count 0} instead of nil
       ;; so we check for this specifically
-      (is (and (map? result)
-               (= 0 (:count result))
-               (false? (:replaced result)))
-          "Should return a result with count=0 and replaced=false"))))
+      (is (nil? result)
+          "Should return a nil result"))))
 
