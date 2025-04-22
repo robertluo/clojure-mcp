@@ -486,30 +486,13 @@ For reliable results, use a unique substring that appears in only one comment bl
   "clojure_edit_replace_sexp")
 
 (defmethod tool-system/tool-description :clojure-edit-replace-sexp [_]
-  "Edits a file by finding and replacing all occurrences of a specific s-expression.
+  "Edits a file by finding and replacing occurrences of a specific s-expression.
 
-   This tool traverses the entire code structure using a zipper and replaces
-   matching s-expressions anywhere in the code, not just at the top level.
-   
-   Example: Replace all occurrences of (+ 1 2) with (+ 1 3):
-   - file_path: \"/path/to/file.clj\"
-   - match_form: \"(+ 1 2)\"
-   - new_form: \"(+ 1 3)\"
-   - replace_all: true
-   - whitespace_sensitive: false
-   
-   For anonymous functions, include the '#' in both match_form and new_form:
-   - match_form: \"#(+ a 2)\"
-   - new_form: \"#(+ a 3)\"
-   
-   To delete forms, use an empty string as new_form:
-   - match_form: \"(println \\\"debug\\\")\"
-   - new_form: \"\"
-   
-   The whitespace_sensitive option determines whether the tool should match forms
-   exactly as written (true) or ignore whitespace differences (false, default).
+Use this tool for sub-expressions, top level definitions like `defn`, `ns`, `def` are better edited by the `clojure_edit_replace_definition`, `clojure_edit_insert_before_definition`, and `clojure_edit_insert_after_definition` which all save a lot of tokens which makes me happy. 
 
-   The tool returns a diff showing the changes made to the file.")
+To delete forms, use an empty string as new_form
+   
+The tool returns a diff showing the changes made to the file.")
 
 (defmethod tool-system/tool-schema :clojure-edit-replace-sexp [_]
   {:type :object
