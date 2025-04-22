@@ -220,7 +220,7 @@
     (is (= "area" (sut/extract-form-name '(defmethod area :rectangle [r] (* (:width r) (:height r))))))
     (is (= "test-fn" (sut/extract-form-name '(defmacro test-fn [x] `(inc ~x)))))
     (is (nil? (sut/extract-form-name '(+ 1 2)))))
-  
+
   (testing "extract-form-name handles edge cases"
     (is (nil? (sut/extract-form-name 42)))
     (is (nil? (sut/extract-form-name '())))
@@ -231,19 +231,19 @@
     ;; We'll directly test the function against node tags rather than constructing zlocs
     (testing "Nil is excluded"
       (is (not (sut/valid-form-to-include? nil))))
-    
+
     (testing "Function correctly excludes uneval forms"
       (let [source "#_(def unused 42)"
             zloc (get-zloc source)]
         (is (= :uneval (z/tag zloc)))
         (is (not (sut/valid-form-to-include? zloc)))))
-    
+
     (testing "Function includes regular forms"
       (let [source "(defn test-fn [] true)"
             zloc (get-zloc source)]
         (is (= :list (z/tag zloc)))
         (is (sut/valid-form-to-include? zloc))))
-    
+
     (testing "Implementation relies on z/tag to identify forms to exclude"
       ;; Instead of mocking objects, just test the logic directly
       (let [uneval-tag :uneval
@@ -253,15 +253,15 @@
             list-tag :list]
         ;; Test that our function correctly interprets the tags
         (is (not (sut/valid-form-to-include? nil)) "nil should be excluded")
-        
+
         ;; Test the core logic of the function directly
-        (is (= false 
+        (is (= false
                (not (or (= uneval-tag :uneval)
                         (= whitespace-tag :whitespace)
                         (= newline-tag :newline)
                         (= comment-tag :comment))))
             "Excluded tags should make the function return false")
-        
+
         (is (= true
                (not (or (= list-tag :uneval)
                         (= list-tag :whitespace)
@@ -374,3 +374,87 @@
       ;; Test malformed case
       (is (nil? (sut/extract-dispatch-from-defmethod malformed-impl))
           "Should return nil for malformed defmethod"))))
+
+(deftest find-and-replace-sexp-test
+  (testing "Basic replacement"
+    (let [source "(defn test-fn [x] (+ x 1) (- x 2))"
+          zloc (get-zloc source)
+          result (sut/find-and-replace-sexp zloc "(+ x 1)" "(+ x 10)" :replace-all false)
+          updated (z/root-string (:zloc result))]
+      (is (:replaced result) "Should indicate replacement was made")
+      (is (= 1 (:count result)) "Should have made one replacement")
+      (is (str/includes? updated "(+ x 10)") "Should include the replacement")
+      (is (str/includes? updated "(- x 2)") "Should preserve other forms")))
+
+  (testing "Replace all occurrences"
+    (let [source "(defn test-fn [x] (+ x 1) (+ x 1) (+ x 1))"
+          zloc (get-zloc source)
+          result (sut/find-and-replace-sexp zloc "(+ x 1)" "(+ x 10)" :replace-all true)
+          updated (z/root-string (:zloc result))]
+      (is (:replaced result) "Should indicate replacement was made")
+      (is (= 3 (:count result)) "Should have made three replacements")
+      (is (= 0 (count (re-seq #"\(\+ x 1\)" updated))) "Should have no original forms left")
+      (is (= 3 (count (re-seq #"\(\+ x 10\)" updated))) "Should have three replacements")))
+
+  (testing "Whitespace sensitivity"
+    (let [source "(defn test-fn [x] (+ x 1) (+ x  1) (+  x 1))"
+          zloc (get-zloc source)]
+      (let [insensitive-result (sut/find-and-replace-sexp zloc "(+ x 1)" "(+ x 10)"
+                                                          :replace-all true
+                                                          :whitespace-sensitive false)
+            insensitive-updated (z/root-string (:zloc insensitive-result))]
+        (is (:replaced insensitive-result) "Should indicate replacement was made")
+        (is (= 3 (:count insensitive-result)) "Should have made three replacements with whitespace insensitivity")
+        (is (= 3 (count (re-seq #"\(\+ x 10\)" insensitive-updated))) "Should have three replacements"))
+
+      (let [sensitive-result (sut/find-and-replace-sexp zloc "(+ x 1)" "(+ x 10)"
+                                                        :replace-all true
+                                                        :whitespace-sensitive true)
+            sensitive-updated (z/root-string (:zloc sensitive-result))]
+        (is (:replaced sensitive-result) "Should indicate replacement was made")
+        (is (= 1 (:count sensitive-result)) "Should have made only one replacement with whitespace sensitivity")
+        (is (= 1 (count (re-seq #"\(\+ x 10\)" sensitive-updated))) "Should have one replacement")
+        (is (= 2 (count (re-seq #"\(\+\s+x\s+1\)" sensitive-updated))) "Should have two original forms left"))))
+
+  (testing "Different Clojure data types"
+    (let [source "(defn test-data [x] {:key1 100 :key2 \"string\"} [1 2 3] #{:a :b :c})"
+          zloc (get-zloc source)]
+      (let [keyword-result (sut/find-and-replace-sexp zloc ":key1" ":new-key" :replace-all true)
+            keyword-updated (z/root-string (:zloc keyword-result))]
+        (is (:replaced keyword-result) "Should indicate replacement was made")
+        (is (str/includes? keyword-updated ":new-key") "Should have replaced keyword")
+        (is (not (str/includes? keyword-updated ":key1")) "Original keyword should be gone"))
+
+      (let [vector-result (sut/find-and-replace-sexp zloc "[1 2 3]" "[4 5 6]" :replace-all true)
+            vector-updated (z/root-string (:zloc vector-result))]
+        (is (:replaced vector-result) "Should indicate replacement was made")
+        (is (str/includes? vector-updated "[4 5 6]") "Should have replaced vector")
+        (is (not (str/includes? vector-updated "[1 2 3]")) "Original vector should be gone"))))
+
+  (testing "Anonymous functions"
+    (let [source "(defn use-anon-fns [coll] (map #(+ % 1) coll) (filter #(> % 10) coll))"
+          zloc (get-zloc source)
+          result (sut/find-and-replace-sexp zloc "#(+ % 1)" "#(+ % 10)" :replace-all true)
+          updated (z/root-string (:zloc result))]
+      (is (:replaced result) "Should indicate replacement was made")
+      (is (str/includes? updated "#(+ % 10)") "Should have replaced anonymous function")
+      (is (not (str/includes? updated "#(+ % 1)")) "Original anon function should be gone")
+      (is (str/includes? updated "#(> % 10)") "Other anon function should remain unchanged")))
+
+  (testing "Deletion with empty string replacement"
+    (let [source "(defn with-debug [x] (println \"debug:\" x) (+ x 1))"
+          zloc (get-zloc source)
+          result (sut/find-and-replace-sexp zloc "(println \"debug:\" x)" "" :replace-all true)
+          updated (z/root-string (:zloc result))]
+      (is (:replaced result) "Should indicate replacement was made")
+      (is (not (str/includes? updated "println")) "Debug statement should be gone")
+      (is (str/includes? updated "(defn with-debug [x]") "Function signature should remain")
+      (is (str/includes? updated "(+ x 1)") "Function body should remain")))
+
+  (testing "No match found"
+    (let [source "(defn test-fn [x] (+ x 1))"
+          zloc (get-zloc source)
+          result (sut/find-and-replace-sexp zloc "(- x 1)" "(- x 10)" :replace-all true)]
+      (is (not (:replaced result)) "Should indicate no replacement was made")
+      (is (= 0 (:count result)) "Should have zero replacements"))))
+
