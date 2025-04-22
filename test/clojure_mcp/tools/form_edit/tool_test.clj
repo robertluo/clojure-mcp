@@ -126,8 +126,8 @@
           structure-tool (sut/create-file-structure-tool client-atom)]
 
       (testing "Tool names are correct"
-        (is (= "clojure_edit_replace_form" (tool-system/tool-name replace-tool)))
-        (is (= "clojure_edit_insert_before_form" (tool-system/tool-name before-tool)))
+        (is (= "clojure_edit_replace_definition" (tool-system/tool-name replace-tool)))
+        (is (= "clojure_edit_insert_before_definition" (tool-system/tool-name before-tool)))
         (is (= "clojure_edit_replace_docstring" (tool-system/tool-name docstring-tool)))
         (is (= "clojure_edit_replace_comment_block" (tool-system/tool-name comment-tool)))
         (is (= "clojure_file_structure" (tool-system/tool-name structure-tool))))
