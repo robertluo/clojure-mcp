@@ -23,11 +23,9 @@
 
 WHEN the clojure_edit_... tools won't work or you have a small easy edit 
 
-Edit a file by replacing a specific text string with a new one. For safety, this tool requires that the string to replace appears exactly once in the file. 
+PREFER the file_write tool for replacing more than half a file, this saves on tokens
 
-For Clojure files (.clj, .cljs, .cljc, .edn):
-- Content will be linted for syntax errors before saving
-- Writing will fail if linting detects syntax errors
+Edit a file by replacing a specific text string with a new one. For safety, this tool requires that the string to replace appears exactly once in the file. 
 
 To make a file edit, provide the file_path, old_string (the text to replace), and new_string (the replacement text). The old_string must uniquely identify the specific instance you want to change, so include several lines of context before and after the change point. To create a new file, provide an empty old_string. Both files must be within allowed directories.")
 
@@ -62,7 +60,6 @@ To make a file edit, provide the file_path, old_string (the text to replace), an
     
     ;; Validate path using the utility function
     (let [validated-path (utils/validate-path-with-client file_path nrepl-client)]
-      
       ;; For new file creation, check if file already exists
       (when (and (empty? old_string) (.exists (io/file validated-path)))
         (throw (ex-info "Cannot create new file - file already exists."

@@ -262,9 +262,11 @@
    
    Returns:
    - Updated context with ::diff added"
-  [ctx]
-  (let [old-content (::old-content ctx)
-        new-content (::output-source ctx)
+  [{:keys [::old-content ::output-source ::zloc] :as ctx}]
+  (let [old-content (or old-content "")
+        new-content (or output-source
+                        (and zloc (z/root-string zloc))
+                        "")
         diff (if (= old-content new-content)
                "" ;; No diff if content is identical
                (try
@@ -500,8 +502,8 @@
    load-source
    parse-source
    replace-sexp
-   generate-diff
    format-source
+   generate-diff
    emacs-set-auto-revert
    save-file
    highlight-form))
