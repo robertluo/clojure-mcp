@@ -14,19 +14,27 @@ agent to research information to solve a problem
 very clear that we need a separate mode with no editing tools available 
   to do design work and thinking
 
-have claude compare the tools and suggest tweaks
+* have claude compare the tools and suggest tweaks
 
 should the fs_read_file tool provide line numbers as in the clod
 should diffs have line numbers?
 
+
+important to continue using tools and testing them
+
 clojure_edit_insert_after
 - rename to clojure_edit_definition_replace
 - maybe move to any definition not just top level
+  needed to handle cljc forms perhaps
+  * this means the defn's are the terminal nodes in the search
+  * limit depth of search from top level 
+- need to reject if tried with a comment form 
 - maybe move to clojure_edit_definition_insert with :before and :after args
 
-need the clojure_edit_replace_sexp
+need the clojure_edit_replace_sexp with first or all parameter
 
 get_all_namespaces could take a search substring
+list_vars_in_namespace could do the same
 
 read_file 
  - needs to store the read time
@@ -41,9 +49,16 @@ write-file
  - needs to check mod time like clod 
  - maybe shouldn't return full file diff- check clod behavior
 
+Need to clean up tests
+
+need to check how clj-format is being used in edit_file and write_file
+
 emacs switch to buffer and then switch back to the originial context option
 
 need to test all the tools
+
+
+
 
 ## Adapt tools and prompts from OtherCl implementation
 * prompt is still misbehaving, so far working without the prompt seems to be better

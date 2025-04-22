@@ -528,7 +528,7 @@
   "Find and replace s-expressions in a zipper.
    
    Arguments:
-   - zloc: The zipper location to start from
+   - zloc: The zipper location to start from (must be created with track-position? true)
    - match-form: The form to match as a string (including `#` for anonymous functions)
    - new-form: The form to replace with as a string (use empty string to delete/remove the form)
    - opts: A map of options including:
