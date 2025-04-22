@@ -457,40 +457,23 @@
    create-file-outline))
 
 (defn replace-sexp
-  "Replace s-expressions in the source code.
-   
-   Parameters:
-   - ctx: Context map with these keys:
-     - ::file-path: Path to the file
-     - ::zloc: Parsed zipper of the source code
-     - ::match-form: The form to match as a string
-     - ::new-form: The form to replace with as a string
-     - ::replace-all: Whether to replace all occurrences
-     - ::whitespace-sensitive: Whether matching should be sensitive to whitespace
-   
-   Returns:
-   - Updated context map"
-  [ctx]
-  (let [zloc (::zloc ctx)
-        match-form (::match-form ctx)
-        new-form (::new-form ctx)
-        replace-all (::replace-all ctx)
-        whitespace-sensitive (::whitespace-sensitive ctx)]
-    (try
-      (let [result (core/find-and-replace-sexp zloc
-                                               match-form
-                                               new-form
-                                               :replace-all replace-all
-                                               :whitespace-sensitive whitespace-sensitive)]
-        (if (:replaced result)
-          (-> ctx
-              (assoc ::zloc (:zloc result))
-              (assoc ::replace-count (:count result)))
-          {::error true
-           ::message (str "Could not find form: " match-form)}))
-      (catch Exception e
-        {::error true
-         ::message (str "Error replacing form: " (.getMessage e))}))))
+  [{:keys [::zloc ::match-form ::new-form ::replace-all ::whitespace-sensitive] :as ctx}]
+  (try
+    (if-let [result (core/find-and-replace-sexp
+                     zloc
+                     match-form
+                     new-form
+                     :replace-all replace-all
+                     :whitespace-sensitive whitespace-sensitive)]
+      (-> ctx
+          (assoc ::zloc (:zloc result))
+          ;; not used
+          (assoc ::replace-count (:count result)))
+      {::error true
+       ::message (str "Could not find form: " match-form)})
+    (catch Exception e
+      {::error true
+       ::message (str "Error replacing form: " (.getMessage e))})))
 
 (defn sexp-replace-pipeline
   "Pipeline for replacing s-expressions in a file.
@@ -517,14 +500,21 @@
    load-source
    parse-source
    replace-sexp
-   format-source
    generate-diff
+   format-source
    emacs-set-auto-revert
    save-file
    highlight-form))
 
 (comment
   ;; Example usage of the pipelines
+  (sexp-replace-pipeline "test-sexp.clj"
+                         "(* y y)"
+                         "(+ x (* y y))"
+                         false
+                         false
+                         )
+  
   (def replace-result
     (edit-form-pipeline "/path/to/file.clj"
                         "example-fn"
