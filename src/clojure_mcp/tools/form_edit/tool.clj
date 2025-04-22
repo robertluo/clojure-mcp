@@ -90,13 +90,12 @@
 ;; Implement the required multimethods for the form replacement tool
 
 (defmethod tool-system/tool-name :clojure-edit-replace-form [_]
-  "clojure_edit_replace_form")
+  "clojure_edit_replace_definition")
 
 (defmethod tool-system/tool-description :clojure-edit-replace-form [_]
   "Edits a top-level form in a Clojure file by fully replacing it.
    
-   This tool can replace a specific top-level form (like a function, def, or namespace declaration)
-   with new content. The form is identified by its type (defn, def, etc.) and name.
+   This tool can replace a specific top-level form (like a function, def, or namespace declaration) with new content. The form is identified by its type (defn, def, deftest, s/def, ns, defmethod etc.) and name.
    
    Example: Replace the implementation of a function named 'example-fn':
    - file_path: \"/path/to/file.clj\"
@@ -157,7 +156,7 @@
 ;; Implement the required multimethods for insert before form tool
 
 (defmethod tool-system/tool-name :clojure-edit-insert-before-form [_]
-  "clojure_edit_insert_before_form")
+  "clojure_edit_insert_before_definition")
 
 (defmethod tool-system/tool-description :clojure-edit-insert-before-form [_]
   "Inserts content before a top-level form in a Clojure file.
@@ -224,7 +223,7 @@
 ;; Implement the required multimethods for insert after form tool
 
 (defmethod tool-system/tool-name :clojure-edit-insert-after-form [_]
-  "clojure_edit_insert_after_form")
+  "clojure_edit_insert_after_definition")
 
 (defmethod tool-system/tool-description :clojure-edit-insert-after-form [_]
   "Inserts content after a top-level form in a Clojure file.
