@@ -42,6 +42,7 @@
    (new-form-edit-tool/docstring-edit-tool nrepl-client-atom)
    (new-form-edit-tool/comment-block-edit-tool nrepl-client-atom)
    (new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)
+   (new-form-edit-tool/sexp-replace-tool nrepl-client-atom)
    (new-project-tool/inspect-project-tool nrepl-client-atom)
    (new-move-file-tool/move-file-tool nrepl-client-atom)
    (new-create-directory-tool/create-directory-tool-registration nrepl-client-atom)
@@ -64,26 +65,26 @@
   ;; Example using old tools directly from their namespaces
   (def old-edit-tester (make-test-tool (edit-tools/top-level-form-edit-tool client-atom)))
   (def old-eval-tester (make-test-tool (eval-tools/eval-code client-atom)))
-  
+
   ;; Example using new multimethod-based tools
   (def edit-tester (make-test-tool (new-form-edit-tool/top-level-form-edit-tool client-atom)))
   (def docstring-tester (make-test-tool (new-form-edit-tool/docstring-edit-tool client-atom)))
   (def comment-tester (make-test-tool (new-form-edit-tool/comment-block-edit-tool client-atom)))
   (def outline-tester (make-test-tool (new-form-edit-tool/clojure-file-outline-tool client-atom)))
-  
+
   ;; Example usage of new form editing tools
   (edit-tester {"file_path" "/path/to/file.clj"
                 "form_name" "example-fn"
                 "form_type" "defn"
                 "content" "(defn example-fn [x] (* x 2))"})
-  
+
   (docstring-tester {"file_path" "/path/to/file.clj"
                      "form_name" "example-fn"
                      "form_type" "defn"
                      "docstring" "Updated documentation for the function"})
-  
+
   (comment-tester {"file_path" "/path/to/file.clj"
                    "comment_substring" "TODO"
                    "new_content" ";; DONE: implemented feature"})
-  
+
   (outline-tester {"file_path" "/path/to/file.clj"}))

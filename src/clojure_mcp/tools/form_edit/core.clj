@@ -329,7 +329,7 @@
       (when (and (seq? sexpr) (symbol? (first sexpr)))
         (let [form-type (name (first sexpr))
               form-name (extract-form-name sexpr)]
-                
+
           (case form-type
             "defn" (let [vector-pos (count (take-while #(not (vector? %)) sexpr))
                          args (when (> (count sexpr) vector-pos)
@@ -369,7 +369,7 @@
     (when zloc
       (let [tag (z/tag zloc)]
         ;; Exclude specific node types we don't want to process
-        (not (or 
+        (not (or
               ;; Skip uneval forms (#_)
               (= tag :uneval)
               ;; Skip whitespace
@@ -393,7 +393,7 @@
    - The name as a string, or nil if no name could be extracted"
   [sexpr]
   (try
-    (when (and (seq? sexpr) 
+    (when (and (seq? sexpr)
                (> (count sexpr) 1)
                (symbol? (second sexpr)))
       (name (second sexpr)))
@@ -523,6 +523,95 @@
               dispatch-str (pr-str dispatch-value)]
           [method-name dispatch-str])))
     (catch Exception _ nil)))
+
+(defn find-and-replace-sexp
+  "Find and replace s-expressions in a zipper.
+   
+   Arguments:
+   - zloc: The zipper location to start from
+   - match-form: The form to match as a string (including `#` for anonymous functions)
+   - new-form: The form to replace with as a string (use empty string to delete/remove the form)
+   - opts: A map of options including:
+     - :replace-all - Whether to replace all occurrences (default: false)
+     - :whitespace-sensitive - Whether to do exact string matching (default: false)
+   
+   Returns:
+   - A map with :zloc (the updated zipper), :count (number of replacements),
+     and :replaced (boolean indicating if any replacements were made)"
+  [zloc match-form new-form & {:keys [replace-all whitespace-sensitive]
+                               :or {replace-all false
+                                    whitespace-sensitive false}}]
+  (let [;; Check for blank strings
+        is-blank-match? (str/blank? match-form)
+        is-blank-new? (str/blank? new-form)
+
+        ;; Parse strings if not blank
+        match-node (when-not is-blank-match? (p/parse-string match-form))
+        new-node (when-not is-blank-new? (p/parse-string new-form))
+
+        ;; For string matching
+        match-str (if is-blank-match? match-form (n/string match-node))
+
+        ;; For whitespace-insensitive matching
+        match-sexpr (when (and (not is-blank-match?) (not whitespace-sensitive))
+                      (try (z/sexpr (z/of-node match-node))
+                           (catch Exception _ ::invalid)))]
+    (loop [loc zloc
+           replaced false
+           count 0]
+      (if (z/end? loc)
+        ;; We've reached the end, return the root zipper
+        {:zloc (z/of-node (z/root loc))
+         :replaced replaced
+         :count count}
+        ;; Check the current node
+        (let [curr-tag (z/tag loc)
+              node-str (try (n/string (z/node loc)) (catch Exception _ ""))
+
+              matched? (cond
+                         ;; For empty or blank strings, we can just compare the strings
+                         is-blank-match?
+                         (= node-str match-str)
+
+                         ;; String-based matching (exact match including whitespace)
+                         whitespace-sensitive
+                         (= node-str match-str)
+
+                         ;; Value-based matching (ignores whitespace)
+                         (and (not= match-sexpr ::invalid)
+                              (not= curr-tag :fn)) ;; Skip :fn nodes for sexpr comparison
+                         (try
+                           (= (z/sexpr loc) match-sexpr)
+                           (catch Exception _ false))
+
+                         ;; String comparison for nodes that can't be converted to sexpr
+                         :else
+                         (= node-str match-str))]
+          (if matched?
+            ;; We found a match, apply the replacement strategy
+            (let [;; Handle different replacement strategies based on context
+                  updated-loc (cond
+                                ;; For blank replacement, try removal or replacement with whitespace
+                                is-blank-new?
+                                (try
+                                  ;; Try z/remove which works in many contexts
+                                  (z/remove loc)
+                                  (catch Exception _
+                                    ;; Fall back to replacing with whitespace
+                                    (z/replace loc (n/whitespace-node " "))))
+
+                                ;; Standard replacement
+                                :else
+                                (z/replace loc new-node))]
+              (if replace-all
+                ;; If replacing all, continue with the updated loc
+                (recur (z/next updated-loc) true (inc count))
+                ;; Otherwise, return immediately after the first replacement
+                {:zloc (z/of-node (z/root updated-loc))
+                 :replaced true
+                 :count 1}))
+            ;; No match, continue to the next node
+            (recur (z/next loc) replaced count)))))))
 
 (comment
   ;; Examples of using the functions

@@ -84,8 +84,8 @@
   (let [lint-result (linting/lint (::new-source-code ctx))]
     (if (and lint-result (:error? lint-result))
       {::error :lint-failure
-       ::message (str "Syntax errors detected in Clojure code:\n" 
-                      (:report lint-result) 
+       ::message (str "Syntax errors detected in Clojure code:\n"
+                      (:report lint-result)
                       "\nPlease fix the syntax errors before saving.")}
       (assoc ctx ::lint-result lint-result))))
 
@@ -455,6 +455,73 @@
     ::expand-symbols expand-symbols
     ::config config}
    create-file-outline))
+
+(defn replace-sexp
+  "Replace s-expressions in the source code.
+   
+   Parameters:
+   - ctx: Context map with these keys:
+     - ::file-path: Path to the file
+     - ::zloc: Parsed zipper of the source code
+     - ::match-form: The form to match as a string
+     - ::new-form: The form to replace with as a string
+     - ::replace-all: Whether to replace all occurrences
+     - ::whitespace-sensitive: Whether matching should be sensitive to whitespace
+   
+   Returns:
+   - Updated context map"
+  [ctx]
+  (let [zloc (::zloc ctx)
+        match-form (::match-form ctx)
+        new-form (::new-form ctx)
+        replace-all (::replace-all ctx)
+        whitespace-sensitive (::whitespace-sensitive ctx)]
+    (try
+      (let [result (core/find-and-replace-sexp zloc
+                                               match-form
+                                               new-form
+                                               :replace-all replace-all
+                                               :whitespace-sensitive whitespace-sensitive)]
+        (if (:replaced result)
+          (-> ctx
+              (assoc ::zloc (:zloc result))
+              (assoc ::replace-count (:count result)))
+          {::error true
+           ::message (str "Could not find form: " match-form)}))
+      (catch Exception e
+        {::error true
+         ::message (str "Error replacing form: " (.getMessage e))}))))
+
+(defn sexp-replace-pipeline
+  "Pipeline for replacing s-expressions in a file.
+   
+   Arguments:
+   - file-path: Path to the file
+   - match-form: The form to match as a string
+   - new-form: The form to replace with as a string
+   - replace-all: Whether to replace all occurrences (default: false)
+   - whitespace-sensitive: Whether matching should be sensitive to whitespace (default: false)
+   - config: Optional tool configuration map
+   
+   Returns:
+   - A context map with the result of the operation"
+  [file-path match-form new-form replace-all whitespace-sensitive & [config]]
+  (thread-ctx
+   {::file-path file-path
+    ::match-form match-form
+    ::new-form new-form
+    ::replace-all replace-all
+    ::whitespace-sensitive whitespace-sensitive
+    ::config config}
+   determine-file-type
+   load-source
+   parse-source
+   replace-sexp
+   format-source
+   generate-diff
+   emacs-set-auto-revert
+   save-file
+   highlight-form))
 
 (comment
   ;; Example usage of the pipelines

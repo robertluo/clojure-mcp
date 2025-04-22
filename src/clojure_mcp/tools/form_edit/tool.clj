@@ -147,7 +147,7 @@
     formatted-result))
 
 (defmethod tool-system/format-results :clojure-edit-replace-form [_ {:keys [error message diff]}]
-  (if error 
+  (if error
     {:result [message]
      :error true}
     {:result [diff]
@@ -214,7 +214,7 @@
     formatted-result))
 
 (defmethod tool-system/format-results :clojure-edit-insert-before-form [_ {:keys [error message diff]}]
-  (if error 
+  (if error
     {:result [message]
      :error true}
     {:result [diff]
@@ -281,7 +281,7 @@
     formatted-result))
 
 (defmethod tool-system/format-results :clojure-edit-insert-after-form [_ {:keys [error message diff]}]
-  (if error 
+  (if error
     {:result [message]
      :error true}
     {:result [diff]
@@ -344,7 +344,7 @@
     formatted-result))
 
 (defmethod tool-system/format-results :clojure-edit-replace-docstring [_ {:keys [error message diff]}]
-  (if error 
+  (if error
     {:result [message]
      :error true}
     {:result [diff]
@@ -397,7 +397,7 @@ For reliable results, use a unique substring that appears in only one comment bl
     formatted-result))
 
 (defmethod tool-system/format-results :clojure-edit-comment-block [_ {:keys [error message diff]}]
-  (if error 
+  (if error
     {:result [message]
      :error true}
     {:result [diff]
@@ -445,7 +445,7 @@ For reliable results, use a unique substring that appears in only one comment bl
     formatted-result))
 
 (defmethod tool-system/format-results :clojure-file-structure [_ {:keys [error message result]}]
-  (if error 
+  (if error
     {:result [message]
      :error true}
     {:result result
@@ -471,6 +471,112 @@ For reliable results, use a unique substring that appears in only one comment bl
 (defn clojure-file-outline-tool [nrepl-client-atom]
   (tool-system/registration-map (create-file-structure-tool nrepl-client-atom)))
 
+(defn create-edit-replace-sexp-tool
+  "Creates the tool configuration for replacing s-expressions in a file.
+   Automatically inherits emacs notification preferences from the client."
+  [nrepl-client-atom]
+  (let [client @nrepl-client-atom
+        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+    {:tool-type :clojure-edit-replace-sexp
+     :nrepl-client-atom nrepl-client-atom
+     :enable-emacs-notifications emacs-notify}))
+
+(defmethod tool-system/tool-name :clojure-edit-replace-sexp [_]
+  "clojure_edit_replace_sexp")
+
+(defmethod tool-system/tool-description :clojure-edit-replace-sexp [_]
+  "Edits a file by finding and replacing all occurrences of a specific s-expression.
+
+   This tool traverses the entire code structure using a zipper and replaces
+   matching s-expressions anywhere in the code, not just at the top level.
+   
+   Example: Replace all occurrences of (+ 1 2) with (+ 1 3):
+   - file_path: \"/path/to/file.clj\"
+   - match_form: \"(+ 1 2)\"
+   - new_form: \"(+ 1 3)\"
+   - replace_all: true
+   - whitespace_sensitive: false
+   
+   For anonymous functions, include the '#' in both match_form and new_form:
+   - match_form: \"#(+ a 2)\"
+   - new_form: \"#(+ a 3)\"
+   
+   To delete forms, use an empty string as new_form:
+   - match_form: \"(println \\\"debug\\\")\"
+   - new_form: \"\"
+   
+   The whitespace_sensitive option determines whether the tool should match forms
+   exactly as written (true) or ignore whitespace differences (false, default).
+
+   The tool returns a diff showing the changes made to the file.")
+
+(defmethod tool-system/tool-schema :clojure-edit-replace-sexp [_]
+  {:type :object
+   :properties {:file_path {:type :string
+                            :description "Path to the file to edit"}
+                :match_form {:type :string
+                             :description "The s-expression to find and replace (include # for anonymous functions)"}
+                :new_form {:type :string
+                           :description "The s-expression to replace with"}
+                :replace_all {:type :boolean
+                              :description "Whether to replace all occurrences (default: false)"}
+                :whitespace_sensitive {:type :boolean
+                                       :description "Whether to match forms exactly as written including whitespace (default: false)"}}
+   :required [:file_path :match_form :new_form]})
+
+(defmethod tool-system/validate-inputs :clojure-edit-replace-sexp [{:keys [nrepl-client-atom]} inputs]
+  (let [file-path (validate-file-path inputs nrepl-client-atom)
+        {:keys [match_form new_form replace_all whitespace_sensitive]} inputs]
+    (when-not match_form
+      (throw (ex-info "Missing required parameter: match_form"
+                      {:inputs inputs})))
+    (when-not new_form
+      (throw (ex-info "Missing required parameter: new_form"
+                      {:inputs inputs})))
+
+    ;; Special handling for empty string
+    (when-not (str/blank? match_form)
+      ;; Validate that match_form is valid Clojure code
+      (try
+        (p/parse-string match_form)
+        (catch Exception e
+          (throw (ex-info (str "Invalid Clojure code in match_form: " (.getMessage e))
+                          {:inputs inputs})))))
+
+    ;; Special handling for empty string
+    (when-not (str/blank? new_form)
+      ;; Validate that new_form is valid Clojure code
+      (try
+        (p/parse-string new_form)
+        (catch Exception e
+          (throw (ex-info (str "Invalid Clojure code in new_form: " (.getMessage e))
+                          {:inputs inputs})))))
+
+    ;; Return validated inputs
+    {:file_path file-path
+     :match_form match_form
+     :new_form new_form
+     :replace_all (boolean (or replace_all false))
+     :whitespace_sensitive (boolean (or whitespace_sensitive false))}))
+
+(defmethod tool-system/execute-tool :clojure-edit-replace-sexp [config inputs]
+  (let [{:keys [file_path match_form new_form replace_all whitespace_sensitive]} inputs
+        result (pipeline/sexp-replace-pipeline
+                file_path match_form new_form replace_all whitespace_sensitive config)
+        formatted-result (pipeline/format-result result)]
+    formatted-result))
+
+(defmethod tool-system/format-results :clojure-edit-replace-sexp [_ {:keys [error message diff]}]
+  (if error
+    {:result [message]
+     :error true}
+    {:result [diff]
+     :error false}))
+
+;; Function to register the tool
+(defn sexp-replace-tool [nrepl-client-atom]
+  (tool-system/registration-map (create-edit-replace-sexp-tool nrepl-client-atom)))
+
 (comment
   ;; === Examples of using the form editing tools ===
   (require 'clojure-mcp.nrepl)
@@ -487,6 +593,7 @@ For reliable results, use a unique substring that appears in only one comment bl
   (def docstring-tool (create-edit-docstring-tool client-atom))
   (def comment-tool (create-edit-comment-block-tool client-atom))
   (def outline-tool (create-file-structure-tool client-atom))
+  (def sexp-tool (create-edit-replace-sexp-tool client-atom))
 
   ;; Test the replace form tool
   (def replace-inputs
@@ -507,6 +614,36 @@ For reliable results, use a unique substring that appears in only one comment bl
   (def comment-result (tool-system/execute-tool comment-tool comment-validated))
   (def comment-formatted (tool-system/format-results comment-tool comment-result))
 
+  ;; Test the sexp replace tool
+  (def sexp-inputs
+    {:file_path "/tmp/test.clj"
+     :match_form "(+ 1 2)"
+     :new_form "(+ 1 3)"
+     :replace_all true})
+  (def sexp-validated (tool-system/validate-inputs sexp-tool sexp-inputs))
+  (def sexp-result (tool-system/execute-tool sexp-tool sexp-validated))
+  (def sexp-formatted (tool-system/format-results sexp-tool sexp-result))
+
+  ;; Test with anonymous functions
+  (def anon-fn-inputs
+    {:file_path "/tmp/test.clj"
+     :match_form "#(+ x 2)"
+     :new_form "#(+ x 5)"
+     :replace_all true})
+  (def anon-fn-validated (tool-system/validate-inputs sexp-tool anon-fn-inputs))
+  (def anon-fn-result (tool-system/execute-tool sexp-tool anon-fn-validated))
+  (def anon-fn-formatted (tool-system/format-results sexp-tool anon-fn-result))
+
+  ;; Test with empty strings
+  (def empty-str-inputs
+    {:file_path "/tmp/test.clj"
+     :match_form ""
+     :new_form "(comment \"This replaces empty nodes\")"
+     :replace_all true})
+  (def empty-str-validated (tool-system/validate-inputs sexp-tool empty-str-inputs))
+  (def empty-str-result (tool-system/execute-tool sexp-tool empty-str-validated))
+  (def empty-str-formatted (tool-system/format-results sexp-tool empty-str-result))
+
   ;; Make a simpler test function
   (defn test-tool [tool inputs]
     (let [prom (promise)
@@ -521,6 +658,9 @@ For reliable results, use a unique substring that appears in only one comment bl
   (test-tool replace-tool replace-inputs)
   (test-tool comment-tool comment-inputs)
   (test-tool outline-tool {:file_path "/tmp/test.clj"})
+  (test-tool sexp-tool sexp-inputs)
+  (test-tool sexp-tool anon-fn-inputs)
+  (test-tool sexp-tool empty-str-inputs)
 
   ;; Clean up
   (clojure-mcp.nrepl/stop-polling @client-atom))
