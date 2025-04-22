@@ -10,7 +10,8 @@
    [clojure-mcp.tools.form-edit.core :as core]
    [clojure-mcp.tools.form-edit.pipeline :as pipeline]
    [clojure-mcp.repl-tools.utils :as utils]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [rewrite-clj.parser :as p]))
 
 ;; Factory functions to create the tool configurations
 
