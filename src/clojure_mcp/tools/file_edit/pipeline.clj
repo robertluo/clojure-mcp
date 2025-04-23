@@ -5,6 +5,7 @@
   (:require
    [clojure-mcp.tools.file-edit.core :as core]
    [clojure-mcp.tools.form-edit.pipeline :as form-pipeline]
+   [clojure-mcp.tools.form-edit.core :as form-edit-core]
    [clojure-mcp.tools.file-write.core :as file-write-core]
    [clojure-mcp.repl-tools.utils :as utils]
    [clojure-mcp.linting :as linting]
@@ -68,6 +69,30 @@
       ;; Not a Clojure file or no content, skip linting
       ctx)))
 
+(defn format-clojure-content
+  "Formats the content if it's a Clojure file.
+   
+   Arguments:
+   - ctx: Context map containing ::form-pipeline/file-path and ::form-pipeline/output-source
+   
+   Returns:
+   - Updated context with formatted content for Clojure files, or unchanged for other file types"
+  [ctx]
+  (let [file-path (::form-pipeline/file-path ctx)
+        output-source (::form-pipeline/output-source ctx)]
+    ;; Only format Clojure files
+    (if (and (file-write-core/is-clojure-file? file-path) output-source)
+      (try
+        ;; Use the same formatting function from form-edit.core
+        (let [formatted-source (form-edit-core/format-source-string output-source)]
+          (assoc ctx ::form-pipeline/output-source formatted-source))
+        (catch Exception e
+          ;; If formatting fails, just continue with unformatted source
+          (println "Warning: Failed to format Clojure file -" (.getMessage e))
+          ctx))
+      ;; Not a Clojure file, return unchanged
+      ctx)))
+
 ;; Define our file edit pipeline function that composes steps from form-edit pipeline and our own
 
 (defn file-edit-pipeline
@@ -93,6 +118,7 @@
      validate-edit ;; Validate the edit (uniqueness, etc.)
      perform-edit ;; Perform the actual edit
      lint-clojure-content ;; Lint Clojure files to catch syntax errors
+     format-clojure-content ;; Format Clojure files automatically
      form-pipeline/determine-file-type ;; This will mark as "update"
      form-pipeline/generate-diff ;; Generate diff between old and new
      form-pipeline/emacs-set-auto-revert
