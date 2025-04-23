@@ -529,7 +529,7 @@
                                :or {replace-all false
                                     whitespace-sensitive false}}]
   (let [is-blank-new? (str/blank? new-form)
-        new-node (when-not is-blank-new? (p/parse-string new-form))
+        new-node (when-not is-blank-new? (p/parse-string-all new-form))
         match-node (p/parse-string match-form) ;; must not be blank
         match-str   (n/string match-node)
         match-sexpr (when (not whitespace-sensitive)
