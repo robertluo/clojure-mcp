@@ -108,26 +108,23 @@
       ;; Verify file was not modified
       (is (= original-content (slurp file-path)) "File should not be modified when syntax errors detected")))
   
-  (testing "Creating a new Clojure file with syntax errors should fail"
+  (testing "Creating a new Clojure file with empty old_string should be rejected"
     (let [tool-config (tool/create-file-edit-tool test-client-atom)
           file-path (str tmp-dir "/invalid-new.clj")
-          ;; Content with syntax error - unbalanced parentheses
-          invalid-content "(ns test.new\n\n(defn broken-fn [x]\n  (+ x 1)"
+          ;; Content with valid syntax
+          new-content "(ns test.new)\n\n(defn test-fn [x]\n  (+ x 1))"
           
-          ;; Execute the validation and editing steps
+          ;; Try to execute with empty old_string - should be rejected
           inputs {:file_path file-path
                   :old_string ""
-                  :new_string invalid-content}
-          validated-inputs (tool-system/validate-inputs tool-config inputs)
-          result (tool-system/execute-tool tool-config validated-inputs)
-          formatted-result (tool-system/format-results tool-config result)]
+                  :new_string new-content}]
       
-      ;; Verify the tool results - should report error due to syntax issue
-      (is (:error formatted-result) "Operation should fail with invalid Clojure syntax")
-      (is (str/includes? (first (:result formatted-result)) "Syntax errors") "Error should mention syntax issues")
-      
-      ;; Verify file was not created
-      (is (not (.exists (io/file file-path))) "File should not be created when syntax errors detected")))
+      ;; Validation should catch the empty old_string and throw an exception
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo 
+                           #"Empty old_string is not supported"
+                           (tool-system/validate-inputs tool-config inputs))
+          "Should reject empty old_string during validation")))
+
   (testing "Editing an existing file"
     (let [tool-config (tool/create-file-edit-tool test-client-atom)
           file-path (str tmp-dir "/test-file.txt")
@@ -153,48 +150,38 @@
       (let [content (slurp file-path)]
         (is (str/includes? content new-string) "File should contain the new string"))))
   
-  (testing "Creating a new file"
+  (testing "Creating a new file should be rejected, use file_write instead"
     (let [tool-config (tool/create-file-edit-tool test-client-atom)
           file-path (str tmp-dir "/new-file.txt")
           new-content "This is a brand new file\nWith multiple lines\nCreated by file_edit tool"
           
-          ;; Execute the validation and editing steps
+          ;; Try to create a new file - should be rejected
           inputs {:file_path file-path
                   :old_string ""
-                  :new_string new-content}
-          validated-inputs (tool-system/validate-inputs tool-config inputs)
-          result (tool-system/execute-tool tool-config validated-inputs)
-          formatted-result (tool-system/format-results tool-config result)]
+                  :new_string new-content}]
       
-      ;; Verify the tool results
-      (is (not (:error formatted-result)) "Operation should succeed")
-      (is (= "create" (:type formatted-result)) "Should have create type")
-      
-      ;; Verify the actual file was created with correct content
-      (is (.exists (io/file file-path)) "File should exist")
-      (is (= new-content (slurp file-path)) "File should contain the exact content")))
+      ;; Validation should reject empty old_string
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo 
+                           #"Empty old_string is not supported"
+                           (tool-system/validate-inputs tool-config inputs))
+          "Should reject empty old_string during validation")))
   
-  (testing "Creating a file with nested directories"
+  (testing "Creating a file with nested directories should be rejected"
     (let [tool-config (tool/create-file-edit-tool test-client-atom)
           nested-dir (str tmp-dir "/nested/dirs")
           file-path (str nested-dir "/deep-file.txt")
           new-content "File in nested directories"
           
-          ;; Execute the validation and editing steps
+          ;; Try to create a file in nested directories - should be rejected
           inputs {:file_path file-path
                   :old_string ""
-                  :new_string new-content}
-          validated-inputs (tool-system/validate-inputs tool-config inputs)
-          result (tool-system/execute-tool tool-config validated-inputs)
-          formatted-result (tool-system/format-results tool-config result)]
+                  :new_string new-content}]
       
-      ;; Verify the tool results
-      (is (not (:error formatted-result)) "Operation should succeed")
-      
-      ;; Verify the nested directories were created
-      (is (.exists (io/file nested-dir)) "Nested directory should exist")
-      (is (.exists (io/file file-path)) "File should exist")
-      (is (= new-content (slurp file-path)) "File should contain the exact content")))
+      ;; Validation should reject empty old_string
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo 
+                           #"Empty old_string is not supported"
+                           (tool-system/validate-inputs tool-config inputs))
+          "Should reject empty old_string during validation")))
   
   (testing "Error case: non-unique match"
     (let [;; Create a file with duplicate lines
