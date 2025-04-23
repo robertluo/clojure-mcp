@@ -4,9 +4,11 @@
    smart tool that automatically selects the appropriate mode based on file type."
   (:require
    [clojure-mcp.tool-system :as tool-system]
-   [clojure-mcp.tools.unified-read-file.core :as core]
+   [clojure-mcp.tools.read-file.core :as read-file-core]
+   [clojure-mcp.tools.form-edit.core :as form-edit-core]
    [clojure-mcp.repl-tools.utils :as utils]
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io]
+   [clojure.string :as str]))
 
 ;; Factory function to create the tool configuration
 (defn create-unified-read-file-tool
@@ -26,6 +28,16 @@
     :nrepl-client-atom nrepl-client-atom
     :max-lines max-lines
     :max-line-length max-line-length}))
+
+ ;; Helper functions
+
+(defn clojure-file?
+  "Determines if a file is a Clojure source file based on its extension.
+   Only .clj, .cljc, and .cljs files are considered Clojure files."
+  [file-path]
+  (when file-path
+    (let [extension (last (str/split file-path #"\."))]
+      (contains? #{"clj" "cljc" "cljs"} extension))))
 
 ;; Implement the required multimethods for the unified read file tool
 (defmethod tool-system/tool-name :unified-read-file [_]
@@ -91,9 +103,35 @@ This unified tool combines the functionality of fs_read_file and clojure_read_fi
 
 (defmethod tool-system/execute-tool :unified-read-file [{:keys [max-lines max-line-length]} inputs]
   (let [{:keys [path clojure_mode expand_symbols line_offset limit]} inputs
-        limit-val (or limit max-lines)]
-    (core/read-unified-file path clojure_mode expand_symbols line_offset limit-val
-                            :max-line-length max-line-length)))
+        limit-val (or limit max-lines)
+        is-clojure-file (clojure-file? path)
+        use-clojure-mode (or (= clojure_mode "on")
+                             (and (= clojure_mode "auto") is-clojure-file))
+        use-raw-mode (or (= clojure_mode "off")
+                         (and (= clojure_mode "auto") (not is-clojure-file)))]
+
+    (if use-clojure-mode
+      ;; Use Clojure-aware file reading
+      (try
+        (let [collapsed-view (form-edit-core/generate-collapsed-file-view path expand-symbols)]
+          {:mode :clojure
+           :content collapsed-view
+           :path path
+           :clojure-mode clojure_mode
+           :expand-symbols expand-symbols
+           :error false})
+        (catch Exception e
+          {:mode :clojure
+           :error true
+           :message (.getMessage e)}))
+
+      ;; Use raw file reading
+      (let [result (read-file-core/read-file path line_offset limit-val :max-line-length max-line-length)]
+        (if (:error result)
+          {:mode :raw
+           :error true
+           :message (:error result)}
+          (assoc result :mode :raw))))))
 
 ;; Formatter helper functions for different content types
 
