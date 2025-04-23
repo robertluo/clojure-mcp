@@ -17,7 +17,8 @@
    [clojure-mcp.tools.create-directory.tool :as new-create-directory-tool]
    [clojure-mcp.tools.file-edit.tool :as new-file-edit-tool]
    [clojure-mcp.tools.unified-read-file.tool :as new-unified-read-file-tool]
-   [clojure-mcp.tools.unified-file-edit.tool :as new-unified-file-edit-tool]))
+   [clojure-mcp.tools.unified-file-edit.tool :as new-unified-file-edit-tool]
+   [clojure-mcp.tools.think.tool :as new-think-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
@@ -31,6 +32,8 @@
    (new-unified-file-edit-tool/unified-file-edit-tool nrepl-client-atom)
 
    (new-eval-tool/eval-code nrepl-client-atom)
+
+   (new-think-tool/think-tool nrepl-client-atom)
 
    (new-symbol-tool/symbol-search-tool nrepl-client-atom)
 
@@ -57,10 +60,10 @@
    #_(new-symbol-tool/symbol-documentation-tool nrepl-client-atom)
    #_(new-symbol-tool/source-code-tool nrepl-client-atom)
    #_(new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)
-   #_(new-read-file-tool/read-file-tool nrepl-client-atom)   
+   #_(new-read-file-tool/read-file-tool nrepl-client-atom)
    #_(new-file-edit-tool/file-edit-tool nrepl-client-atom)
    #_(new-file-write-tool/file-write-tool nrepl-client-atom)
-   
+
    #_(new-list-directory-tool/list-directory-tool nrepl-client-atom)])
 
 (comment
