@@ -16,7 +16,8 @@
    [clojure-mcp.tools.move-file.tool :as new-move-file-tool]
    [clojure-mcp.tools.create-directory.tool :as new-create-directory-tool]
    [clojure-mcp.tools.file-edit.tool :as new-file-edit-tool]
-   [clojure-mcp.tools.unified-read-file.tool :as new-unified-read-file-tool]))
+   [clojure-mcp.tools.unified-read-file.tool :as new-unified-read-file-tool]
+   [clojure-mcp.tools.unified-file-edit.tool :as new-unified-file-edit-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
@@ -24,20 +25,13 @@
   [nrepl-client-atom]
   [;; Add the unified read file tool before the read-file-tool to override it
 
-
    (new-directory-tree-tool/directory-tree-tool nrepl-client-atom)
 
    (new-unified-read-file-tool/unified-read-file-tool nrepl-client-atom)
-   #_(new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)
-   #_(new-read-file-tool/read-file-tool nrepl-client-atom)
+   (new-unified-file-edit-tool/unified-file-edit-tool nrepl-client-atom)
+
    (new-eval-tool/eval-code nrepl-client-atom)
-   #_(new-namespace-tool/current-namespace-tool nrepl-client-atom)
-   #_(new-namespace-tool/list-namespaces-tool nrepl-client-atom)
-   #_(new-namespace-tool/list-vars-in-namespace-tool nrepl-client-atom)
-   #_(new-symbol-tool/symbol-completions-tool nrepl-client-atom)
-   #_(new-symbol-tool/symbol-metadata-tool nrepl-client-atom)
-   #_(new-symbol-tool/symbol-documentation-tool nrepl-client-atom)
-   #_(new-symbol-tool/source-code-tool nrepl-client-atom)
+
    (new-symbol-tool/symbol-search-tool nrepl-client-atom)
 
    (new-form-edit-tool/top-level-form-edit-tool nrepl-client-atom)
@@ -51,16 +45,23 @@
 
    (new-move-file-tool/move-file-tool nrepl-client-atom)
    (new-create-directory-tool/create-directory-tool-registration nrepl-client-atom)
-   (new-file-edit-tool/file-edit-tool nrepl-client-atom)
-
-   ;; Keep the original tools for backward compatibility but they'll be hidden
-   ;; by the unified tool since it has the same name "read_file"
-
 
    (new-grep-tool/grep-tool nrepl-client-atom)
    (new-glob-files-tool/glob-files-tool nrepl-client-atom)
-   (new-file-write-tool/file-write-tool nrepl-client-atom)
-   (new-list-directory-tool/list-directory-tool nrepl-client-atom)])
+
+   #_(new-namespace-tool/current-namespace-tool nrepl-client-atom)
+   #_(new-namespace-tool/list-namespaces-tool nrepl-client-atom)
+   #_(new-namespace-tool/list-vars-in-namespace-tool nrepl-client-atom)
+   #_(new-symbol-tool/symbol-completions-tool nrepl-client-atom)
+   #_(new-symbol-tool/symbol-metadata-tool nrepl-client-atom)
+   #_(new-symbol-tool/symbol-documentation-tool nrepl-client-atom)
+   #_(new-symbol-tool/source-code-tool nrepl-client-atom)
+   #_(new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)
+   #_(new-read-file-tool/read-file-tool nrepl-client-atom)   
+   #_(new-file-edit-tool/file-edit-tool nrepl-client-atom)
+   #_(new-file-write-tool/file-write-tool nrepl-client-atom)
+   
+   #_(new-list-directory-tool/list-directory-tool nrepl-client-atom)])
 
 (comment
   ;; Example of testing tools directly
