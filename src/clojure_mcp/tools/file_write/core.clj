@@ -47,15 +47,12 @@
                 ;; First check for syntax errors with linting for Clojure files
                 pipeline/lint-code
                 (fn [ctx] ;; Prepare for formatting
-                  (assoc ctx ::pipeline/zloc (z/of-string (::pipeline/new-source-code ctx))))
+                  (assoc ctx ::pipeline/zloc (z/of-string (::pipeline/new-source-code ctx) {:track-position? true})))
+                pipeline/capture-edit-offsets
+                pipeline/zloc->output-source ;; Convert zloc to output-source
                 pipeline/format-source ;; Format the content
                 pipeline/generate-diff ;; Generate diff between old and new content
                 pipeline/determine-file-type ;; Determine if creating or updating
-                ;; Use the save-file function instead of custom write logic
-                (fn [ctx] ;; Modify context for save-file compatibility
-                  (let [output-source (::pipeline/output-source ctx)
-                        zloc (z/of-string output-source {:track-position? true})]
-                    (assoc ctx ::pipeline/zloc zloc)))
                 pipeline/save-file)] ;; Save the file and get offsets
 
     ;; Format the result for tool consumption

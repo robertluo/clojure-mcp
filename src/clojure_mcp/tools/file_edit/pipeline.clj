@@ -67,29 +67,13 @@
         (if (and lint-result (:error? lint-result))
           ;; Report linting errors
           {::form-pipeline/error true
-           ::form-pipeline/message (str "Syntax errors detected in Clojure code:\n" 
-                                        (:report lint-result) 
+           ::form-pipeline/message (str "Syntax errors detected in Clojure code:\n"
+                                        (:report lint-result)
                                         "\nPlease fix the syntax errors before saving.")}
           ;; No linting errors, continue
           ctx))
       ;; Not a Clojure file or no content, skip linting
       ctx)))
-
-(defn save-file-with-dirs
-  "Saves the updated source to the file, creating parent directories if needed.
-   Requires ::form-pipeline/output-source and ::form-pipeline/file-path in the context."
-  [ctx]
-  (try
-    (let [file-path (::form-pipeline/file-path ctx)
-          output-source (::form-pipeline/output-source ctx)
-          save-result (core/save-file-content file-path output-source)]
-      (if (:success save-result)
-        ctx
-        {::form-pipeline/error true
-         ::form-pipeline/message (:message save-result)}))
-    (catch Exception e
-      {::form-pipeline/error true
-       ::form-pipeline/message (str "Failed to save file: " (.getMessage e))})))
 
 ;; Define our file edit pipeline function that composes steps from form-edit pipeline and our own
 
@@ -117,12 +101,13 @@
        (assoc initial-ctx ::create-new-file true)
        validate-edit
        perform-edit
+       ;; No offset capture needed for new files
        lint-clojure-content ;; Lint Clojure files to catch syntax errors
        form-pipeline/determine-file-type ;; This will mark as "create"
        form-pipeline/generate-diff
        form-pipeline/emacs-set-auto-revert
-       save-file-with-dirs)
-      
+       form-pipeline/save-file) ;; Using the enhanced save-file function from form-edit
+
       ;; Pipeline for existing file edit
       (form-pipeline/thread-ctx
        initial-ctx
@@ -133,7 +118,7 @@
        form-pipeline/determine-file-type ;; This will mark as "update"
        form-pipeline/generate-diff ;; Generate diff between old and new
        form-pipeline/emacs-set-auto-revert
-       save-file-with-dirs))))
+       form-pipeline/save-file))))
 
 ;; Format result for tool consumption
 (defn format-result
@@ -154,30 +139,29 @@
 
 (comment
   ;; === Examples of using the file-edit pipeline directly ===
-  
+
   ;; Test file paths
   (def temp-dir (System/getProperty "java.io.tmpdir"))
   (def test-file (str temp-dir "/file-edit-test.txt"))
   (def test-nested-file (str temp-dir "/nested/test.txt"))
-  
+
   ;; Create a test file
   (spit test-file "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n")
-  
+
   ;; Test the pipeline with simple edit
   (def result (file-edit-pipeline test-file "Line 3" "Line 3 - EDITED"))
   (format-result result)
-  
+
   ;; Test the pipeline with new file creation
   (def create-result (file-edit-pipeline test-nested-file "" "New content"))
   (format-result create-result)
-  
+
   ;; Test the pipeline with error (non-unique match)
   (def error-result (file-edit-pipeline test-file "Line" "EDITED Line"))
   (format-result error-result)
-  
+
   ;; Clean up
   (.delete (io/file test-file))
   (.delete (io/file test-nested-file))
   (when (.exists (io/file (str temp-dir "/nested")))
-    (.delete (io/file (str temp-dir "/nested"))))
-)
+    (.delete (io/file (str temp-dir "/nested")))))

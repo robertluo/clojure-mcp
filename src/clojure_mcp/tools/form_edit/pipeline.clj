@@ -10,7 +10,8 @@
    [rewrite-clj.parser :as p]
    [clojure-mcp.linting :as linting]
    [clojure.spec.alpha :as s]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [clojure.java.io :as io]))
 
 ;; Context map specs
 
@@ -130,6 +131,25 @@
       {::error true
        ::message (str "Error parsing source: " (.getMessage e))})))
 
+(defn capture-edit-offsets
+  "Captures the position offsets of the current zipper location.
+   This should be called immediately after editing operations while position information is valid.
+   
+   Requires ::zloc in the context.
+   Adds ::offsets to the context when successful."
+  [ctx]
+  (try
+    (let [zloc (::zloc ctx)
+          positions (z/position-span zloc)
+          output-source (or (::output-source ctx) (z/root-string zloc))
+          offsets (core/zloc-offsets output-source positions)]
+      (assoc ctx ::offsets offsets))
+    (catch Exception e
+      ;; Don't fail the pipeline if offsets can't be captured, just log it
+      ;; This allows non-Emacs workflows to continue
+      (println "Warning: Failed to capture edit offsets -" (.getMessage e))
+      ctx)))
+
 (defn find-form
   "Finds a top-level form in the source code.
    Requires ::zloc, ::top-level-def-type, and ::top-level-def-name in the context.
@@ -228,14 +248,27 @@
       {::error true
        ::message (str "Error generating file outline: " (.getMessage e))})))
 
-(defn format-source
-  "Formats the source code using the formatter.
+(defn zloc->output-source
+  "Converts a zipper to a string output source.
    Requires ::zloc in the context.
-   Adds ::output-source to the context with the formatted code."
+   Adds ::output-source to the context with the string representation of the zipper."
   [ctx]
   (try
-    (let [root-str (z/root-string (::zloc ctx))
-          formatted (core/format-source-string root-str)]
+    (let [zloc (::zloc ctx)
+          root-str (z/root-string zloc)]
+      (assoc ctx ::output-source root-str))
+    (catch Exception e
+      {::error true
+       ::message (str "Failed to convert zipper to string: " (.getMessage e))})))
+
+(defn format-source
+  "Formats the source code using the formatter.
+   Requires ::output-source in the context.
+   Updates ::output-source with the formatted code."
+  [ctx]
+  (try
+    (let [source (::output-source ctx)
+          formatted (core/format-source-string source)]
       (assoc ctx ::output-source formatted))
     (catch Exception e
       {::error true
@@ -297,20 +330,24 @@
       ctx)))
 
 (defn save-file
-  "Saves the updated source to the file and calculates offsets.
-   Requires ::output-source, ::zloc, and ::file-path in the context.
-   Adds ::offsets to the context."
+  "Saves the updated source to the file, creating parent directories if needed.
+   Requires ::output-source and ::file-path in the context.
+   Does not modify the context."
   [ctx]
   (try
-    (let [zloc (::zloc ctx)
-          positions (z/position-span zloc)
+    (let [file-path (::file-path ctx)
           output-source (::output-source ctx)
-          offsets (core/zloc-offsets output-source positions)
-          save-result (core/save-file-content (::file-path ctx) output-source)]
-      (if (:success save-result)
-        (assoc ctx ::offsets offsets)
-        {::error true
-         ::message (:message save-result)}))
+          file (io/file file-path)
+          parent (.getParentFile file)]
+      ;; Create parent directories if they don't exist
+      (when (and parent (not (.exists parent)))
+        (.mkdirs parent))
+      ;; Save the file
+      (let [save-result (core/save-file-content file-path output-source)]
+        (if (:success save-result)
+          ctx
+          {::error true
+           ::message (:message save-result)})))
     (catch Exception e
       {::error true
        ::message (str "Failed to save file: " (.getMessage e))})))
@@ -380,6 +417,8 @@
    parse-source
    find-form
    edit-form
+   capture-edit-offsets
+   zloc->output-source
    format-source
    generate-diff
    emacs-set-auto-revert
@@ -409,6 +448,8 @@
    load-source
    parse-source
    edit-docstring
+   capture-edit-offsets
+   zloc->output-source
    format-source
    generate-diff
    emacs-set-auto-revert
@@ -435,6 +476,8 @@
    determine-file-type
    load-source
    find-and-edit-comment
+   capture-edit-offsets
+   zloc->output-source
    format-source
    generate-diff
    emacs-set-auto-revert
@@ -477,6 +520,25 @@
       {::error true
        ::message (str "Error replacing form: " (.getMessage e))})))
 
+(defn capture-edit-offsets
+  "Captures the position offsets of the current zipper location.
+   This should be called immediately after editing operations while position information is valid.
+   
+   Requires ::zloc in the context.
+   Adds ::offsets to the context when successful."
+  [ctx]
+  (try
+    (let [zloc (::zloc ctx)
+          positions (z/position-span zloc)
+          output-source (or (::output-source ctx) (z/root-string zloc))
+          offsets (core/zloc-offsets output-source positions)]
+      (assoc ctx ::offsets offsets))
+    (catch Exception e
+      ;; Don't fail the pipeline if offsets can't be captured, just log it
+      ;; This allows non-Emacs workflows to continue
+      (println "Warning: Failed to capture edit offsets -" (.getMessage e))
+      ctx)))
+
 (defn sexp-replace-pipeline
   "Pipeline for replacing s-expressions in a file.
    
@@ -502,6 +564,8 @@
    load-source
    parse-source
    replace-sexp
+   capture-edit-offsets
+   zloc->output-source
    format-source
    generate-diff
    emacs-set-auto-revert
@@ -514,9 +578,8 @@
                          "(* y y)"
                          "(+ x (* y y))"
                          false
-                         false
-                         )
-  
+                         false)
+
   (def replace-result
     (edit-form-pipeline "/path/to/file.clj"
                         "example-fn"
