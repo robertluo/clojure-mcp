@@ -331,38 +331,56 @@
               form-name (extract-form-name sexpr)]
 
           (case form-type
-            "defn" (let [vector-pos (count (take-while #(not (vector? %)) sexpr))
-                         args (when (> (count sexpr) vector-pos)
-                                (nth sexpr vector-pos))]
-                     (str "(defn " form-name " " args " ...)"))
+            "defn" (let [zloc-down (z/down zloc) ; Move to the symbol "defn"
+                         name-loc (and zloc-down (z/right zloc-down)) ; Move to name
+                         maybe-docstring (and name-loc (z/right name-loc)) ; Next node after name
+                         args-loc (if (and maybe-docstring
+                                           (contains? #{:token :multi-line} (z/tag maybe-docstring))
+                                           (string? (z/sexpr maybe-docstring)))
+                                    (z/right maybe-docstring) ; Skip docstring to find args
+                                    maybe-docstring)] ; No docstring, args right after name
+                     (if (and args-loc (= (z/tag args-loc) :vector))
+                       (str "(defn " form-name " " (z/string args-loc) " ...)")
+                       (str "(defn " form-name " [...] ...)")))
 
-            "defmacro" (let [vector-pos (count (take-while #(not (vector? %)) sexpr))
-                             args (when (> (count sexpr) vector-pos)
-                                    (nth sexpr vector-pos))]
-                         (str "(defmacro " form-name " " args " ...)"))
+            "defmacro" (let [zloc-down (z/down zloc) ; Move to the symbol "defmacro"
+                             name-loc (and zloc-down (z/right zloc-down)) ; Move to name
+                             maybe-docstring (and name-loc (z/right name-loc)) ; Next node after name
+                             args-loc (if (and maybe-docstring
+                                               (contains? #{:token :multi-line} (z/tag maybe-docstring))
+                                               (string? (z/sexpr maybe-docstring)))
+                                        (z/right maybe-docstring) ; Skip docstring to find args
+                                        maybe-docstring)] ; No docstring, args right after name
+                         (if (and args-loc (= (z/tag args-loc) :vector))
+                           (str "(defmacro " form-name " " (z/string args-loc) " ...)")
+                           (str "(defmacro " form-name " [...] ...)")))
 
-            "defmethod" (let [method-sym (second sexpr)
+            "defmethod" (let [zloc-down (z/down zloc) ; Move to the symbol "defmethod"
+                              method-loc (and zloc-down (z/right zloc-down)) ; Move to method name
+                              method-sym (and method-loc (z/sexpr method-loc))
                               method-name (if (symbol? method-sym)
                                             (if (namespace method-sym)
                                               (str (namespace method-sym) "/" (name method-sym))
                                               (name method-sym))
                                             "unknown")
-                              dispatch-val (nth sexpr 2)
-                              ;; Find the first vector after the dispatch value - that's our args
-                              args-pos (loop [pos 3]
-                                         (if (>= pos (count sexpr))
-                                           nil
-                                           (if (vector? (nth sexpr pos))
-                                             pos
-                                             (recur (inc pos)))))
-                              args (when args-pos (nth sexpr args-pos))]
-                          (str "(defmethod " method-name " " (pr-str dispatch-val) " " args " ...)"))
+                              dispatch-loc (and method-loc (z/right method-loc)) ; Move to dispatch value
+                              dispatch-val (and dispatch-loc (z/sexpr dispatch-loc))
+                              dispatch-str (and dispatch-val (pr-str dispatch-val))
+                              ;; Find the argument vector after the dispatch value
+                              args-loc (loop [loc (and dispatch-loc (z/right dispatch-loc))]
+                                         (cond
+                                           (nil? loc) nil
+                                           (= (z/tag loc) :vector) loc
+                                           :else (recur (z/right loc))))]
+                          (if (and args-loc (= (z/tag args-loc) :vector))
+                            (str "(defmethod " method-name " " dispatch-str " " (z/string args-loc) " ...)")
+                            (str "(defmethod " method-name " " dispatch-str " [...] ...)")))
 
             "def" (str "(def " form-name " ...)")
             "deftest" (str "(deftest " form-name " ...)")
             "ns" (z/string zloc) ; Always show the full namespace
             (str "(" form-type " " (or form-name "") " ...)")))))
-    (catch Exception _
+    (catch Exception e
       ;; Provide a fallback in case of errors
       (try
         (let [raw-str (z/string zloc)]
@@ -465,9 +483,11 @@
                                        (contains? expand-set combined)))
                                     ;; For non-defmethod forms, use regular matching
                                     (contains? expand-set form-name))
+                    ;; For collapsed view, use pr-str for displaying forms with namespaced keywords
                     form-str (if should-expand
                                (z/string loc)
-                               (get-form-summary loc))]
+                               (or (get-form-summary loc)
+                                   (z/string loc)))]
                 (if form-str
                   (recur next-loc (conj forms form-str))
                   (recur next-loc forms)))
