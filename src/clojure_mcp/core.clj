@@ -4,7 +4,8 @@
             [clojure-mcp.repl-tools :as repl-tools]
             [clojure-mcp.prompts :as prompts]
             [clojure-mcp.resources :as resources]
-            [clojure.edn :as edn])
+            [clojure.edn :as edn]
+            [clojure.java.io :as io])
   (:gen-class)
   (:import [io.modelcontextprotocol.server.transport StdioServerTransportProvider]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
@@ -253,6 +254,8 @@
                      (str
                       "(require 'clojure.repl)"
                       "(require 'nrepl.util.print)")
+                     identity)
+    (nrepl/eval-code nrepl-client (slurp (io/resource "repl_helpers.clj"))
                      identity)
     (let [user-dir (try
                      (edn/read-string
