@@ -17,14 +17,11 @@
 ;; Additional context map specs
 (s/def ::old-string string?)
 (s/def ::new-string string?)
-(s/def ::create-new-file boolean?)
-
 ;; Pipeline specific steps
 
 (defn validate-edit
   "Validates the file edit operation.
-   Requires ::file-path, ::old-string, and ::new-string in the context.
-   May add ::create-new-file to the context if this is a new file creation."
+   Requires ::file-path, ::old-string, and ::new-string in the context."
   [ctx]
   (let [file-path (::form-pipeline/file-path ctx)
         old-string (::old-string ctx)
@@ -32,25 +29,21 @@
         source (::form-pipeline/source ctx) ;; This will be nil for non-existent files
         validation-result (core/validate-file-edit file-path old-string new-string source)]
     (if (:valid validation-result)
-      (cond-> ctx
-        (:create-new-file validation-result) (assoc ::create-new-file true))
+      ctx
       {::form-pipeline/error true
        ::form-pipeline/message (:message validation-result)})))
 
 (defn perform-edit
   "Performs the actual edit on the file content.
-   Requires ::file-path, ::old-string, ::new-string, and optionally ::form-pipeline/source in the context.
+   Requires ::file-path, ::old-string, ::new-string, and ::form-pipeline/source in the context.
    Adds ::form-pipeline/output-source to the context."
   [ctx]
   (let [file-path (::form-pipeline/file-path ctx)
         old-string (::old-string ctx)
         new-string (::new-string ctx)
         source (::form-pipeline/source ctx)
-        create-new-file (::create-new-file ctx false)
-        ;; Get new content
-        edited-content (if create-new-file
-                         new-string
-                         (core/perform-file-edit file-path old-string new-string source))]
+        ;; Get new content by performing the edit
+        edited-content (core/perform-file-edit file-path old-string new-string source)]
     (assoc ctx ::form-pipeline/output-source edited-content)))
 
 (defn lint-clojure-content
@@ -78,11 +71,11 @@
 ;; Define our file edit pipeline function that composes steps from form-edit pipeline and our own
 
 (defn file-edit-pipeline
-  "Pipeline for editing a file by replacing a string or creating a new file.
+  "Pipeline for editing a file by replacing a string.
    
    Arguments:
    - file-path: Path to the file to edit
-   - old-string: String to replace (empty string for new file)
+   - old-string: String to replace
    - new-string: New string to insert
    - config: Optional tool configuration map
    
@@ -92,33 +85,18 @@
   (let [initial-ctx {::form-pipeline/file-path file-path
                      ::old-string old-string
                      ::new-string new-string
-                     ::form-pipeline/config config}
-        ;; For new file creation, we skip loading the source
-        create-new-file? (empty? old-string)]
-    (if create-new-file?
-      ;; Pipeline for new file creation
-      (form-pipeline/thread-ctx
-       (assoc initial-ctx ::create-new-file true)
-       validate-edit
-       perform-edit
-       ;; No offset capture needed for new files
-       lint-clojure-content ;; Lint Clojure files to catch syntax errors
-       form-pipeline/determine-file-type ;; This will mark as "create"
-       form-pipeline/generate-diff
-       form-pipeline/emacs-set-auto-revert
-       form-pipeline/save-file) ;; Using the enhanced save-file function from form-edit
-
-      ;; Pipeline for existing file edit
-      (form-pipeline/thread-ctx
-       initial-ctx
-       form-pipeline/load-source ;; Load existing file
-       validate-edit ;; Validate the edit (uniqueness, etc.)
-       perform-edit ;; Perform the actual edit
-       lint-clojure-content ;; Lint Clojure files to catch syntax errors
-       form-pipeline/determine-file-type ;; This will mark as "update"
-       form-pipeline/generate-diff ;; Generate diff between old and new
-       form-pipeline/emacs-set-auto-revert
-       form-pipeline/save-file))))
+                     ::form-pipeline/config config}]
+    ;; Pipeline for existing file edit
+    (form-pipeline/thread-ctx
+     initial-ctx
+     form-pipeline/load-source ;; Load existing file
+     validate-edit ;; Validate the edit (uniqueness, etc.)
+     perform-edit ;; Perform the actual edit
+     lint-clojure-content ;; Lint Clojure files to catch syntax errors
+     form-pipeline/determine-file-type ;; This will mark as "update"
+     form-pipeline/generate-diff ;; Generate diff between old and new
+     form-pipeline/emacs-set-auto-revert
+     form-pipeline/save-file)))
 
 ;; Format result for tool consumption
 (defn format-result
@@ -143,7 +121,6 @@
   ;; Test file paths
   (def temp-dir (System/getProperty "java.io.tmpdir"))
   (def test-file (str temp-dir "/file-edit-test.txt"))
-  (def test-nested-file (str temp-dir "/nested/test.txt"))
 
   ;; Create a test file
   (spit test-file "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n")
@@ -152,16 +129,13 @@
   (def result (file-edit-pipeline test-file "Line 3" "Line 3 - EDITED"))
   (format-result result)
 
-  ;; Test the pipeline with new file creation
-  (def create-result (file-edit-pipeline test-nested-file "" "New content"))
-  (format-result create-result)
-
   ;; Test the pipeline with error (non-unique match)
   (def error-result (file-edit-pipeline test-file "Line" "EDITED Line"))
   (format-result error-result)
 
+  ;; Test the pipeline with error (empty old_string)
+  (def empty-string-result (file-edit-pipeline test-file "" "New content"))
+  (format-result empty-string-result)
+
   ;; Clean up
-  (.delete (io/file test-file))
-  (.delete (io/file test-nested-file))
-  (when (.exists (io/file (str temp-dir "/nested")))
-    (.delete (io/file (str temp-dir "/nested")))))
+  (.delete (io/file test-file)))
