@@ -81,6 +81,13 @@
       "text/markdown"
       (str working-dir "/CLAUDE.md"))
 
+     (create-file-resource
+      "custom://llm-code-style"
+      "Clojure Code Style"
+      "Guidelines for writing Clojure code"
+      "text/markdown"
+      (str working-dir "/LLM_CODE_STYLE.md"))
+
      ;; Add dynamic project info resource that uses the inspect-project-code function
      (let [project-code (str (project/inspect-project-code))
            project-data (mcp-nrepl/tool-eval-code nrepl-client project-code)

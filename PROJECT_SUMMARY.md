@@ -133,6 +133,14 @@ The project relies on the following key dependencies (from `deps.edn`):
 - **`clojure_edit_replace_docstring`**: Updates function docstrings
   - Input: `{"file_path": "...", "form_name": "my-function", "form_type": "defn", "docstring": "..."}`
   - Implementation: `src/clojure_mcp/tools/form_edit/`
+- **`clojure_edit_replace_sexp`**: Edits specific s-expressions within files
+  - Input: `{"file_path": "...", "match_form": "(+ x 1)", "new_form": "(+ x 10)", "replace_all": true, "whitespace_sensitive": false}`
+  - Implementation: `src/clojure_mcp/tools/form_edit/`
+  - Useful for editing sub-expressions and symbols throughout a file
+  - Can replace all occurrences or just the first match
+  - Whitespace sensitivity option for precise matching
+  - The tool displays a diff showing both removed and added content
+  - Recommended for smaller targeted changes, not whole-form replacements
 
 ### File Operations
 - **`file_write`**: Writes content to a file with formatting and linting
@@ -144,11 +152,11 @@ The project relies on the following key dependencies (from `deps.edn`):
   - Best practices:
     - Use `read_file` first to understand file contents and context
     - Use `list_directory` to verify parent directories exist for new files
+    - Preferred for replacing large portions of a file (saves tokens)
 
 - **`file_edit`**: Edits files by replacing specific text strings
   - Input: `{"file_path": "/path/to/file.clj", "old_string": "text to replace", "new_string": "replacement text"}`
   - Intended as a safety mechanism, requiring that the string to replace occurs exactly once
-  - Currently not returning expected diff output (see Known Issues)
   - Implementation: `src/clojure_mcp/tools/file_edit/`
   - Note: The specialized form editing tools are generally preferred for Clojure code changes
 
@@ -300,6 +308,7 @@ For testing tools, the project provides test utilities:
 - Temporary directories and files
 - Mock nREPL client setup
 - Integration tests with real nREPL server
+- When testing functions that use zippers, always create zippers with `{:track-position? true}` when position information is needed
 
 ### Recommended REPL-Driven Development Pattern
 
@@ -317,6 +326,9 @@ When developing with this tool:
 - **Imports**: Use `:require` with ns aliases (e.g., `[clojure.string :as string]`)
 - **Naming**: Use kebab-case for vars/functions; end predicates with `?` (e.g., `is-top-level-form?`)
 - **Documentation**: Provide docstrings for all public vars and functions
+   - Skip docstrings during development to save on tokens
+   - Defer docstring addition until requested by the user
+   - Keep docstrings concise and let arglists document function parameters
 - **Error handling**: Use `try/catch` with general exception handling and `ex-info`/`ex-data` for contextualized errors
 - **Formatting**: 2-space indentation; maintain whitespace in edited forms
 - **Namespaces and File Paths**: 
@@ -324,6 +336,19 @@ When developing with this tool:
   - File paths use underscores: `clojure_mcp/tools/file_write/core.clj`
   - Example: Namespace `clojure-mcp.tools.file-write.core` corresponds to file path `src/clojure_mcp/tools/file_write/core.clj`
 - **Testing**: Use `deftest` with descriptive names; `testing` for subsections; `is` for assertions
+- **Control Flow**: Consider `cond->` and `cond->>` for conditional threading
+- **Destructuring**:
+  - For regular keywords: `[{:keys [zloc match-form] :as ctx}]`
+  - For namespaced keys: `[{:keys [::zloc ::match-form] :as ctx}]`
+- **Functions**: Keep functions small to reduce tokens and make edits faster
+
+### Using Shell Commands
+- Prefer the idiomatic `clojure.java.shell/sh` for executing shell commands
+- Always handle potential errors from shell command execution
+- Use explicit working directory for relative paths: `(shell/sh "cmd" :dir "/path")`
+- For testing builds and tasks, run `clojure -X:test` instead of running tests piecemeal
+- When capturing shell output, remember it may be truncated for very large outputs
+- Consider using shell commands for tasks that have mature CLI tools like diffing or git operations
 
 ## MCP Tool Guidelines
 - Include clear tool `:description` for LLM guidance
@@ -353,6 +378,28 @@ To extend this project:
 
 ## Recent Fixes and Improvements
 
+### Fixed Diff Output in S-Expression Replacement Tool
+- **Issue**: The `clojure_edit_replace_sexp` tool was failing to show complete diff output
+- **Root Cause**: The `generate_diff` function in the pipeline was not receiving the correct old and new content, and the zipper wasn't being created with `:track-position?` set to true
+- **Fix Applied**: 
+  - Reordered pipeline steps, calling `format-source` before `generate-diff` to ensure proper formatting
+  - Enhanced the `generate-diff` function to more robustly handle different input sources
+  - Made sure zippers are created with position tracking enabled
+  - Fixed the order of operations in the s-expression replacement pipeline
+  ```clojure
+  ;; Modified the generate-diff function to better handle edge cases
+  (defn generate-diff [{:keys [::old-content ::output-source ::zloc] :as ctx}]
+    (let [old-content (or old-content "")
+          new-content (or output-source
+                          (and zloc (z/root-string zloc))
+                          "")
+          ;; Rest of function...
+  ```
+- **Benefits**:
+  - Diffs now correctly show both removed (with `-`) and added (with `+`) content
+  - More reliable results when working with complex code structures
+  - Better user experience when reviewing changes
+
 ### Fixed Error Handling in Form Editing Tools
 - **Issue**: Form editing tools were failing silently when requested forms didn't exist
 - **Root Cause**: Error results from pipelines weren't being properly formatted for MCP
@@ -376,6 +423,11 @@ To extend this project:
   - Method name with dispatch value (e.g., `test-multi :default`) to edit a specific implementation
 - The pipeline's `enhance-defmethod-name` step extracts dispatch values from replacement code
 - When only specifying the method name, the tool automatically updates the first matching method by default
+
+### Updated Tool Descriptions
+- Improved the description for `clojure_edit_replace_sexp` to clarify its purpose
+- Updated the description for `file_edit` to recommend using `file_write` for larger changes to save tokens
+- Removed linting claims from `file_edit` description that weren't applicable
 
 ### MCP Result Format Requirements
 - All tools must return results in a specific format for the MCP system
