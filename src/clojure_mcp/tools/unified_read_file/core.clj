@@ -42,12 +42,18 @@
       ;; Use Clojure-aware file reading
       (try
         (let [collapsed-view (form-edit-core/generate-collapsed-file-view path expand-symbols)
-              notice (str "/* This is a collapsed view of the Clojure file. Functions are shown with only their signatures.\n"
-                          " * To view specific functions in full, add them to the 'expand_symbols' parameter.\n"
-                          " * Example: {\"path\": \"" path "\", \"expand_symbols\": [\"function-name\"]}\n"
-                          " * To view the entire file as raw text, use: {\"path\": \"" path "\", \"clojure_mode\": \"off\"}\n"
-                          " */\n\n")]
-          {:result [(str notice collapsed-view)]
+              expand-symbols-str (if (empty? expand-symbols)
+                                   "[]"
+                                   (str "[\"" (clojure.string/join "\", \"" expand-symbols) "\"]"))
+              xml-open-tag (str "<collapsed-clojure-view clojure_mode=\"" clojure-mode
+                                "\" file_path=\"" path "\" expand_symbols=" expand-symbols-str ">\n")
+              xml-close-tag "\n</collapsed-clojure-view>"
+              simple-filename (last (clojure.string/split path #"/"))
+              advice (str "\n<!-- To see specific functions in full: {\"path\": \"" simple-filename
+                          "\", \"expand_symbols\": [\"function-name\"]}\n"
+                          "     For raw text view: {\"path\": \"" simple-filename
+                          "\", \"clojure_mode\": \"off\"} -->")]
+          {:result [(str xml-open-tag collapsed-view advice xml-close-tag)]
            :error false})
         (catch Exception e
           {:result [(str "Error generating Clojure file view: " (.getMessage e))]
