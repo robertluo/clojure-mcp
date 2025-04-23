@@ -113,12 +113,12 @@ This unified tool combines the functionality of fs_read_file and clojure_read_fi
     (if use-clojure-mode
       ;; Use Clojure-aware file reading
       (try
-        (let [collapsed-view (form-edit-core/generate-collapsed-file-view path expand-symbols)]
+        (let [collapsed-view (form-edit-core/generate-collapsed-file-view path expand_symbols)]
           {:mode :clojure
            :content collapsed-view
            :path path
            :clojure-mode clojure_mode
-           :expand-symbols expand-symbols
+           :expand-symbols expand_symbols
            :error false})
         (catch Exception e
           {:mode :clojure
@@ -153,12 +153,14 @@ This unified tool combines the functionality of fs_read_file and clojure_read_fi
         xml-open-tag (str "<collapsed-clojure-view clojure_mode=\"" clojure-mode
                           "\" file_path=\"" path "\" expand_symbols=" expand-symbols-str ">\n")
         xml-close-tag "\n</collapsed-clojure-view>"
-        simple-filename (last (clojure.string/split path #"/"))
-        advice (str "\n<!-- To see specific functions in full: {\"path\": \"" simple-filename
+        advice (str "\n<!-- This is a COLLAPSED VIEW"
+                    "\nTo see specific functions in full: {\"path\": \""
+                    path
                     "\", \"expand_symbols\": [\"function-name\"]}\n"
-                    "     For raw text view: {\"path\": \"" simple-filename
+                    "     For raw text view: {\"path\": \"" path
                     "\", \"clojure_mode\": \"off\"} -->")]
-    (str xml-open-tag content advice xml-close-tag)))
+    [(str xml-open-tag content xml-close-tag)
+     advice]))
 
 (defn format-raw-file
   "Formats raw file content with XML tags and metadata.
@@ -183,7 +185,7 @@ This unified tool combines the functionality of fs_read_file and clojure_read_fi
                    (cond->
                     line-lengths-truncated? (str "line-lengths-truncated=\"true\" "))
                    (str ">\n"))]
-    (str header content "\n</file-content>")))
+    [(str header content "\n</file-content>")]))
 
 (defmethod tool-system/format-results :unified-read-file [{:keys [max-lines]} result]
   (if (:error result)
@@ -193,14 +195,14 @@ This unified tool combines the functionality of fs_read_file and clojure_read_fi
     ;; Format based on the mode
     (case (:mode result)
       :clojure
-      {:result [(format-clojure-view (:content result)
-                                     (:path result)
-                                     (:clojure-mode result)
-                                     (:expand-symbols result))]
+      {:result (format-clojure-view (:content result)
+                                    (:path result)
+                                    (:clojure-mode result)
+                                    (:expand-symbols result))
        :error false}
 
       :raw
-      {:result [(format-raw-file result max-lines)]
+      {:result (format-raw-file result max-lines)
        :error false}
 
       ;; Default case (should not happen)
