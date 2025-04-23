@@ -93,7 +93,7 @@ This unified tool combines the functionality of fs_read_file and clojure_read_fi
     (core/read-unified-file path clojure_mode expand_symbols line_offset limit-val
                             :max-line-length max-line-length)))
 
-(defmethod tool-system/format-results :unified-read-file [_ {:keys [error content path size line-count offset truncated? line-lengths-truncated? result]}]
+(defmethod tool-system/format-results :unified-read-file [{:keys [max-lines]} {:keys [error content path size line-count offset truncated? line-lengths-truncated? result]}]
   (if error
     ;; If there's an error, return it with error flag true
     {:result (if (vector? result) result [(or error "Unknown error")])
@@ -105,11 +105,12 @@ This unified tool combines the functionality of fs_read_file and clojure_read_fi
       ;; For raw mode with file content
       (let [file (io/file path)
             size (or size (.length file))
+            limit (or max-lines 2000)
             header (-> (str "<file-content path=\"" path "\" "
                             "byte-size=\"" size "\" "
                             "line-count=\"" line-count "\" "
                             "line-offset=\"" offset "\" "
-                            "line-limit=\"" max-lines "\" "
+                            "line-limit=\"" limit "\" "
                             "truncated=\"" (boolean truncated?) "\" ")
                        (cond->
                         line-lengths-truncated? (str "line-lengths-truncated=\"true\" "))
