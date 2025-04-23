@@ -95,31 +95,79 @@ This unified tool combines the functionality of fs_read_file and clojure_read_fi
     (core/read-unified-file path clojure_mode expand_symbols line_offset limit-val
                             :max-line-length max-line-length)))
 
-(defmethod tool-system/format-results :unified-read-file [{:keys [max-lines]} {:keys [error content path size line-count offset truncated? line-lengths-truncated? result]}]
-  (if error
+;; Formatter helper functions for different content types
+
+(defn format-clojure-view
+  "Formats a Clojure file view with XML tags and usage advice.
+   
+   Parameters:
+   - content: The collapsed Clojure file content
+   - path: The path to the file
+   - clojure-mode: The Clojure mode setting ('auto', 'on', or 'off')
+   - expand-symbols: List of symbols shown in expanded form
+   
+   Returns:
+   - A formatted string with the collapsed view wrapped in XML tags"
+  [content path clojure-mode expand-symbols]
+  (let [expand-symbols-str (if (empty? expand-symbols)
+                             "[]"
+                             (pr-str expand-symbols))
+        xml-open-tag (str "<collapsed-clojure-view clojure_mode=\"" clojure-mode
+                          "\" file_path=\"" path "\" expand_symbols=" expand-symbols-str ">\n")
+        xml-close-tag "\n</collapsed-clojure-view>"
+        simple-filename (last (clojure.string/split path #"/"))
+        advice (str "\n<!-- To see specific functions in full: {\"path\": \"" simple-filename
+                    "\", \"expand_symbols\": [\"function-name\"]}\n"
+                    "     For raw text view: {\"path\": \"" simple-filename
+                    "\", \"clojure_mode\": \"off\"} -->")]
+    (str xml-open-tag content advice xml-close-tag)))
+
+(defn format-raw-file
+  "Formats raw file content with XML tags and metadata.
+   
+   Parameters:
+   - result: The raw file reading result map
+   - max-lines: Maximum number of lines limit (for header info)
+   
+   Returns:
+   - A formatted string with the file content wrapped in XML tags"
+  [result max-lines]
+  (let [{:keys [content path size line-count offset truncated? line-lengths-truncated?]} result
+        file (io/file path)
+        size (or size (.length file))
+        limit (or max-lines 2000)
+        header (-> (str "<file-content path=\"" path "\" "
+                        "byte-size=\"" size "\" "
+                        "line-count=\"" line-count "\" "
+                        "line-offset=\"" offset "\" "
+                        "line-limit=\"" limit "\" "
+                        "truncated=\"" (boolean truncated?) "\" ")
+                   (cond->
+                    line-lengths-truncated? (str "line-lengths-truncated=\"true\" "))
+                   (str ">\n"))]
+    (str header content "\n</file-content>")))
+
+(defmethod tool-system/format-results :unified-read-file [{:keys [max-lines]} result]
+  (if (:error result)
     ;; If there's an error, return it with error flag true
-    {:result (if (vector? result) result [(or error "Unknown error")])
+    {:result [(or (:message result) "Unknown error")]
      :error true}
-    ;; For Clojure view mode
-    (if result
-      {:result result
+    ;; Format based on the mode
+    (case (:mode result)
+      :clojure
+      {:result [(format-clojure-view (:content result)
+                                     (:path result)
+                                     (:clojure-mode result)
+                                     (:expand-symbols result))]
        :error false}
-      ;; For raw mode with file content
-      (let [file (io/file path)
-            size (or size (.length file))
-            limit (or max-lines 2000)
-            header (-> (str "<file-content path=\"" path "\" "
-                            "byte-size=\"" size "\" "
-                            "line-count=\"" line-count "\" "
-                            "line-offset=\"" offset "\" "
-                            "line-limit=\"" limit "\" "
-                            "truncated=\"" (boolean truncated?) "\" ")
-                       (cond->
-                        line-lengths-truncated? (str "line-lengths-truncated=\"true\" "))
-                       (str ">\n"))
-            formatted (str header content "\n</file-content>")]
-        {:result [formatted]
-         :error false}))))
+
+      :raw
+      {:result [(format-raw-file result max-lines)]
+       :error false}
+
+      ;; Default case (should not happen)
+      {:result ["Unknown result mode"]
+       :error true})))
 
 ;; Function to register the tool that returns the registration map
 (defn unified-read-file-tool

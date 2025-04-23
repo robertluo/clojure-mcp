@@ -28,9 +28,9 @@
    - limit: Maximum number of lines to read (for raw mode)
    - max-line-length: Maximum length per line before truncation (for raw mode)
    
-   Returns a map with either:
-   - For Clojure mode: {:result [...] :error false/true}
-   - For raw mode: file content details as in read-file-core/read-file"
+   Returns a map with result data and metadata indicating how it should be formatted:
+   - For Clojure mode: {:mode :clojure, :content content, :path path, :clojure-mode clojure-mode, :expand-symbols expand-symbols, :error false/true}
+   - For raw mode: the result from read-file-core/read-file plus :mode :raw"
   [path clojure-mode expand-symbols line-offset limit & {:keys [max-line-length] :or {max-line-length 1000}}]
   (let [is-clojure-file (clojure-file? path)
         use-clojure-mode (or (= clojure-mode "on")
@@ -41,30 +41,22 @@
     (if use-clojure-mode
       ;; Use Clojure-aware file reading
       (try
-        (let [collapsed-view (form-edit-core/generate-collapsed-file-view path expand-symbols)
-              expand-symbols-str (if (empty? expand-symbols)
-                                   "[]"
-                                   (pr-str expand-symbols)
-                                   #_(str "[\"" (clojure.string/join "\", \"" expand-symbols) "\"]"))
-              xml-open-tag (str "<collapsed-clojure-view clojure_mode=\"" clojure-mode
-                                "\" file_path=\"" path "\" expand_symbols=" expand-symbols-str ">\n")
-              xml-close-tag "\n</collapsed-clojure-view>"
-              simple-filename (last (clojure.string/split path #"/"))
-              advice (str "\n<!-- This is a COLLAPSED VIEW you can expand this view by providing a set of function names to expand."
-                          "\nYou can also read the whole file by turning clojure_mode off"
-                          "\nTo see specific functions in full: {\"path\": \""path
-                          "\", \"expand_symbols\": [\"function-name\"]}\n"
-                          "     For raw text view: {\"path\": \"" path
-                          "\", \"clojure_mode\": \"off\"} -->")]
-          {:result [(str xml-open-tag collapsed-view advice xml-close-tag)]
+        (let [collapsed-view (form-edit-core/generate-collapsed-file-view path expand-symbols)]
+          {:mode :clojure
+           :content collapsed-view
+           :path path
+           :clojure-mode clojure-mode
+           :expand-symbols expand-symbols
            :error false})
         (catch Exception e
-          {:result [(str "Error generating Clojure file view: " (.getMessage e))]
-           :error true}))
+          {:mode :clojure
+           :error true
+           :message (.getMessage e)}))
 
       ;; Use raw file reading
       (let [result (read-file-core/read-file path line-offset limit :max-line-length max-line-length)]
         (if (:error result)
-          {:result [(:error result)]
-           :error true}
-          result)))))
+          {:mode :raw
+           :error true
+           :message (:error result)}
+          (assoc result :mode :raw))))))
