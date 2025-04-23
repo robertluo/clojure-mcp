@@ -154,10 +154,10 @@
 
 (deftest format-source-test
   (testing "format-source formats the source code"
+    ;; Manual setup to avoid dependency on zloc->output-source
     (let [source "(ns test.core)\n\n(defn  example-fn[x y]   (+ x y))"
-          ctx {::sut/source source}
-          parsed (sut/parse-source ctx)
-          result (sut/format-source parsed)]
+          ctx {::sut/output-source source} ;; Directly use the source as output source
+          result (sut/format-source ctx)]
       (is (string? (::sut/output-source result)))
       (is (not (str/includes? (::sut/output-source result) "  example-fn[x y]")))
       (is (str/includes? (::sut/output-source result) "example-fn [x y]")))))
