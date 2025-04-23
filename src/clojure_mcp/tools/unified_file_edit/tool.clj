@@ -36,10 +36,62 @@
 
 ;; Implement the required multimethods for the unified file edit tool
 (defmethod tool-system/tool-name :unified-file-edit [_]
-  "file_edit")
+  "edit_file")
 
 (defmethod tool-system/tool-description :unified-file-edit [_]
-  "Edit a file by either replacing specific text or writing complete content.
+  "This is a tool for editing files, creating or overwriting files.
+
+Before using this tool:
+
+1. Use the read_file to understand the file's contents and context
+
+2. Verify the directory path is correct (only applicable when creating new files):
+   - Use the directory_tree tool to verify the parent directory exists and is the correct location
+
+To make a file edit, provide the following:
+1. file_path: The absolute path to the file to modify (must be absolute, not relative)
+2. old_string: The text to replace (must be unique within the file, and must match the file contents exactly, including all whitespace and indentation)
+3. new_string: The edited text to replace the old_string
+
+WHEN the old_string is not provided OR is blank the the tool will go into 
+WRITE MODE: it will CREATE a new file or completely OVERWRITE an existing file using the new_String as the content
+
+The tool will replace ONE occurrence of old_string with new_string in the specified file.
+
+CRITICAL REQUIREMENTS FOR USING THIS TOOL:
+
+1. UNIQUENESS: The old_string MUST uniquely identify the specific instance you want to change. This means:
+   - Include AT LEAST 3-5 lines of context BEFORE the change point
+   - Include AT LEAST 3-5 lines of context AFTER the change point
+   - Include all whitespace, indentation, and surrounding code exactly as it appears in the file
+
+2. SINGLE INSTANCE: This tool can only change ONE instance at a time. If you need to change multiple instances:
+   - Make separate calls to this tool for each instance
+   - Each call must uniquely identify its specific instance using extensive context
+
+3. VERIFICATION: Before using this tool:
+   - Check how many instances of the target text exist in the file
+   - If multiple instances exist, gather enough context to uniquely identify each one
+   - Plan separate tool calls for each instance
+
+WARNING: If you do not follow these requirements:
+   - The tool will fail if old_string matches multiple locations
+   - The tool will fail if old_string doesn't match exactly (including whitespace)
+   - You may change the wrong instance if you don't include enough context
+
+When making edits:
+   - Ensure the edit results in idiomatic, correct code
+   - Do not leave the code in a broken state
+   - Always use absolute file paths (starting with /)
+
+If you want to overwrite or create a new file, use:
+   - A file path, including dir name if needed
+   - An missing or blank old_string
+   - The file's contents as new_string
+
+Remember: when making multiple file edits in a row to the same file, you should prefer to send all edits in a single message with multiple calls to this tool, rather than multiple messages with a single call each."
+  
+  #_"Edit a file by either replacing specific text or writing complete content.
 
 1. EDIT MODE (when old_string is provided):
    - Replaces a specific text segment while preserving the rest of the file

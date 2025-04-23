@@ -17,7 +17,7 @@
 
 ;; Implement the required multimethods for the directory-tree tool
 (defmethod tool-system/tool-name :directory-tree [_]
-  "fs_directory_tree")
+  "LS")
 
 (defmethod tool-system/tool-description :directory-tree [_]
   "Returns a recursive tree view of files and directories starting from the specified path.
