@@ -408,30 +408,29 @@ For reliable results, use a unique substring that appears in only one comment bl
 ;; Implement the required multimethods for file structure tool
 
 (defmethod tool-system/tool-name :clojure-file-structure [_]
-  "clojure_file_structure")
+  "clojure_read_file")
 
 (defmethod tool-system/tool-description :clojure-file-structure [_]
-  "Generates a collapsed view of a Clojure file showing only function signatures.
-   
-   This tool creates a simplified view of a Clojure file where function bodies
-   are collapsed, showing only the top-level forms' signatures. Use this tool
-   before fs_read_file to more efficiently explore and understand Clojure code.
-   
-   Parameters:
-   - file_path: Path to the Clojure file
-   - expand_symbols: Array of function names to show with complete implementations
-   
-   The expand_symbols parameter is particularly useful - it lets you selectively expand
-   specific functions while keeping others collapsed. For example:
-   
-   Examples:
-   - Basic view: {\"file_path\": \"/path/to/file.clj\"}
-   - With specific functions expanded: {\"file_path\": \"/path/to/file.clj\", 
-     \"expand_symbols\": [\"process-data\", \"validate-input\"]}
-   
-   Recommended workflow:
-   1. First use without expand_symbols to see all available functions
-   2. Then call again with expand_symbols to see implementations of interest")
+  "Reads Clojure files with intelligent code structure awareness. The primary tool for exploring Clojure code.
+
+This tool offers two viewing modes:
+- Default: Shows a collapsed view with function signatures only
+- Expanded: Shows complete implementations of selected functions
+
+Benefits over fs_read_file:
+- More readable for Clojure code exploration
+- Reduces token usage significantly
+- Helps you understand code structure before diving into details
+
+Examples:
+- Basic view: {\"file_path\": \"/path/to/my_ns.clj\"}
+- Examine specific functions: {\"file_path\": \"/path/to/my_ns.clj\", 
+  \"expand_symbols\": [\"process-data\", \"validate-input\"]}
+
+Recommended workflow:
+1. First use with no parameters to see all available functions
+2. Then expand specific functions of interest
+3. Only use fs_read_file for non-Clojure files or when you need raw file content")
 
 (defmethod tool-system/tool-schema :clojure-file-structure [_]
   {:type :object
@@ -496,13 +495,21 @@ For reliable results, use a unique substring that appears in only one comment bl
   "clojure_edit_replace_sexp")
 
 (defmethod tool-system/tool-description :clojure-edit-replace-sexp [_]
-  "Edits a file by finding and replacing occurrences of a specific s-expression.
+  "Edits a file by finding and replacing specific s-expressions.
 
-Use this tool for sub-expressions, top level definitions like `defn`, `ns`, `def` are better edited by the `clojure_edit_replace_definition`, `clojure_edit_insert_before_definition`, and `clojure_edit_insert_after_definition` which all save a lot of tokens which makes me happy. 
+Use this tool for targeted edits of sub-expressions within forms. For complete top-level form replacements, 
+prefer specialized tools like clojure_edit_replace_definition which provide better structure validation.
 
-To delete forms, use an empty string as new_form
-   
-The tool returns a diff showing the changes made to the file.")
+CONSTRAINTS:
+- match_form must contain only a SINGLE s-expression (error otherwise)
+- whitespace_sensitive=true preserves exact spacing patterns
+
+Examples:
+- Replace a calculation: {\"match_form\": \"(+ x 2)\", \"new_form\": \"(+ x 10)\"}
+- Delete an expression: {\"match_form\": \"(println debug-info)\", \"new_form\": \"\"}
+- Edit anonymous function: {\"match_form\": \"#(inc %)\", \"new_form\": \"#(+ % 2)\"}
+
+Returns a diff showing the changes made to the file.")
 
 (defmethod tool-system/tool-schema :clojure-edit-replace-sexp [_]
   {:type :object

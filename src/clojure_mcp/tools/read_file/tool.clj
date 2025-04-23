@@ -30,19 +30,17 @@
   "fs_read_file")
 
 (defmethod tool-system/tool-description :read-file [{:keys [max-lines max-line-length]}]
-  (str "Reads the contents of a file. The file_path parameter must be an absolute path, not a relative path. "
+  (str "Reads the contents of a file. Requires absolute paths (not relative). "
 
-       "IMPORTANT: For Clojure files, clojure_file_structure is usually more efficient: "
-       "- Use clojure_file_structure to examine specific functions using the expand_symbols parameter "
-       "- Only use fs_read_file when you need the entire file content or for non-Clojure files "
+       "IMPORTANT: For Clojure files, use clojure_file_structure first: "
+       "- It's more token-efficient for exploring code structure "
+       "- Only use fs_read_file when you need the complete file content or for non-Clojure files "
 
-       "Parameters: "
-       "- path: (string, required) Absolute path to the file to read "
-       "- line_offset: (integer, optional) Line number to start reading from (0-indexed) "
-       "- limit: (integer, optional) Maximum number of lines to read (default: " max-lines ") "
+       "Example: To read a config file from line 10, limited to 50 lines: "
+       "  {\"path\": \"/path/to/config.json\", \"line_offset\": 10, \"limit\": 50} "
 
-       "By default, it reads up to " max-lines " lines. Any lines longer than " max-line-length
-       " characters will be truncated. Returns the file contents or an error message if the file cannot be read."))
+       "Returns the file content wrapped in XML tags with metadata about truncation and size. "
+       "By default, reads up to " max-lines " lines, truncating lines longer than " max-line-length " characters."))
 
 (defmethod tool-system/tool-schema :read-file [_]
   {:type :object

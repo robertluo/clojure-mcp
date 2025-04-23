@@ -341,6 +341,23 @@
                                     (nth sexpr vector-pos))]
                          (str "(defmacro " form-name " " args " ...)"))
 
+            "defmethod" (let [method-sym (second sexpr)
+                              method-name (if (symbol? method-sym)
+                                            (if (namespace method-sym)
+                                              (str (namespace method-sym) "/" (name method-sym))
+                                              (name method-sym))
+                                            "unknown")
+                              dispatch-val (nth sexpr 2)
+                              ;; Find the first vector after the dispatch value - that's our args
+                              args-pos (loop [pos 3]
+                                         (if (>= pos (count sexpr))
+                                           nil
+                                           (if (vector? (nth sexpr pos))
+                                             pos
+                                             (recur (inc pos)))))
+                              args (when args-pos (nth sexpr args-pos))]
+                          (str "(defmethod " method-name " " (pr-str dispatch-val) " " args " ...)"))
+
             "def" (str "(def " form-name " ...)")
             "deftest" (str "(deftest " form-name " ...)")
             "ns" (z/string zloc) ; Always show the full namespace
@@ -413,6 +430,7 @@
   (try
     (let [file-content (slurp file-path)
           zloc (z/of-string file-content)
+          ;; Convert expand-symbols to a set for easier lookup
           expand-set (set (map name expand-symbols))]
 
       (loop [loc zloc
@@ -427,7 +445,26 @@
               ;; Process includable forms
               (let [current-sexpr (try (z/sexpr loc) (catch Exception _ nil))
                     form-name (extract-form-name current-sexpr)
-                    should-expand (contains? expand-set form-name)
+                    ;; Special handling for defmethod forms
+                    should-expand (if (and (seq? current-sexpr)
+                                           (= (name (first current-sexpr)) "defmethod"))
+                                    ;; For defmethod, try multiple matching strategies
+                                    (let [method-sym (second current-sexpr)
+                                          method-name (if (and (symbol? method-sym) (namespace method-sym))
+                                                        (str (namespace method-sym) "/" (name method-sym))
+                                                        (name method-sym))
+                                          dispatch-val (nth current-sexpr 2)
+                                          dispatch-str (pr-str dispatch-val)
+                                          combined (str method-name " " dispatch-str)]
+                                      (or
+                                       ;; Try direct match with form name (works for simple defmethods)
+                                       (contains? expand-set form-name)
+                                       ;; Try match with qualified method name
+                                       (contains? expand-set method-name)
+                                       ;; Try match with qualified method name and dispatch value
+                                       (contains? expand-set combined)))
+                                    ;; For non-defmethod forms, use regular matching
+                                    (contains? expand-set form-name))
                     form-str (if should-expand
                                (z/string loc)
                                (get-form-summary loc))]
@@ -531,7 +568,7 @@
   (let [is-blank-new? (str/blank? new-form)
         new-node (when-not is-blank-new? (p/parse-string-all new-form))
         match-node (p/parse-string match-form) ;; must not be blank
-        match-str   (n/string match-node)
+        match-str (n/string match-node)
         match-sexpr (when (not whitespace-sensitive)
                       (try (z/sexpr (z/of-node match-node))
                            (catch Exception _ ::invalid)))]
@@ -568,7 +605,7 @@
                 {:zloc updated-loc
                  :count 1}))
             ;; No match, continue to the next node
-            (recur (z/next loc) last-replaced  count)))))))
+            (recur (z/next loc) last-replaced count)))))))
 
 (comment
   ;; Examples of using the functions
@@ -576,19 +613,17 @@
   (def zloc (z/of-string source))
 
   (def fr-src "(defn test-fn [x] (+ x 1) (+ x 1) (- x 2))")
-  
+
   (let [res (find-and-replace-sexp
              (z/of-string (slurp "test-sexp.clj")
-                          {:track-position? true}
-                          )
+                          {:track-position? true})
              "(+ x y)"
              "(+ x 55555555555555555)"
              :replace-all false)]
     [(z/root-string (:zloc res))
-     (z/position-span (:zloc res))]
-   )
-  
-  ;; Find a function
+     (z/position-span (:zloc res))])
+
+;; Find a function
   (def fn-zloc (find-top-level-form zloc "defn" "my-fn"))
 
   ;; Get function summary
