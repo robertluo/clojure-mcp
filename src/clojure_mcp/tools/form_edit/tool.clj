@@ -536,7 +536,7 @@ The tool returns a diff showing the changes made to the file.")
     (when-not (str/blank? new_form)
       ;; Validate that new_form is valid Clojure code
       (try
-        (p/parse-string new_form)
+        (p/parse-string-all new_form)
         (catch Exception e
           (throw (ex-info (str "Invalid Clojure code in new_form: " (.getMessage e))
                           {:inputs inputs})))))
