@@ -7,7 +7,7 @@
    [clojure.java.io :as io]))
 
 ;; Factory function to create the tool configuration
-(defn create-read-file-tool 
+(defn create-read-file-tool
   "Creates the read-file tool configuration with optional parameters.
    
    Parameters:
@@ -31,17 +31,25 @@
 
 (defmethod tool-system/tool-description :read-file [{:keys [max-lines max-line-length]}]
   (str "Reads the contents of a file. The file_path parameter must be an absolute path, not a relative path. "
-       "By default, it reads up to " max-lines " lines starting from the beginning of the file. "
-       "You can optionally specify a line offset and limit (especially handy for long files). "
-       "Any lines longer than " max-line-length " characters will be truncated. "
-       "Returns the file contents or an error message if the file cannot be read."))
+
+       "IMPORTANT: For Clojure files, clojure_file_structure is usually more efficient: "
+       "- Use clojure_file_structure to examine specific functions using the expand_symbols parameter "
+       "- Only use fs_read_file when you need the entire file content or for non-Clojure files "
+
+       "Parameters: "
+       "- path: (string, required) Absolute path to the file to read "
+       "- line_offset: (integer, optional) Line number to start reading from (0-indexed) "
+       "- limit: (integer, optional) Maximum number of lines to read (default: " max-lines ") "
+
+       "By default, it reads up to " max-lines " lines. Any lines longer than " max-line-length
+       " characters will be truncated. Returns the file contents or an error message if the file cannot be read."))
 
 (defmethod tool-system/tool-schema :read-file [_]
   {:type :object
    :properties {:path {:type :string
-                      :description "The path to the file to read."}
+                       :description "The path to the file to read."}
                 :line_offset {:type :integer
-                         :description "Line number to start reading from (0-indexed)"}
+                              :description "Line number to start reading from (0-indexed)"}
                 :limit {:type :integer
                         :description "Maximum number of lines to read"}}
    :required [:path]})
@@ -51,7 +59,7 @@
         nrepl-client @nrepl-client-atom]
     (when-not path
       (throw (ex-info "Missing required parameter: path" {:inputs inputs})))
-    
+
     ;; Use the existing validate-path-with-client function
     (let [validated-path (utils/validate-path-with-client path nrepl-client)]
       ;; Return validated inputs with normalized path
@@ -72,21 +80,21 @@
     (let [file (io/file path)
           size (.length file)
           header (-> (str "<file-content path=\"" path "\" "
-                         "byte-size=\"" size "\" "
-                         "line-count=\"" line-count "\" "
-                         "line-offset=\"" offset "\" "
-                         "line-limit=\"" max-lines "\" "
-                         "truncated=\"" (boolean truncated?) "\" ")
-                    (cond-> 
+                          "byte-size=\"" size "\" "
+                          "line-count=\"" line-count "\" "
+                          "line-offset=\"" offset "\" "
+                          "line-limit=\"" max-lines "\" "
+                          "truncated=\"" (boolean truncated?) "\" ")
+                     (cond->
                       truncated-by (str "truncated-by=\"" truncated-by "\" ")
                       line-lengths-truncated? (str "line-lengths-truncated=\"true\" "))
-                    (str ">\n"))
+                     (str ">\n"))
           formatted (str header content "\n</file-content>")]
       {:result [formatted]
        :error false})))
 
 ;; Backward compatibility functions that return the registration map
-(defn read-file-tool 
+(defn read-file-tool
   "Returns the registration map for the read-file tool.
    
    Parameters:

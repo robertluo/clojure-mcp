@@ -414,15 +414,24 @@ For reliable results, use a unique substring that appears in only one comment bl
   "Generates a collapsed view of a Clojure file showing only function signatures.
    
    This tool creates a simplified view of a Clojure file where function bodies
-   are collapsed, showing only the top-level forms' signatures. This is useful for
-   understanding the structure of a file without seeing all implementation details.
+   are collapsed, showing only the top-level forms' signatures. Use this tool
+   before fs_read_file to more efficiently explore and understand Clojure code.
    
-   Example: Generate a file outline:
-   - file_path: \"/path/to/file.clj\"
-   - expand_symbols: [\"main-function\"] (optional)
+   Parameters:
+   - file_path: Path to the Clojure file
+   - expand_symbols: Array of function names to show with complete implementations
    
-   The tool will return a simplified view of the file with function bodies replaced by
-   '...', except for any symbols listed in expand_symbols (which will be shown in full).")
+   The expand_symbols parameter is particularly useful - it lets you selectively expand
+   specific functions while keeping others collapsed. For example:
+   
+   Examples:
+   - Basic view: {\"file_path\": \"/path/to/file.clj\"}
+   - With specific functions expanded: {\"file_path\": \"/path/to/file.clj\", 
+     \"expand_symbols\": [\"process-data\", \"validate-input\"]}
+   
+   Recommended workflow:
+   1. First use without expand_symbols to see all available functions
+   2. Then call again with expand_symbols to see implementations of interest")
 
 (defmethod tool-system/tool-schema :clojure-file-structure [_]
   {:type :object
