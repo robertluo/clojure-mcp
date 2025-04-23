@@ -69,23 +69,23 @@
       (is (not (:valid result)) "Should be invalid when strings are identical")
       (is (string? (:message result)) "Should include error message")))
   
-  (testing "Validation for new file creation"
+  (testing "Validation for empty old_string (attempt to create new file)"
     (let [result (core/validate-file-edit 
                   (.getAbsolutePath (io/file *test-nested-dir* "new-file.txt"))
                   ""
                   "New content"
                   nil)]
-      (is (:valid result) "Should be valid when creating new file")
-      (is (:create-new-file result) "Should indicate file creation")))
+      (is (not (:valid result)) "Should be invalid when using empty old_string")
+      (is (str/includes? (:message result) "Empty old_string is not supported") "Should direct to file_write instead")))
   
-  (testing "Validation for new file but path exists"
+  (testing "Validation for empty old_string with existing file"
     (let [result (core/validate-file-edit 
                   (.getAbsolutePath *test-file*)
                   ""
                   "New content"
                   "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n")]
-      (is (not (:valid result)) "Should be invalid when file already exists")
-      (is (string? (:message result)) "Should include error message")))
+      (is (not (:valid result)) "Should be invalid when using empty old_string")
+      (is (str/includes? (:message result) "Empty old_string is not supported") "Should direct to file_write instead")))
   
   (testing "Validation for non-existent file"
     (let [result (core/validate-file-edit 
@@ -128,8 +128,7 @@
                   "Line 3"
                   "Line 3 - EDITED"
                   "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n")]
-      (is (:valid result) "Should be valid for unique match")
-      (is (not (:create-new-file result)) "Should not be file creation"))))
+      (is (:valid result) "Should be valid for unique match"))))
 
 (deftest perform-file-edit-test
   (testing "Perform edit on existing file"
@@ -139,15 +138,7 @@
                   "Line 3"
                   "Line 3 - EDITED"
                   content)]
-      (is (= "Line 1\nLine 2\nLine 3 - EDITED\nLine 4\nLine 5\n" result) "Content should be edited correctly")))
-  
-  (testing "Perform new file creation"
-    (let [result (core/perform-file-edit
-                  (.getAbsolutePath (io/file *test-nested-dir* "new-file.txt"))
-                  ""
-                  "New content"
-                  nil)]
-      (is (= "New content" result) "Should return new content for file creation"))))
+      (is (= "Line 1\nLine 2\nLine 3 - EDITED\nLine 4\nLine 5\n" result) "Content should be edited correctly"))))
 
 (deftest save-file-content-test
   (testing "Save to existing file"
