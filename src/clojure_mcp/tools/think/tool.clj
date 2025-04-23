@@ -32,14 +32,8 @@ The tool simply logs your thought process for better transparency and does not e
   inputs)
 
 (defmethod tool-system/execute-tool :think [_ {:keys [thought]}]
-  (try
-    (do
-      (println "THOUGHT LOG: " thought)
-      {:result "Your thought has been logged."
-       :error false})
-    (catch Exception e
-      {:result (str "Error logging thought: " (.getMessage e))
-       :error true})))
+  {:result "Your thought has been logged."
+   :error false})
 
 (defmethod tool-system/format-results :think [_ result]
   (if (:error result)

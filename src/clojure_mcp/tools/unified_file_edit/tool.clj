@@ -41,6 +41,8 @@
 (defmethod tool-system/tool-description :unified-file-edit [_]
   "This is a tool for editing files, creating or overwriting files.
 
+PREFER the `clojure_edit_replace_definition`, `clojure_edit_insert_after_definition`, `clojure_edit_insert_before_definition`, or `clojure_edit_replace_sexp` tools. The Clojure tools are much better at editing clojure files. They do not require an `old_string` to match with simple the name of the function to replace.
+
 Before using this tool:
 
 1. Use the read_file to understand the file's contents and context
@@ -89,9 +91,9 @@ If you want to overwrite or create a new file, use:
    - An missing or blank old_string
    - The file's contents as new_string
 
-Remember: when making multiple file edits in a row to the same file, you should prefer to send all edits in a single message with multiple calls to this tool, rather than multiple messages with a single call each."
+Remember: when making multiple file edits in a row to the same file, you should prefer to send all edits in a single message with multiple calls to this tool, rather than multiple messages with a single call each.
   
-  #_"Edit a file by either replacing specific text or writing complete content.
+  #_""Edit a file by either replacing specific text or writing complete content.
 
 1. EDIT MODE (when old_string is provided):
    - Replaces a specific text segment while preserving the rest of the file
