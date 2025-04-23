@@ -19,9 +19,11 @@ This tool is intended to execute Clojure code. This is very helpful for verifyin
 If you send multiple expressions they will all be evaluated individually and their output will be clearly partitioned.
 If the returned value is too long it will be truncated.
 
+Eval: (str *ns*) to see the current namespace
+
 REPL helper functions are automatically loaded in the 'clj-mcp.repl-tools' namespace, providing convenient namespace and symbol exploration:
 
-Namespace/Symbol Navigation Functions:
+Namespace/Symbol inspection functions:
   clj-mcp.repl-tools/list-ns           - List all available namespaces
   clj-mcp.repl-tools/list-vars         - List all vars in namespace
   clj-mcp.repl-tools/doc-symbol        - Show documentation for symbol

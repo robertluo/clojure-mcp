@@ -44,14 +44,17 @@
         (let [collapsed-view (form-edit-core/generate-collapsed-file-view path expand-symbols)
               expand-symbols-str (if (empty? expand-symbols)
                                    "[]"
-                                   (str "[\"" (clojure.string/join "\", \"" expand-symbols) "\"]"))
+                                   (pr-str expand-symbols)
+                                   #_(str "[\"" (clojure.string/join "\", \"" expand-symbols) "\"]"))
               xml-open-tag (str "<collapsed-clojure-view clojure_mode=\"" clojure-mode
                                 "\" file_path=\"" path "\" expand_symbols=" expand-symbols-str ">\n")
               xml-close-tag "\n</collapsed-clojure-view>"
               simple-filename (last (clojure.string/split path #"/"))
-              advice (str "\n<!-- To see specific functions in full: {\"path\": \"" simple-filename
+              advice (str "\n<!-- This is a COLLAPSED VIEW you can expand this view by providing a set of function names to expand."
+                          "\nYou can also read the whole file by turning clojure_mode off"
+                          "\nTo see specific functions in full: {\"path\": \""path
                           "\", \"expand_symbols\": [\"function-name\"]}\n"
-                          "     For raw text view: {\"path\": \"" simple-filename
+                          "     For raw text view: {\"path\": \"" path
                           "\", \"clojure_mode\": \"off\"} -->")]
           {:result [(str xml-open-tag collapsed-view advice xml-close-tag)]
            :error false})
