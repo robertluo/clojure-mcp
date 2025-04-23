@@ -2,10 +2,12 @@
   (:require
    [clojure.test :refer [deftest testing is use-fixtures]]
    [clojure-mcp.tools.form-edit.tool :as sut]
-   [clojure-mcp.tools.form-edit.pipeline :as pipeline]   
+   [clojure-mcp.tools.form-edit.pipeline :as pipeline]
    [clojure-mcp.tool-system :as tool-system]
    [clojure.java.io :as io]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [rewrite-clj.parser :as p]
+   [rewrite-clj.node :as n]))
 
 ;; Test fixtures
 (def ^:dynamic *test-dir* nil)
@@ -64,19 +66,19 @@
    (is (contains? result :result) "Response should contain :result key")
    (is (contains? result :error) "Response should contain :error key")
    (is (instance? Boolean (:error result)) "Error flag should be a boolean")
-   (is (= expected-error (:error result)) 
+   (is (= expected-error (:error result))
        (str "Error flag should be " (if expected-error "true" "false")))
-   
+
    ;; Test result content format
    (is (vector? (:result result)) "Result should be a vector")
    (is (every? string? (:result result)) "All result items should be strings")
    (is (not (empty? (:result result))) "Result should not be empty")
-   
+
    ;; Test specific content pattern if provided
    (when (and diff-pattern-fn (not (empty? (:result result))))
-     (is (diff-pattern-fn (first (:result result))) 
+     (is (diff-pattern-fn (first (:result result)))
          "Result content should match expected pattern"))
-   
+
    ;; Return result for further testing
    result))
 
@@ -252,6 +254,35 @@
           (is (string? (:file_path validated-2)))
           (is (= ["example-fn"] (:expand_symbols validated-2))))))))
 
+(deftest sexp-replace-validation-test
+  (testing "Sexp replace validation checks for multiple forms in match_form"
+    (let [client-atom *client-atom*
+          sexp-tool (sut/create-edit-replace-sexp-tool client-atom)
+          valid-inputs {:file_path (get-file-path)
+                        :match_form "(+ x y)"
+                        :new_form "(+ x (* y 2))"}
+          invalid-inputs {:file_path (get-file-path)
+                          :match_form "(+ x y) (- x y)" ;; Multiple forms!
+                          :new_form "(+ x (* y 2))"}
+          another-invalid {:file_path (get-file-path)
+                           :match_form "(def a 1) (def b 2)" ;; Multiple forms!
+                           :new_form "(+ x (* y 2))"}]
+
+      ;; Test valid input is accepted
+      (let [validated (tool-system/validate-inputs sexp-tool valid-inputs)]
+        (is (string? (:file_path validated)))
+        (is (= "(+ x y)" (:match_form validated)))
+        (is (= "(+ x (* y 2))" (:new_form validated))))
+
+      ;; Test invalid inputs with multiple forms are rejected
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"must contain only a single s-expression"
+                            (tool-system/validate-inputs sexp-tool invalid-inputs))
+          "Should reject match_form with multiple forms")
+
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"must contain only a single s-expression"
+                            (tool-system/validate-inputs sexp-tool another-invalid))
+          "Should reject match_form with multiple def forms"))))
+
 ;; Integration tests for backward compatibility functions
 (deftest backward-compatibility-test
   (testing "Backward compatibility functions create valid registration maps"
@@ -297,21 +328,19 @@
             result (tool-system/execute-tool replace-tool validated)
             formatted (tool-system/format-results replace-tool result)
             file-content (slurp file-path)]
-        
+
         ;; Validate MCP result format using the common function
         (validate-mcp-result formatted false #(and (str/includes? % "+++")
                                                    (str/includes? % "@@ ")))
-        
+
         ;; Specific test for this tool
         (is (= (:result formatted) [(:diff result)]) "Result should contain the diff")
         (is (not (nil? (:diff result))) "Diff should not be nil")
-        
+
         ;; Validate file was actually modified
         (is (str/includes? file-content "(defn example-fn [x]") "Function signature should be updated")
         (is (str/includes? file-content "(* x 2)") "Function body should be updated")
         (is (not (str/includes? file-content "(+ x y)")) "Old function body should be removed")))
-    
-
 
     (testing "Docstring tool can update docstrings"
       (let [file-path (get-file-path)
@@ -329,13 +358,13 @@
             result (tool-system/execute-tool docstring-tool validated)
             formatted (tool-system/format-results docstring-tool result)
             file-content (slurp file-path)]
-        
+
         ;; Validate MCP result format
         (validate-mcp-result formatted false #(str/includes? % "docstring"))
-        
+
         ;; Specific test for this tool
         (is (= (:result formatted) [(:diff result)]) "Result should contain the diff")
-        
+
         ;; Validate file was actually modified
         (is (str/includes? file-content "Updated docstring for testing") "New docstring should be in the file")
         (is (not (str/includes? file-content "Original docstring")) "Old docstring should be removed")))
@@ -349,13 +378,13 @@
             result (tool-system/execute-tool comment-tool validated)
             formatted (tool-system/format-results comment-tool result)
             file-content (slurp file-path)]
-        
+
         ;; Validate MCP result format
         (validate-mcp-result formatted false #(str/includes? % "comment"))
-        
+
         ;; Specific test for this tool
         (is (= (:result formatted) [(:diff result)]) "Result should contain the diff")
-        
+
         ;; Validate file was actually modified
         (is (str/includes? file-content "Updated test comment") "New comment should be in the file")
         (is (str/includes? file-content "with multiple lines") "Comment should have multiple lines")
@@ -369,15 +398,15 @@
             formatted (tool-system/format-results structure-tool result)
             outline (first (:result formatted))
             _ (println "Outline content:" outline)] ;; Add debugging
-        
+
         ;; Validate MCP result format
         (validate-mcp-result formatted false #(and (str/includes? % "(ns test.core)")
                                                    (str/includes? % "example-fn")))
-        
+
         ;; Specific test for this tool
         (is (= (:result formatted) (:result result)) "Result should match expected structure")
         (is (string? outline) "Outline should be a string")
-        
+
         ;; Validate outline content
         (is (str/includes? outline "(ns test.core)") "Namespace should be included")
         ;; Update expectation - file has [x y] not [x]
@@ -385,11 +414,11 @@
         (is (str/includes? outline "(def a ...)") "Vars should be collapsed")
         (is (str/includes? outline "(comment") "Comments should be included")
         (is (not (str/includes? outline "(+ x y)")) "Function body should be collapsed")
-        
+
         ;; Validate uneval forms are handled properly
         (is (not (str/includes? outline "#_(println \"debug value:\"")) "Uneval form in function should be excluded")
         (is (not (str/includes? outline "unused-value")) "Top-level uneval form should be excluded")))
-    
+
     (testing "File structure tool handles existing but invalid paths correctly"
       (let [;; Using a file path that exists but is not a valid Clojure file
             invalid-file-path (str (.getAbsolutePath *test-dir*) "/invalid_clojure.xyz")
@@ -398,13 +427,13 @@
             validated (tool-system/validate-inputs structure-tool inputs)
             result (tool-system/execute-tool structure-tool validated)
             formatted (tool-system/format-results structure-tool result)]
-        
+
         ;; Validate MCP result format - should return an error
         (validate-mcp-result formatted true #(str/includes? % "Error"))
-        
+
         ;; Clean up test file
         (io/delete-file invalid-file-path true)))
-    
+
     (testing "File structure tool handles files that cause unsupported operations"
       ;; Create a file that will trigger an "unsupported operation" error when processed
       (let [test-file-path (str (.getAbsolutePath *test-dir*) "/unsupported.clj")
@@ -438,11 +467,11 @@
             validated (tool-system/validate-inputs structure-tool inputs)
             result (tool-system/execute-tool structure-tool validated)
             formatted (tool-system/format-results structure-tool result)]
-        
+
         ;; Validate MCP result format - should be a properly formatted error
         (validate-mcp-result formatted true #(or (str/includes? % "unsupported operation")
                                                  (str/includes? % "Error generating")))
-        
+
         ;; Clean up test file
         (io/delete-file test-file-path true)))))
 
@@ -470,102 +499,102 @@
 
           ;; Validate MCP result format
           (validate-mcp-result formatted false #(str/includes? % "defmethod"))
-          
+
           ;; Validate file was actually modified
           (is (str/includes? file-content "Updated implementation") "New implementation comment should be in the file")
           (is (str/includes? file-content "(let [w (:width rect)") "New implementation code should be in the file")
           (is (not (str/includes? file-content "(* (:width rect) (:height rect))")) "Old implementation should be removed"))
 
-      (testing "Can update defmethod with multimethod name and dispatch value"
-        (let [inputs {:file_path file-path
-                      :form_name "area :circle" ;; Compound name with dispatch value
-                      :form_type "defmethod"
-                      :content "(defmethod area :circle [circle]\n  ;; Updated circle implementation\n  (let [r (:radius circle)]\n    (* Math/PI r r)))"}
-              validated (tool-system/validate-inputs replace-tool inputs)
-              result (tool-system/execute-tool replace-tool validated)
-              formatted (tool-system/format-results replace-tool result)
-              file-content (slurp file-path)]
+        (testing "Can update defmethod with multimethod name and dispatch value"
+          (let [inputs {:file_path file-path
+                        :form_name "area :circle" ;; Compound name with dispatch value
+                        :form_type "defmethod"
+                        :content "(defmethod area :circle [circle]\n  ;; Updated circle implementation\n  (let [r (:radius circle)]\n    (* Math/PI r r)))"}
+                validated (tool-system/validate-inputs replace-tool inputs)
+                result (tool-system/execute-tool replace-tool validated)
+                formatted (tool-system/format-results replace-tool result)
+                file-content (slurp file-path)]
 
           ;; Validate MCP result format
-          (validate-mcp-result formatted false #(and (str/includes? % "defmethod") 
-                                                   (str/includes? % ":circle")))
-          
-          ;; Validate file was actually modified
-          (is (str/includes? file-content "Updated circle implementation") "New implementation comment should be in the file")
-          (is (str/includes? file-content "(let [r (:radius circle)]") "New implementation code should be in the file")
-          (is (not (str/includes? file-content "(* Math/PI (:radius circle) (:radius circle))")) "Old implementation should be removed"))
+            (validate-mcp-result formatted false #(and (str/includes? % "defmethod")
+                                                       (str/includes? % ":circle")))
 
-      (testing "Inserting new defmethod implementation"
-        (let [inputs {:file_path file-path
-                      :form_name "area :circle" ;; Insert after circle implementation
-                      :form_type "defmethod"
-                      :content "(defmethod area :triangle [triangle]\n  (* 0.5 (:base triangle) (:height triangle)))"}
-              before-tool (sut/create-edit-insert-after-form-tool client-atom)
-              validated (tool-system/validate-inputs before-tool inputs)
-              result (tool-system/execute-tool before-tool validated)
-              formatted (tool-system/format-results before-tool result)
-              file-content (slurp file-path)]
+          ;; Validate file was actually modified
+            (is (str/includes? file-content "Updated circle implementation") "New implementation comment should be in the file")
+            (is (str/includes? file-content "(let [r (:radius circle)]") "New implementation code should be in the file")
+            (is (not (str/includes? file-content "(* Math/PI (:radius circle) (:radius circle))")) "Old implementation should be removed"))
+
+          (testing "Inserting new defmethod implementation"
+            (let [inputs {:file_path file-path
+                          :form_name "area :circle" ;; Insert after circle implementation
+                          :form_type "defmethod"
+                          :content "(defmethod area :triangle [triangle]\n  (* 0.5 (:base triangle) (:height triangle)))"}
+                  before-tool (sut/create-edit-insert-after-form-tool client-atom)
+                  validated (tool-system/validate-inputs before-tool inputs)
+                  result (tool-system/execute-tool before-tool validated)
+                  formatted (tool-system/format-results before-tool result)
+                  file-content (slurp file-path)]
 
           ;; Validate MCP result format
-          (validate-mcp-result formatted false #(and (str/includes? % "defmethod") 
-                                                   (str/includes? % ":triangle")))
-          
+              (validate-mcp-result formatted false #(and (str/includes? % "defmethod")
+                                                         (str/includes? % ":triangle")))
+
           ;; Validate file was actually modified
-          (is (str/includes? file-content "area :triangle") "New triangle method should be in the file")
-          (is (str/includes? file-content "(* 0.5 (:base triangle) (:height triangle))") "Triangle implementation should be in the file"))))))
+              (is (str/includes? file-content "area :triangle") "New triangle method should be in the file")
+              (is (str/includes? file-content "(* 0.5 (:base triangle) (:height triangle))") "Triangle implementation should be in the file"))))))
 
 ;; Tool-fn tests through the callback interface
-(deftest tool-fn-test
-  (testing "Tool-fn works with callbacks"
-    (let [client-atom *client-atom*
-          replace-reg (sut/top-level-form-edit-tool client-atom)
-          replace-fn (:tool-fn replace-reg)
-          [p1 cb1] (make-callback)
+    (deftest tool-fn-test
+      (testing "Tool-fn works with callbacks"
+        (let [client-atom *client-atom*
+              replace-reg (sut/top-level-form-edit-tool client-atom)
+              replace-fn (:tool-fn replace-reg)
+              [p1 cb1] (make-callback)
 
-          comment-reg (sut/comment-block-edit-tool client-atom)
-          comment-fn (:tool-fn comment-reg)
-          [p2 cb2] (make-callback)
+              comment-reg (sut/comment-block-edit-tool client-atom)
+              comment-fn (:tool-fn comment-reg)
+              [p2 cb2] (make-callback)
 
-          structure-reg (sut/clojure-file-outline-tool client-atom)
-          structure-fn (:tool-fn structure-reg)
-          [p3 cb3] (make-callback)]
+              structure-reg (sut/clojure-file-outline-tool client-atom)
+              structure-fn (:tool-fn structure-reg)
+              [p3 cb3] (make-callback)]
 
-      (testing "Replace form tool works via callback"
-        (replace-fn nil
-                    {"file_path" (get-file-path)
-                     "form_name" "example-fn"
-                     "form_type" "defn"
-                     "content" "(defn example-fn [x]\n  (str \"result: \" (* x 3)))"}
-                    cb1)
-        (let [result @p1]
+          (testing "Replace form tool works via callback"
+            (replace-fn nil
+                        {"file_path" (get-file-path)
+                         "form_name" "example-fn"
+                         "form_type" "defn"
+                         "content" "(defn example-fn [x]\n  (str \"result: \" (* x 3)))"}
+                        cb1)
+            (let [result @p1]
           ;; Validate MCP response format
-          (validate-mcp-result result)
+              (validate-mcp-result result)
           ;; Verify the actual file modification
-          (is (str/includes? (slurp (get-file-path)) "(str \"result: \" (* x 3))") 
-              "The file should contain the updated function implementation")))
+              (is (str/includes? (slurp (get-file-path)) "(str \"result: \" (* x 3))")
+                  "The file should contain the updated function implementation")))
 
-      (testing "Comment tool works via callback"
-        (comment-fn nil
-                    {"file_path" (get-file-path)
-                     "comment_substring" "(example-fn"
-                     "new_content" "(comment\n  (example-fn 10 20))"}
-                    cb2)
-        (let [result @p2]
+          (testing "Comment tool works via callback"
+            (comment-fn nil
+                        {"file_path" (get-file-path)
+                         "comment_substring" "(example-fn"
+                         "new_content" "(comment\n  (example-fn 10 20))"}
+                        cb2)
+            (let [result @p2]
           ;; Validate MCP response format
-          (validate-mcp-result result)
+              (validate-mcp-result result)
           ;; Verify the actual file modification
-          (is (str/includes? (slurp (get-file-path)) "(example-fn 10 20)")
-              "The file should contain the updated comment")))
+              (is (str/includes? (slurp (get-file-path)) "(example-fn 10 20)")
+                  "The file should contain the updated comment")))
 
-      (testing "Structure tool works via callback"
-        (structure-fn nil
-                      {"file_path" (get-file-path)}
-                      cb3)
-        (let [result @p3
-              outline (first (:result result))]
+          (testing "Structure tool works via callback"
+            (structure-fn nil
+                          {"file_path" (get-file-path)}
+                          cb3)
+            (let [result @p3
+                  outline (first (:result result))]
           ;; Validate MCP response format
-          (validate-mcp-result result)
+              (validate-mcp-result result)
           ;; Verify the outline content
-          (is (string? outline) "The outline should be a string")
-          (is (str/includes? outline "(ns test.core)") "The outline should include the namespace")
-          (is (str/includes? outline "(defn example-fn") "The outline should include function signatures"))))))))
+              (is (string? outline) "The outline should be a string")
+              (is (str/includes? outline "(ns test.core)") "The outline should include the namespace")
+              (is (str/includes? outline "(defn example-fn") "The outline should include function signatures"))))))))

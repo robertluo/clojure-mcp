@@ -11,7 +11,8 @@
    [clojure-mcp.tools.form-edit.pipeline :as pipeline]
    [clojure-mcp.repl-tools.utils :as utils]
    [clojure.string :as str]
-   [rewrite-clj.parser :as p]))
+   [rewrite-clj.parser :as p]
+   [rewrite-clj.node :as n]))
 
 ;; Factory functions to create the tool configurations
 
@@ -520,9 +521,13 @@ The tool returns a diff showing the changes made to the file.")
 
     ;; Special handling for empty string
     (when-not (str/blank? match_form)
-      ;; Validate that match_form is valid Clojure code
+      ;; Validate that match_form is valid Clojure code and contains only one expression
       (try
-        (p/parse-string match_form)
+        (let [all-forms (p/parse-string-all match_form)
+              form-count (count (n/children all-forms))]
+          (when (> form-count 1)
+            (throw (ex-info (str "match_form must contain only a single s-expression. Found " form-count " forms. Use just one form like '(+ x y)'.")
+                            {:inputs inputs}))))
         (catch Exception e
           (throw (ex-info (str "Invalid Clojure code in match_form: " (.getMessage e))
                           {:inputs inputs})))))
