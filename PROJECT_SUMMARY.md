@@ -322,6 +322,46 @@ When developing with this tool:
 6. **Access documentation**: Use resource URLs to access project documentation when needed
 7. **File access**: Use filesystem tools to navigate and read code files when needed
 
+### Best Practices for Effective Tool Usage
+
+#### Project Navigation and Exploration
+- Use `fs_directory_tree` for a quick overview of project structure
+- Use `glob_files` with pattern "**/*.clj" to find all Clojure files
+- Use `fs_grep` to search for functions, vars or namespaces by name
+- Use `clojure_inspect_project` to understand dependencies and namespaces
+- Examine imports in existing files to understand namespace conventions
+
+#### Code Evaluation and Development
+- Start REPL exploration with `current_namespace` to know where you are
+- Use `clojure_eval` with small, focused expressions to test ideas
+- Verify functions in isolation before using them in larger contexts
+- Test boundary cases and error conditions explicitly
+- When evaluating forms from files, use require with `:reload` to ensure you have the latest code
+
+#### Form Editing Strategy 
+- Choose the right tool for the job:
+  - Use `clojure_edit_replace_definition` for complete function rewrites
+  - Use `clojure_edit_replace_sexp` for targeted expression changes 
+  - Use `clojure_edit_replace_docstring` for documentation updates
+  - Use `clojure_edit_replace_comment_block` for comment changes
+- Break complex edits into a series of smaller, focused changes
+- Validate file edits by evaluating the updated code afterward
+- Use `replace_all: true` sparingly and with caution
+- Handle tool errors by examining error messages and fixing the underlying issues
+
+#### Working with defmethod Forms
+- For specific implementations, use form_name with dispatch value: "my-multi :circle"
+- For general method edits, use just the method name: "my-multi"
+- Remember that dispatch values can be any Clojure data type (keywords, strings, vectors, etc.)
+- Add proper typehints when working with Java interop defmethods
+
+#### Debugging and Error Handling
+- Read tool error messages carefully - they're designed to be informative
+- Test code in the REPL before saving to catch syntax errors early
+- Use the `clojure_file_structure` tool to verify file structure after complex edits
+- When code doesn't work as expected, break it down into smaller pieces for debugging
+- Remember that the tool pipelines short-circuit on errors, so fix the first reported issue first
+
 ## Code Style Guidelines
 - **Imports**: Use `:require` with ns aliases (e.g., `[clojure.string :as string]`)
 - **Naming**: Use kebab-case for vars/functions; end predicates with `?` (e.g., `is-top-level-form?`)
@@ -441,6 +481,30 @@ To extend this project:
   {:result ["Output string 1", "Output string 2", ...]
    :error false}
   ```
+
+### Form Editing Tool Validation Requirements
+
+The form editing tools have specific validation requirements to ensure correct usage:
+
+#### clojure_edit_replace_form, clojure_edit_insert_before_form, clojure_edit_insert_after_form, clojure_edit_replace_docstring
+- The `form_type` parameter cannot be "comment"
+- Use `clojure_edit_replace_comment_block` for comment editing instead
+- The validation happens in the `validate-form-type` function in `form_edit/pipeline.clj`
+- This prevents misuse of form editing tools on comment forms which have special syntax rules
+
+#### clojure_edit_replace_sexp
+- The `match_form` parameter must contain only a single s-expression
+- Multiple expressions like `(+ x 1) (- y 2)` will be rejected
+- Validation is done by parsing the string with `parse-string-all` and checking the child node count
+- Uses the rewrite-clj library to properly handle Clojure's syntax
+- Provides a clear error message directing users to simplify their match form
+
+#### All Form Editing Tools
+- Verify file paths are within allowed directories
+- Check for required parameters and throw helpful error messages when missing
+- For defmethod forms, handle both simple method names and method names with dispatch values
+- Uses pipeline approach to short-circuit on first validation error
+- All errors are properly formatted into the MCP result format with explanatory messages
 
 ## Project Goals
 

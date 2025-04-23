@@ -61,3 +61,48 @@
 - For testing builds and tasks, run `clojure -X:test` instead of running tests piecemeal
 - When capturing shell output, remember it may be truncated for very large outputs
 - Consider using shell commands for tasks that have mature CLI tools like diffing or git operations
+
+### Output and Debugging
+- Avoid using `println`, `prn`, or any printing functions in production code as this is a server operating on stdin/stdout
+- For debugging, wrap printing statements with a comment macro `#_` that can be easily toggled
+
+### Using Form Editing Tools
+
+- **Form Type Selection**:
+  - Use correct form types for editing: "defn", "def", "ns", "defmacro", "defmethod"
+  - Avoid using "comment" as a form type - use `clojure_edit_replace_comment_block` for comment editing
+  - Be specific with defmethod forms by including dispatch values when targeting specific implementations: "my-multi :default"
+
+- **s-expression Replacement**:
+  - When using `clojure_edit_replace_sexp`, ensure match_form contains only a single s-expression
+  - Complex form refactoring should be broken down into multiple focused s-expression replacements
+  - Use whitespace_sensitive=true when precise formatting matters
+
+- **Error Handling**:
+  - Always verify file and form existence before attempting edits
+  - Handle editing failures gracefully by checking the error state of tool responses
+  - Prefer to evaluate a form after editing to verify it's syntactically correct
+
+### REPL-Driven Development
+
+- **Incremental Development**:
+  - Build solutions step-by-step, evaluating code in small units
+  - Start with small examples, then expand and generalize
+  - Test boundary conditions early with the REPL before committing to files
+
+- **Verification Workflow**:
+  1. Develop and test code in REPL first
+  2. Save working code to file once verified
+  3. Re-evaluate the saved code to ensure it works in its new context
+  4. Only then proceed to the next development step
+
+- **Dependency Management**:
+  - Verify available libraries with `clojure_inspect_project` before assuming imports
+  - Check for aliases and preferred namespace conventions in existing code
+  - When adding new dependencies, ensure they are added to deps.edn
+
+- **Context Maintenance**:
+  - Use `clojure_eval` with `:reload` to ensure you're working with the latest code
+  - Maintain awareness of the current namespace with `current_namespace`
+  - Keep function and namespace references fully qualified when crossing namespace boundaries
+
