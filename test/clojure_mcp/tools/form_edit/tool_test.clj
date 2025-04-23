@@ -132,7 +132,7 @@
         (is (= "clojure_edit_insert_before_definition" (tool-system/tool-name before-tool)))
         (is (= "clojure_edit_replace_docstring" (tool-system/tool-name docstring-tool)))
         (is (= "clojure_edit_replace_comment_block" (tool-system/tool-name comment-tool)))
-        (is (= "clojure_file_structure" (tool-system/tool-name structure-tool))))
+        (is (= "clojure_read_file" (tool-system/tool-name structure-tool))))
 
       (testing "Tool descriptions are not empty"
         (is (string? (tool-system/tool-description replace-tool)))
