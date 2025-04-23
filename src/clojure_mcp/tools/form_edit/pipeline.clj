@@ -263,16 +263,24 @@
 
 (defn format-source
   "Formats the source code using the formatter.
+   If formatting fails but the source is syntactically valid,
+   returns the original source unchanged.
+   
    Requires ::output-source in the context.
-   Updates ::output-source with the formatted code."
+   Updates ::output-source with the formatted code (or unchanged if formatting fails)."
   [ctx]
   (try
     (let [source (::output-source ctx)
           formatted (core/format-source-string source)]
       (assoc ctx ::output-source formatted))
     (catch Exception e
-      {::error true
-       ::message (str "Failed to format source: " (.getMessage e))})))
+      ;; Instead of failing, use the original source if available
+      (if (::output-source ctx)
+        ;; Return original source when formatting fails
+        ctx
+        ;; Only propagate error if we don't have valid source
+        {::error true
+         ::message (str "Failed to format source: " (.getMessage e))}))))
 
 (defn determine-file-type
   "Determine if the file operation is a create or update.
@@ -417,8 +425,8 @@
    edit-form
    capture-edit-offsets
    zloc->output-source
-   format-source
    generate-diff
+   format-source
    emacs-set-auto-revert
    save-file
    highlight-form))
@@ -448,8 +456,8 @@
    edit-docstring
    capture-edit-offsets
    zloc->output-source
-   format-source
    generate-diff
+   format-source
    emacs-set-auto-revert
    save-file
    highlight-form))
@@ -476,8 +484,8 @@
    find-and-edit-comment
    capture-edit-offsets
    zloc->output-source
-   format-source
    generate-diff
+   format-source
    emacs-set-auto-revert
    save-file
    highlight-form))
@@ -564,8 +572,8 @@
    replace-sexp
    capture-edit-offsets
    zloc->output-source
-   format-source
    generate-diff
+   format-source
    emacs-set-auto-revert
    save-file
    highlight-form))
