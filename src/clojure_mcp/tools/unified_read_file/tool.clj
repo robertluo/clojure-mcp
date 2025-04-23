@@ -121,15 +121,15 @@ This unified tool combines the functionality of fs_read_file and clojure_read_fi
            :expand-symbols expand_symbols
            :error false})
         (catch Exception e
-          {:mode :clojure
-           :error true
+          ;; Don't use :mode :clojure for errors
+          {:error true
            :message (.getMessage e)}))
 
       ;; Use raw file reading
       (let [result (read-file-core/read-file path line_offset limit-val :max-line-length max-line-length)]
         (if (:error result)
-          {:mode :raw
-           :error true
+          ;; Don't use :mode for errors
+          {:error true
            :message (:error result)}
           (assoc result :mode :raw))))))
 
@@ -189,7 +189,7 @@ This unified tool combines the functionality of fs_read_file and clojure_read_fi
 
 (defmethod tool-system/format-results :unified-read-file [{:keys [max-lines]} result]
   (if (:error result)
-    ;; If there's an error, return it with error flag true
+    ;; If there's an error, return it directly without XML wrapping
     {:result [(or (:message result) "Unknown error")]
      :error true}
     ;; Format based on the mode
