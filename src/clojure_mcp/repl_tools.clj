@@ -15,13 +15,17 @@
    [clojure-mcp.tools.project.tool :as new-project-tool]
    [clojure-mcp.tools.move-file.tool :as new-move-file-tool]
    [clojure-mcp.tools.create-directory.tool :as new-create-directory-tool]
-   [clojure-mcp.tools.file-edit.tool :as new-file-edit-tool]))
+   [clojure-mcp.tools.file-edit.tool :as new-file-edit-tool]
+   [clojure-mcp.tools.unified-read-file.tool :as new-unified-read-file-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
   "Returns a list of all defined tools for registration with the MCP server."
   [nrepl-client-atom]
-  [(new-directory-tree-tool/directory-tree-tool nrepl-client-atom)
+  [;; Add the unified read file tool before the read-file-tool to override it
+   (new-unified-read-file-tool/unified-read-file-tool nrepl-client-atom)
+
+   (new-directory-tree-tool/directory-tree-tool nrepl-client-atom)
    (new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)
 
    (new-eval-tool/eval-code nrepl-client-atom)
@@ -33,20 +37,24 @@
    (new-symbol-tool/symbol-documentation-tool nrepl-client-atom)
    (new-symbol-tool/source-code-tool nrepl-client-atom)
    (new-symbol-tool/symbol-search-tool nrepl-client-atom)
-   
+
    (new-form-edit-tool/top-level-form-edit-tool nrepl-client-atom)
    (new-form-edit-tool/top-level-form-insert-before-tool nrepl-client-atom)
    (new-form-edit-tool/top-level-form-insert-after-tool nrepl-client-atom)
-   (new-form-edit-tool/sexp-replace-tool nrepl-client-atom)   
+   (new-form-edit-tool/sexp-replace-tool nrepl-client-atom)
    (new-form-edit-tool/docstring-edit-tool nrepl-client-atom)
    (new-form-edit-tool/comment-block-edit-tool nrepl-client-atom)
-   
+
    (new-project-tool/inspect-project-tool nrepl-client-atom)
-   
+
    (new-move-file-tool/move-file-tool nrepl-client-atom)
    (new-create-directory-tool/create-directory-tool-registration nrepl-client-atom)
    (new-file-edit-tool/file-edit-tool nrepl-client-atom)
+
+   ;; Keep the original tools for backward compatibility but they'll be hidden
+   ;; by the unified tool since it has the same name "read_file"
    (new-read-file-tool/read-file-tool nrepl-client-atom)
+
    (new-grep-tool/grep-tool nrepl-client-atom)
    (new-glob-files-tool/glob-files-tool nrepl-client-atom)
    (new-file-write-tool/file-write-tool nrepl-client-atom)
@@ -75,6 +83,7 @@
   (def docstring-tester (make-test-tool (new-form-edit-tool/docstring-edit-tool client-atom)))
   (def comment-tester (make-test-tool (new-form-edit-tool/comment-block-edit-tool client-atom)))
   (def outline-tester (make-test-tool (new-form-edit-tool/clojure-file-outline-tool client-atom)))
+  (def unified-read-tester (make-test-tool (new-unified-read-file-tool/unified-read-file-tool client-atom)))
 
   ;; Example usage of new form editing tools
   (edit-tester {"file_path" "/path/to/file.clj"
@@ -91,4 +100,24 @@
                    "comment_substring" "TODO"
                    "new_content" ";; DONE: implemented feature"})
 
-  (outline-tester {"file_path" "/path/to/file.clj"}))
+  (outline-tester {"file_path" "/path/to/file.clj"})
+
+  ;; Example usage of unified read file tool
+  ;; Reading a Clojure file with intelligent structure awareness
+  (unified-read-tester {"path" "/path/to/source.clj"})
+
+  ;; Reading a Clojure file with specific functions expanded
+  (unified-read-tester {"path" "/path/to/source.clj"
+                        "expand_symbols" ["my-function" "another-function"]})
+
+  ;; Reading a non-Clojure file with raw content
+  (unified-read-tester {"path" "/path/to/config.json"})
+
+  ;; Forcing raw mode for a Clojure file
+  (unified-read-tester {"path" "/path/to/source.clj"
+                        "clojure_mode" "off"})
+
+  ;; Reading part of a file with line offset and limit
+  (unified-read-tester {"path" "/path/to/log.txt"
+                        "line_offset" 100
+                        "limit" 50}))
