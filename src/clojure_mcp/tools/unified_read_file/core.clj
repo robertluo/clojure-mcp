@@ -41,8 +41,14 @@
     (if use-clojure-mode
       ;; Use Clojure-aware file reading
       (try
-        {:result [(form-edit-core/generate-collapsed-file-view path expand-symbols)]
-         :error false}
+        (let [collapsed-view (form-edit-core/generate-collapsed-file-view path expand-symbols)
+              notice (str "/* This is a collapsed view of the Clojure file. Functions are shown with only their signatures.\n"
+                          " * To view specific functions in full, add them to the 'expand_symbols' parameter.\n"
+                          " * Example: {\"path\": \"" path "\", \"expand_symbols\": [\"function-name\"]}\n"
+                          " * To view the entire file as raw text, use: {\"path\": \"" path "\", \"clojure_mode\": \"off\"}\n"
+                          " */\n\n")]
+          {:result [(str notice collapsed-view)]
+           :error false})
         (catch Exception e
           {:result [(str "Error generating Clojure file view: " (.getMessage e))]
            :error true}))

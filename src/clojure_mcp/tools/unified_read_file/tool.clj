@@ -37,6 +37,7 @@
 For Clojure files (.clj, .cljc, .cljs):
 - Shows a collapsed view with function signatures by default
 - Can display complete implementations of specified functions
+- Includes helpful notice explaining how to expand specific functions or view raw content
 
 For all other file types:
 - Shows raw file contents with optional line limits and offsets
