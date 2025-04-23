@@ -80,17 +80,12 @@
   [ctx]
   (let [file-path (::form-pipeline/file-path ctx)
         output-source (::form-pipeline/output-source ctx)]
-    ;; Only format Clojure files
     (if (and (file-write-core/is-clojure-file? file-path) output-source)
       (try
-        ;; Use the same formatting function from form-edit.core
         (let [formatted-source (form-edit-core/format-source-string output-source)]
           (assoc ctx ::form-pipeline/output-source formatted-source))
         (catch Exception e
-          ;; If formatting fails, just continue with unformatted source
-          (println "Warning: Failed to format Clojure file -" (.getMessage e))
           ctx))
-      ;; Not a Clojure file, return unchanged
       ctx)))
 
 ;; Define our file edit pipeline function that composes steps from form-edit pipeline and our own
