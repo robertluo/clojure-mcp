@@ -57,6 +57,19 @@
       (is (= "Error" (::sut/message result)))
       (is (nil? (:c result)) "Should not have run the third function"))))
 
+(deftest validate-form-type-test
+  (testing "validate-form-type allows regular form types"
+    (let [ctx {::sut/top-level-def-type "defn"}
+          result (sut/validate-form-type ctx)]
+      (is (= ctx result))))
+
+  (testing "validate-form-type rejects 'comment' form type"
+    (let [ctx {::sut/top-level-def-type "comment"}
+          result (sut/validate-form-type ctx)]
+      (is (true? (::sut/error result)))
+      (is (string? (::sut/message result)))
+      (is (str/includes? (::sut/message result) "not supported for definition editing")))))
+
 (deftest load-source-test
   (testing "load-source loads file content"
     (let [ctx {::sut/file-path (get-file-path)}
@@ -230,6 +243,20 @@
       (is (not (str/includes? file-content "(+ x y)"))
           "Original implementation should be replaced"))))
 
+(deftest edit-form-pipeline-comment-validation-test
+  (testing "edit-form-pipeline rejects comment form type"
+    (let [file-path (get-file-path)
+          pipeline-result (sut/edit-form-pipeline
+                           file-path
+                           "test-comment"
+                           "comment"
+                           "(comment some test comment)"
+                           :replace)]
+      (is (true? (::sut/error pipeline-result)))
+      (is (string? (::sut/message pipeline-result)))
+      (is (str/includes? (::sut/message pipeline-result) "not supported for definition editing"))
+      (is (str/includes? (::sut/message pipeline-result) "clojure_edit_replace_comment_block")))))
+
 (deftest docstring-edit-pipeline-test
   (testing "docstring-edit-pipeline updates docstring"
     (let [file-path (get-file-path)
@@ -247,6 +274,19 @@
           "File should contain updated docstring")
       (is (not (str/includes? file-content "Original docstring"))
           "Original docstring should be replaced"))))
+
+(deftest docstring-edit-pipeline-comment-validation-test
+  (testing "docstring-edit-pipeline rejects comment form type"
+    (let [file-path (get-file-path)
+          pipeline-result (sut/docstring-edit-pipeline
+                           file-path
+                           "test-comment"
+                           "comment"
+                           "Updated docstring")]
+      (is (true? (::sut/error pipeline-result)))
+      (is (string? (::sut/message pipeline-result)))
+      (is (str/includes? (::sut/message pipeline-result) "not supported for definition editing"))
+      (is (str/includes? (::sut/message pipeline-result) "clojure_edit_replace_comment_block")))))
 
 (deftest comment-block-edit-pipeline-test
   (testing "comment-block-edit-pipeline edits line comment"

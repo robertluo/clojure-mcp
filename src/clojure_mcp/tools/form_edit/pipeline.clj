@@ -150,6 +150,23 @@
       (println "Warning: Failed to capture edit offsets -" (.getMessage e))
       ctx)))
 
+(defn validate-form-type
+  "Validates that the form type is supported for the operation.
+   Returns the context unchanged if valid, or error context if invalid.
+   
+   Arguments:
+   - ctx: Context map containing ::top-level-def-type
+   
+   Returns:
+   - Updated context with error information if form type is not supported"
+  [ctx]
+  (let [form-type (::top-level-def-type ctx)]
+    (if (= form-type "comment")
+      {::error true
+       ::message (str "Form type 'comment' is not supported for definition editing. "
+                      "Please use 'clojure_edit_replace_comment_block' for editing comment blocks.")}
+      ctx)))
+
 (defn find-form
   "Finds a top-level form in the source code.
    Requires ::zloc, ::top-level-def-type, and ::top-level-def-name in the context.
@@ -419,6 +436,7 @@
    lint-code
    determine-file-type
    load-source
+   validate-form-type
    enhance-defmethod-name
    parse-source
    find-form
@@ -452,6 +470,7 @@
     ::config config}
    determine-file-type
    load-source
+   validate-form-type
    parse-source
    edit-docstring
    capture-edit-offsets
