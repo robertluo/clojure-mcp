@@ -494,9 +494,9 @@
               ;; Skip excluded forms
               (recur next-loc forms))))))
     (catch java.io.FileNotFoundException _
-      (str "Error: File not found: " file-path))
+      (throw (ex-info (str "Error: File not found: " file-path) {:file-path file-path})))
     (catch Exception e
-      (str "Error generating file view: " (.getMessage e)))))
+      (throw (ex-info (str "Error generating file view: " (.getMessage e)) {} e)))))
 
 ;; Source code formatting
 

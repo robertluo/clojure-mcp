@@ -23,19 +23,21 @@
   "Returns a list of all defined tools for registration with the MCP server."
   [nrepl-client-atom]
   [;; Add the unified read file tool before the read-file-tool to override it
-   (new-unified-read-file-tool/unified-read-file-tool nrepl-client-atom)
+
 
    (new-directory-tree-tool/directory-tree-tool nrepl-client-atom)
-   (new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)
 
+   (new-unified-read-file-tool/unified-read-file-tool nrepl-client-atom)
+   #_(new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)
+   #_(new-read-file-tool/read-file-tool nrepl-client-atom)
    (new-eval-tool/eval-code nrepl-client-atom)
-   (new-namespace-tool/current-namespace-tool nrepl-client-atom)
-   (new-namespace-tool/list-namespaces-tool nrepl-client-atom)
-   (new-namespace-tool/list-vars-in-namespace-tool nrepl-client-atom)
-   (new-symbol-tool/symbol-completions-tool nrepl-client-atom)
-   (new-symbol-tool/symbol-metadata-tool nrepl-client-atom)
-   (new-symbol-tool/symbol-documentation-tool nrepl-client-atom)
-   (new-symbol-tool/source-code-tool nrepl-client-atom)
+   #_(new-namespace-tool/current-namespace-tool nrepl-client-atom)
+   #_(new-namespace-tool/list-namespaces-tool nrepl-client-atom)
+   #_(new-namespace-tool/list-vars-in-namespace-tool nrepl-client-atom)
+   #_(new-symbol-tool/symbol-completions-tool nrepl-client-atom)
+   #_(new-symbol-tool/symbol-metadata-tool nrepl-client-atom)
+   #_(new-symbol-tool/symbol-documentation-tool nrepl-client-atom)
+   #_(new-symbol-tool/source-code-tool nrepl-client-atom)
    (new-symbol-tool/symbol-search-tool nrepl-client-atom)
 
    (new-form-edit-tool/top-level-form-edit-tool nrepl-client-atom)
@@ -53,7 +55,7 @@
 
    ;; Keep the original tools for backward compatibility but they'll be hidden
    ;; by the unified tool since it has the same name "read_file"
-   (new-read-file-tool/read-file-tool nrepl-client-atom)
+
 
    (new-grep-tool/grep-tool nrepl-client-atom)
    (new-glob-files-tool/glob-files-tool nrepl-client-atom)
