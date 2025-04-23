@@ -295,11 +295,9 @@
    
    Returns:
    - Updated context with ::diff added"
-  [{:keys [::old-content ::output-source ::zloc] :as ctx}]
+  [{:keys [::old-content ::output-source] :as ctx}]
   (let [old-content (or old-content "")
-        new-content (or output-source
-                        (and zloc (z/root-string zloc))
-                        "")
+        new-content (or output-source "")
         diff (if (= old-content new-content)
                "" ;; No diff if content is identical
                (try
