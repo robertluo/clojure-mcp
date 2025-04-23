@@ -255,8 +255,9 @@
                       "(require 'clojure.repl)"
                       "(require 'nrepl.util.print)")
                      identity)
-    (nrepl/eval-code nrepl-client (slurp (io/resource "repl_helpers.clj"))
-                     identity)
+    (nrepl/tool-eval-code nrepl-client (slurp (io/resource "repl_helpers.clj")))
+    (nrepl/tool-eval-code nrepl-client "(in-ns 'user)")
+    
     (let [user-dir (try
                      (edn/read-string
                       (nrepl/tool-eval-code
