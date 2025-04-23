@@ -21,13 +21,10 @@
 (defn get-all-tools
   "Returns a list of all defined tools for registration with the MCP server."
   [nrepl-client-atom]
-  [(new-eval-tool/eval-code nrepl-client-atom)
-   (new-read-file-tool/read-file-tool nrepl-client-atom)
-   (new-directory-tree-tool/directory-tree-tool nrepl-client-atom)
-   (new-grep-tool/grep-tool nrepl-client-atom)
-   (new-glob-files-tool/glob-files-tool nrepl-client-atom)
-   (new-file-write-tool/file-write-tool nrepl-client-atom)
-   (new-list-directory-tool/list-directory-tool nrepl-client-atom)
+  [(new-directory-tree-tool/directory-tree-tool nrepl-client-atom)
+   (new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)
+
+   (new-eval-tool/eval-code nrepl-client-atom)
    (new-namespace-tool/current-namespace-tool nrepl-client-atom)
    (new-namespace-tool/list-namespaces-tool nrepl-client-atom)
    (new-namespace-tool/list-vars-in-namespace-tool nrepl-client-atom)
@@ -36,17 +33,24 @@
    (new-symbol-tool/symbol-documentation-tool nrepl-client-atom)
    (new-symbol-tool/source-code-tool nrepl-client-atom)
    (new-symbol-tool/symbol-search-tool nrepl-client-atom)
+   
    (new-form-edit-tool/top-level-form-edit-tool nrepl-client-atom)
    (new-form-edit-tool/top-level-form-insert-before-tool nrepl-client-atom)
    (new-form-edit-tool/top-level-form-insert-after-tool nrepl-client-atom)
+   (new-form-edit-tool/sexp-replace-tool nrepl-client-atom)   
    (new-form-edit-tool/docstring-edit-tool nrepl-client-atom)
    (new-form-edit-tool/comment-block-edit-tool nrepl-client-atom)
-   (new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)
-   (new-form-edit-tool/sexp-replace-tool nrepl-client-atom)
+   
    (new-project-tool/inspect-project-tool nrepl-client-atom)
+   
    (new-move-file-tool/move-file-tool nrepl-client-atom)
    (new-create-directory-tool/create-directory-tool-registration nrepl-client-atom)
-   (new-file-edit-tool/file-edit-tool nrepl-client-atom)])
+   (new-file-edit-tool/file-edit-tool nrepl-client-atom)
+   (new-read-file-tool/read-file-tool nrepl-client-atom)
+   (new-grep-tool/grep-tool nrepl-client-atom)
+   (new-glob-files-tool/glob-files-tool nrepl-client-atom)
+   (new-file-write-tool/file-write-tool nrepl-client-atom)
+   (new-list-directory-tool/list-directory-tool nrepl-client-atom)])
 
 (comment
   ;; Example of testing tools directly
