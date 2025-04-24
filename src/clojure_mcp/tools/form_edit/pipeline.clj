@@ -167,21 +167,39 @@
                       "Please use 'clojure_edit_replace_comment_block' for editing comment blocks.")}
       ctx)))
 
+(defn format-similar-matches
+  "Formats a list of similar matches into suggestion strings.
+   Each match should contain :tag, :form-name, and :qualified-name."
+  [similar-matches]
+  (when (seq similar-matches)
+    (->> similar-matches
+         (map (fn [{:keys [tag qualified-name]}]
+                (str "- (" tag " " qualified-name " ...")))
+         (str/join "\n")
+         (str "\nDid you mean one of these?\n"))))
+
 (defn find-form
   "Finds a top-level form in the source code.
    Requires ::zloc, ::top-level-def-type, and ::top-level-def-name in the context.
-   Updates ::zloc to point to the found form."
+   Updates ::zloc to point to the found form or returns an error with suggestions
+   if namesapced versions of the requested form are found."
   [ctx]
-  (let [form-zloc (core/find-top-level-form
-                   (::zloc ctx)
-                   (::top-level-def-type ctx)
-                   (::top-level-def-name ctx))]
+  (let [result (core/find-top-level-form
+                (::zloc ctx)
+                (::top-level-def-type ctx)
+                (::top-level-def-name ctx))
+        form-zloc (:zloc result)
+        similar-matches (:similar-matches result)]
     (if form-zloc
       (assoc ctx ::zloc form-zloc)
-      {::error true
-       ::message (str "Could not find form '" (::top-level-def-name ctx)
-                      "' of type '" (::top-level-def-type ctx)
-                      "' in file " (::file-path ctx))})))
+      (let [error-msg (str "Could not find form '" (::top-level-def-name ctx)
+                           "' of type '" (::top-level-def-type ctx)
+                           "' in file " (::file-path ctx))
+            suggestion-msg (format-similar-matches similar-matches)]
+        {::error true
+         ::message (if suggestion-msg
+                     (str error-msg suggestion-msg)
+                     error-msg)}))))
 
 (defn edit-form
   "Edits the form according to the specified edit type.
@@ -189,32 +207,44 @@
    ::new-source-code, and ::edit-type in the context.
    Updates ::zloc with the edited zipper."
   [ctx]
-  (let [updated-zloc (core/edit-top-level-form
-                      (::zloc ctx)
-                      (::top-level-def-type ctx)
-                      (::top-level-def-name ctx)
-                      (::new-source-code ctx)
-                      (::edit-type ctx))]
+  (let [result (core/edit-top-level-form
+                (::zloc ctx)
+                (::top-level-def-type ctx)
+                (::top-level-def-name ctx)
+                (::new-source-code ctx)
+                (::edit-type ctx))
+        updated-zloc (:zloc result)
+        similar-matches (:similar-matches result)]
     (if updated-zloc
       (assoc ctx ::zloc updated-zloc)
-      {::error true
-       ::message (str "Failed to " (name (::edit-type ctx)) " form.")})))
+      (let [error-msg (str "Failed to " (name (::edit-type ctx)) " form.")
+            suggestion-msg (format-similar-matches similar-matches)]
+        {::error true
+         ::message (if suggestion-msg
+                     (str error-msg suggestion-msg)
+                     error-msg)}))))
 
 (defn edit-docstring
   "Edits the docstring of a form.
    Requires ::zloc, ::top-level-def-type, ::top-level-def-name, and ::docstring in the context.
    Updates ::zloc with the edited zipper."
   [ctx]
-  (let [updated-zloc (core/edit-docstring
-                      (::zloc ctx)
-                      (::top-level-def-type ctx)
-                      (::top-level-def-name ctx)
-                      (::docstring ctx))]
+  (let [result (core/edit-docstring
+                (::zloc ctx)
+                (::top-level-def-type ctx)
+                (::top-level-def-name ctx)
+                (::docstring ctx))
+        updated-zloc (:zloc result)
+        similar-matches (:similar-matches result)]
     (if updated-zloc
       (assoc ctx ::zloc updated-zloc)
-      {::error true
-       ::message (str "Could not find or edit docstring for form '"
-                      (::top-level-def-name ctx) "'.")})))
+      (let [error-msg (str "Could not find or edit docstring for form '"
+                           (::top-level-def-name ctx) "'.")
+            suggestion-msg (format-similar-matches similar-matches)]
+        {::error true
+         ::message (if suggestion-msg
+                     (str error-msg suggestion-msg)
+                     error-msg)}))))
 
 (defn find-and-edit-comment
   "Finds and edits a comment block.

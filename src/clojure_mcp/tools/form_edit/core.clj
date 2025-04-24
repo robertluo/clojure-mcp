@@ -59,13 +59,38 @@
    - tag: The tag name as a string (e.g., \"defn\", \"def\", \"ns\")
    - dname: The name of the definition as a string
    
-   Returns the zipper location of the matched form, or nil if not found."
+   Returns a map with:
+   - :zloc - the zipper location of the matched form, or nil if not found
+   - :similar-matches - a vector of maps with {:form-name, :qualified-name, :tag} for potential namespace-qualified matches"
   [zloc tag dname]
-  (loop [loc zloc]
-    (cond
-      (nil? loc) nil
-      (is-top-level-form? loc tag dname) loc
-      :else (recur (z/right loc)))))
+  (let [similar-matches (atom [])]
+    (loop [loc zloc]
+      (cond
+        (nil? loc) {:zloc nil :similar-matches @similar-matches}
+
+        (is-top-level-form? loc tag dname)
+        {:zloc loc :similar-matches @similar-matches}
+
+        :else
+        (do
+          ;; Check for namespace-qualified form with matching unqualified name
+          (try
+            (let [sexpr (z/sexpr loc)]
+              (when (and (list? sexpr) (> (count sexpr) 1))
+                (let [form-tag (first sexpr)
+                      form-name (second sexpr)]
+                  ;; Check for forms where the tag's unqualified name matches our tag
+                  (when (and (symbol? form-tag)
+                             (symbol? form-name)
+                             (= (name form-tag) tag) ;; Tag's name part matches our tag
+                             (= (name form-name) dname)) ;; Form name's name part matches our name
+                    (swap! similar-matches conj
+                           {:form-name dname
+                            :qualified-name form-name
+                            :tag form-tag})))))
+            (catch Exception _ nil))
+
+          (recur (z/right loc)))))))
 
 ;; Form editing operations
 
@@ -79,22 +104,30 @@
    - content-str: The string to insert or replace with (can contain multiple forms)
    - edit-type: Keyword indicating the edit type (:replace, :before, or :after)
    
-   Returns the updated zipper, or nil if the form was not found."
+   Returns a map with:
+   - :zloc - the updated zipper (or nil if form not found)
+   - :similar-matches - a vector of potential namespace-qualified matches"
   [zloc tag name content-str edit-type]
-  (when-let [form-zloc (find-top-level-form zloc tag name)]
-    (case edit-type
-      :replace (z/replace form-zloc (p/parse-string-all content-str))
-      ;; it would be nice if this handled comments immediately preceeding the form
-      :before (-> form-zloc
-                  (z/insert-left (p/parse-string-all "\n\n"))
-                  z/left
-                  (z/insert-left (p/parse-string-all content-str))
-                  z/left)
-      :after (-> form-zloc
-                 (z/insert-right (p/parse-string-all "\n\n"))
-                 z/right
-                 (z/insert-right (p/parse-string-all content-str))
-                 z/right))))
+  (let [find-result (find-top-level-form zloc tag name)
+        form-zloc (:zloc find-result)]
+    (if-not form-zloc
+      find-result ;; Return the result with nil :zloc and any similar-matches
+      (let [updated-zloc
+            (case edit-type
+              :replace (z/replace form-zloc (p/parse-string-all content-str))
+              ;; it would be nice if this handled comments immediately preceeding the form
+              :before (-> form-zloc
+                          (z/insert-left (p/parse-string-all "\n\n"))
+                          z/left
+                          (z/insert-left (p/parse-string-all content-str))
+                          z/left)
+              :after (-> form-zloc
+                         (z/insert-right (p/parse-string-all "\n\n"))
+                         z/right
+                         (z/insert-right (p/parse-string-all content-str))
+                         z/right))]
+        {:zloc updated-zloc
+         :similar-matches (:similar-matches find-result)}))))
 
 ;; Offset calculation functions for highlighting modified code
 
@@ -139,19 +172,24 @@
    - tag: The form type (e.g., 'defn, 'def)
    - name: The name of the form
    
-   Returns the zipper positioned at the docstring node, or nil if:
-   - The form was not found
-   - The form doesn't have a docstring"
+   Returns a map with:
+   - :zloc - the zipper positioned at the docstring node (or nil if not found)
+   - :similar-matches - a vector of potential namespace-qualified matches from find-top-level-form"
   [zloc tag name]
-  (when-let [form-zloc (find-top-level-form zloc tag name)]
-    (let [tag-zloc (z/down form-zloc) ;; Move to the tag (defn, def, etc.)
-          name-zloc (z/right tag-zloc) ;; Move to the name
-          docstring-candidate (z/right name-zloc)] ;; Move to potential docstring
-      (when (and docstring-candidate
-                 ;; Check for both :token (single-line) and :multi-line (multi-line) tags
-                 (contains? #{:token :multi-line} (z/tag docstring-candidate))
-                 (string? (z/sexpr docstring-candidate)))
-        docstring-candidate))))
+  (let [find-result (find-top-level-form zloc tag name)
+        form-zloc (:zloc find-result)]
+    (if-not form-zloc
+      find-result ;; Return the result with nil :zloc and any similar-matches
+      (let [tag-zloc (z/down form-zloc) ;; Move to the tag (defn, def, etc.)
+            name-zloc (z/right tag-zloc) ;; Move to the name
+            docstring-candidate (z/right name-zloc) ;; Move to potential docstring
+            docstring-zloc (when (and docstring-candidate
+                                   ;; Check for both :token (single-line) and :multi-line (multi-line) tags
+                                      (contains? #{:token :multi-line} (z/tag docstring-candidate))
+                                      (string? (z/sexpr docstring-candidate)))
+                             docstring-candidate)]
+        {:zloc docstring-zloc
+         :similar-matches (:similar-matches find-result)}))))
 
 (defn edit-docstring
   "Edit a docstring in a top-level form.
@@ -162,11 +200,18 @@
    - name: The name of the form
    - new-docstring: The new docstring content
    
-   Returns the updated zipper, or nil if the form or docstring was not found."
+   Returns a map with:
+   - :zloc - the updated zipper (or nil if form/docstring not found)
+   - :similar-matches - a vector of potential namespace-qualified matches"
   [zloc tag name new-docstring]
-  (when-let [docstring-zloc (find-docstring zloc tag name)]
-    ;; Replace the docstring with the new one
-    (z/replace docstring-zloc (n/string-node new-docstring))))
+  (let [docstring-result (find-docstring zloc tag name)
+        docstring-zloc (:zloc docstring-result)]
+    (if docstring-zloc
+      ;; Found the docstring, update it
+      {:zloc (z/replace docstring-zloc (n/string-node new-docstring))
+       :similar-matches (:similar-matches docstring-result)}
+      ;; Couldn't find docstring
+      docstring-result)))
 
 ;; Functions for working with comments
 
