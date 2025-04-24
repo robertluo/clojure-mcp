@@ -78,7 +78,7 @@ Last line with TARGET_STRING at the end.")
     (let [tool-instance (unified-file-edit/create-unified-file-edit-tool *nrepl-client-atom*)
           reg-map (tool-system/registration-map tool-instance)]
       (is (map? reg-map))
-      (is (= "file_edit" (:name reg-map)))
+      (is (= "edit_file" (:name reg-map)))
       (is (string? (:description reg-map)))
       (is (string? (:schema reg-map)))
       (is (fn? (:tool-fn reg-map))))))

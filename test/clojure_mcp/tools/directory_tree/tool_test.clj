@@ -5,7 +5,7 @@
 
 (deftest tool-name-test
   (testing "tool-name returns the correct name"
-    (is (= "fs_directory_tree"
+    (is (= "LS"
            (tool-system/tool-name {:tool-type :directory-tree})))))
 
 (deftest tool-description-test
@@ -87,7 +87,7 @@
   (testing "directory-tree-tool returns a valid registration map"
     (let [nrepl-client-atom (atom {})
           reg-map (sut/directory-tree-tool nrepl-client-atom)]
-      (is (= "fs_directory_tree" (:name reg-map)))
+      (is (= "LS" (:name reg-map)))
       (is (string? (:description reg-map)))
       (is (string? (:schema reg-map)))
       (is (fn? (:tool-fn reg-map))))))
