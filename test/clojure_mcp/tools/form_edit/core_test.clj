@@ -67,11 +67,11 @@
   (testing "find-top-level-form finds the correct form"
     (let [source "(ns test.core)\n\n(defn example-fn [x y]\n  (+ x y))\n\n(def a 1)"
           zloc (get-zloc source)]
-      (is (some? (sut/find-top-level-form zloc "ns" "test.core")))
-      (is (some? (sut/find-top-level-form zloc "defn" "example-fn")))
-      (is (some? (sut/find-top-level-form zloc "def" "a")))
-      (is (nil? (sut/find-top-level-form zloc "defn" "non-existent")))
-      (is (nil? (sut/find-top-level-form zloc "def" "example-fn"))))))
+      (is (some? (:zloc (sut/find-top-level-form zloc "ns" "test.core"))))
+      (is (some? (:zloc (sut/find-top-level-form zloc "defn" "example-fn"))))
+      (is (some? (:zloc (sut/find-top-level-form zloc "def" "a"))))
+      (is (nil? (:zloc (sut/find-top-level-form zloc "defn" "non-existent"))))
+      (is (nil? (:zloc (sut/find-top-level-form zloc "def" "example-fn")))))))
 
 (deftest find-top-level-form-with-defmethod-test
   (testing "find-top-level-form finds defmethod forms correctly"
@@ -79,28 +79,29 @@
           zloc (get-zloc source)]
 
       ;; Find with just the method name - should find the first occurrence
-      (let [found-area (sut/find-top-level-form zloc "defmethod" "area")]
+      (let [found-area (:zloc (sut/find-top-level-form zloc "defmethod" "area"))]
         (is (some? found-area))
         (is (= :rectangle (-> found-area z/down z/right z/right z/sexpr))))
 
       ;; Find with method name and dispatch value
-      (let [found-rectangle (sut/find-top-level-form zloc "defmethod" "area :rectangle")
-            found-circle (sut/find-top-level-form zloc "defmethod" "area :circle")]
+      (let [found-rectangle (:zloc (sut/find-top-level-form zloc "defmethod" "area :rectangle"))
+            found-circle (:zloc (sut/find-top-level-form zloc "defmethod" "area :circle"))]
         (is (some? found-rectangle))
         (is (some? found-circle))
         (is (= :rectangle (-> found-rectangle z/down z/right z/right z/sexpr)))
         (is (= :circle (-> found-circle z/down z/right z/right z/sexpr))))
 
       ;; Negative tests
-      (is (nil? (sut/find-top-level-form zloc "defmethod" "area :triangle")))
-      (is (nil? (sut/find-top-level-form zloc "defmethod" "other-method"))))))
+      (is (nil? (:zloc (sut/find-top-level-form zloc "defmethod" "area :triangle"))))
+      (is (nil? (:zloc (sut/find-top-level-form zloc "defmethod" "other-method")))))))
 
 (deftest edit-top-level-form-test
   (testing "edit-top-level-form correctly replaces a form"
     (let [source "(ns test.core)\n\n(defn example-fn [x y]\n  (+ x y))\n\n(def a 1)"
           zloc (get-zloc source)
           new-fn "(defn example-fn [x y]\n  (* x y))"
-          edited-zloc (sut/edit-top-level-form zloc "defn" "example-fn" new-fn :replace)
+          result (sut/edit-top-level-form zloc "defn" "example-fn" new-fn :replace)
+          edited-zloc (:zloc result)
           result-str (z/root-string edited-zloc)]
       (is (some? edited-zloc))
       (is (str/includes? result-str "(defn example-fn [x y]\n  (* x y))"))
@@ -110,7 +111,8 @@
     (let [source "(ns test.core)\n\n(defn example-fn [x y]\n  (+ x y))"
           zloc (get-zloc source)
           new-fn "(defn helper-fn [z]\n  (* z z))"
-          edited-zloc (sut/edit-top-level-form zloc "defn" "example-fn" new-fn :before)
+          result (sut/edit-top-level-form zloc "defn" "example-fn" new-fn :before)
+          edited-zloc (:zloc result)
           result-str (z/root-string edited-zloc)]
       (is (some? edited-zloc))
       (is (str/includes? result-str "(defn helper-fn [z]\n  (* z z))"))
@@ -121,7 +123,8 @@
     (let [source "(ns test.core)\n\n(defn example-fn [x y]\n  (+ x y))"
           zloc (get-zloc source)
           new-fn "(defn helper-fn [z]\n  (* z z))"
-          edited-zloc (sut/edit-top-level-form zloc "defn" "example-fn" new-fn :after)
+          result (sut/edit-top-level-form zloc "defn" "example-fn" new-fn :after)
+          edited-zloc (:zloc result)
           result-str (z/root-string edited-zloc)]
       (is (some? edited-zloc))
       (is (str/includes? result-str "(defn helper-fn [z]\n  (* z z))"))
@@ -141,21 +144,24 @@
   (testing "find-docstring finds docstring in a function"
     (let [source "(ns test.core)\n\n(defn example-fn\n  \"This is a docstring\"\n  [x y]\n  (+ x y))"
           zloc (get-zloc source)
-          docstring-zloc (sut/find-docstring zloc "defn" "example-fn")]
+          result (sut/find-docstring zloc "defn" "example-fn")
+          docstring-zloc (:zloc result)]
       (is (some? docstring-zloc))
       (is (= "This is a docstring" (z/sexpr docstring-zloc)))))
 
   (testing "find-docstring returns nil when no docstring exists"
     (let [source "(ns test.core)\n\n(defn example-fn [x y]\n  (+ x y))"
-          zloc (get-zloc source)]
-      (is (nil? (sut/find-docstring zloc "defn" "example-fn"))))))
+          zloc (get-zloc source)
+          result (sut/find-docstring zloc "defn" "example-fn")]
+      (is (nil? (:zloc result))))))
 
 (deftest edit-docstring-test
   (testing "edit-docstring correctly replaces a docstring"
     (let [source "(ns test.core)\n\n(defn example-fn\n  \"This is a docstring\"\n  [x y]\n  (+ x y))"
           zloc (get-zloc source)
           new-docstring "Updated docstring"
-          edited-zloc (sut/edit-docstring zloc "defn" "example-fn" new-docstring)
+          result (sut/edit-docstring zloc "defn" "example-fn" new-docstring)
+          edited-zloc (:zloc result)
           result-str (z/root-string edited-zloc)]
       (is (some? edited-zloc))
       (is (str/includes? result-str "Updated docstring"))
