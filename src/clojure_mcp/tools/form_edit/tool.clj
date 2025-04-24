@@ -95,29 +95,46 @@
   "clojure_edit_replace_definition")
 
 (defmethod tool-system/tool-description :clojure-edit-replace-form [_]
-  "Edits a top-level form in a Clojure file by fully replacing it.
+  "Edits a top-level form (`defn`, `def`, `defmethod`, `ns`, `deftest`) in a Clojure file by fully replacing it.
+  
+PREFER this tool along with `clojure_edit_insert_before_definition` ``clojure_edit_insert_after_definition` are for editing Clojure files (`.clj` `.cljs` `.cljc` `.bb`)
+
+These tools MAKE it EASIER to match a definition that exists in the file AS you only have to match the type of definition `form_type` and the name identifier `form_name` of the definition. This prevents the repeated mismatch errors that occur when trying match an entire `old_string` to replace it.
+These tools validates the structure of the structure of the Clojure code that is being inserted into the file and will provide linting feedback for things such as parenthetical errors.
+These tools reduces the number of tokens that need to be generated and that makes me happy!
+ 
+WARNING: you will receive errors if the syntax is wrong, the most common error is an extra or missing parenthesis at the end of the replacement function in `content`, so be careful with parenthesis.
+
+This tool can replace a specific top-level form (like a function, def, or namespace declaration) with new content. The form is identified by its type (defn, def, deftest, s/def, ns, defmethod etc.) and name.
    
-   This tool can replace a specific top-level form (like a function, def, or namespace declaration) with new content. The form is identified by its type (defn, def, deftest, s/def, ns, defmethod etc.) and name.
-   
-   Example: Replace the implementation of a function named 'example-fn':
+   Example: Replace the implementation of a `defn` named `example-fn`:
    - file_path: \"/path/to/file.clj\"
    - form_name: \"example-fn\"
    - form_type: \"defn\"
    - content: \"(defn example-fn [x] (* x 2))\"
    
-   Note: For defmethod forms, you can specify either just the method name (\"area\") or 
-   include the dispatch value (\"area :rectangle\"). When using just the method name, 
-   the dispatch value will be automatically extracted from the replacement content.
-   
-   The tool will find the form, replace it with the new content, and format the result.
-   It returns the updated file content, the location offsets, and a diff of the changes.")
+Note: For `defmethod` forms it's better to include the dispatch value (`area :rectangle` or `qualified/area :rectangle`) in the `form-name`. Many `defmethod` definitions often have qualified names ie. they include a namespace alias in the text of their name like `shape/area` it's best to match the text of the `form_name` to the unique identifying text that is actually present in the file. 
+
+   Example: Replace the implementation of a `defmethod` named `shape/area :square`:
+   - file_path: \"/path/to/file.clj\"
+   - form_name: \"shape/area :square\"
+   - form_type: \"defmethod\"
+   - content: \"(defmethod shape/area :square [{:keys [w h]}] (* w h))\"
+
+   Example: Replace the implementation of a `defmethod` named `convert-length [:meters :inches]`:
+   - file_path: \"/path/to/file.clj\"
+   - form_name: \"convert-length [:feet :inches]\"
+   - form_type: \"defmethod\"
+   - content: \"(defmethod convert-length [:feet :inches] [_ n]  (* 12 n))\"
+
+   The tool will find the form, replace it with the new content.")
 
 (defmethod tool-system/tool-schema :clojure-edit-replace-form [_]
   {:type :object
    :properties {:file_path {:type :string
                             :description "Path to the file containing the form to edit"}
                 :form_name {:type :string
-                            :description "Name of the form to edit (e.g., function name)"}
+                            :description "Name of the form to edit (e.g., function identifiers like \"square\" or \"shape/area\")"}
                 :form_type {:type :string
                             :description "Type of the form (e.g., \"defn\", \"def\", \"ns\")"}
                 :content {:type :string
@@ -161,23 +178,40 @@
   "clojure_edit_insert_before_definition")
 
 (defmethod tool-system/tool-description :clojure-edit-insert-before-form [_]
-  "Inserts content before a top-level form in a Clojure file.
+  "Inserts content before a top-level form (`defn`, `def`, `defmethod`, `ns`, `deftest`) in a Clojure file.
    
-   This tool adds new content before a specific top-level form (like a function or def)
-   without modifying the form itself. The form is identified by its type and name.
+PREFER this tool along with `clojure_edit_replace_definition` and `clojure_edit_insert_after_definition` for editing Clojure files (`.clj` `.cljs` `.cljc` `.bb`)
+
+These tools MAKE it EASIER to match a definition that exists in the file AS you only have to match the type of definition `form_type` and the name identifier `form_name` of the definition. This prevents the repeated mismatch errors that occur when trying match an entire `old_string` to replace it.
+These tools validates the structure of the Clojure code that is being inserted into the file and will provide linting feedback for things such as parenthetical errors.
+These tools reduces the number of tokens that need to be generated and that makes me happy!
+ 
+WARNING: you will receive errors if the syntax is wrong, the most common error is an extra or missing parenthesis at the end of the inserted content in `content`, so be careful with parenthesis.
+
+This tool adds new content before a specific top-level form (like a function, def, or namespace declaration) without modifying the form itself. The form is identified by its type (defn, def, deftest, s/def, ns, defmethod etc.) and name.
    
-   Example: Insert a new function before 'example-fn':
+   Example: Insert a helper function before `example-fn`:
    - file_path: \"/path/to/file.clj\"
    - form_name: \"example-fn\"
    - form_type: \"defn\"
    - content: \"(defn helper-fn [x] (* x 2))\"
    
-   Note: For defmethod forms, you can specify either just the method name (\"area\") or 
-   include the dispatch value (\"area :rectangle\"). When using just the method name, 
-   the dispatch value will be automatically extracted from the replacement content.
-   
+Note: For `defmethod` forms it's better to include the dispatch value (`area :rectangle` or `qualified/area :rectangle`) in the `form-name`. Many `defmethod` definitions often have qualified names ie. they include a namespace alias in the text of their name like `shape/area` it's best to match the text of the `form_name` to the unique identifying text that is actually present in the file.
+
+   Example: Insert a helper function before a `defmethod` named `shape/area :square`:
+   - file_path: \"/path/to/file.clj\"
+   - form_name: \"shape/area :square\"
+   - form_type: \"defmethod\"
+   - content: \"(defn calculate-area [w h] (* w h))\"
+
+   Example: Insert a helper function before a `defmethod` with a vector dispatch value:
+   - file_path: \"/path/to/file.clj\"
+   - form_name: \"convert-length [:feet :inches]\"
+   - form_type: \"defmethod\"
+   - content: \"(def inches-per-foot 12)\"
+
    The tool will find the form, insert the new content before it, and format the result.
-   It returns the updated file content, the location offsets, and a diff of the changes.")
+   It returns a diff showing the changes made to the file.")
 
 (defmethod tool-system/tool-schema :clojure-edit-insert-before-form [_]
   {:type :object
@@ -228,23 +262,40 @@
   "clojure_edit_insert_after_definition")
 
 (defmethod tool-system/tool-description :clojure-edit-insert-after-form [_]
-  "Inserts content after a top-level form in a Clojure file.
+  "Inserts content after a top-level form (`defn`, `def`, `defmethod`, `ns`, `deftest`) in a Clojure file.
    
-   This tool adds new content after a specific top-level form (like a function or def)
-   without modifying the form itself. The form is identified by its type and name.
+PREFER this tool along with `clojure_edit_replace_definition` and `clojure_edit_insert_before_definition` for editing Clojure files (`.clj` `.cljs` `.cljc` `.bb`)
+
+These tools MAKE it EASIER to match a definition that exists in the file AS you only have to match the type of definition `form_type` and the name identifier `form_name` of the definition. This prevents the repeated mismatch errors that occur when trying match an entire `old_string` to replace it.
+These tools validates the structure of the Clojure code that is being inserted into the file and will provide linting feedback for things such as parenthetical errors.
+These tools reduces the number of tokens that need to be generated and that makes me happy!
+ 
+WARNING: you will receive errors if the syntax is wrong, the most common error is an extra or missing parenthesis at the end of the inserted content in `content`, so be careful with parenthesis.
+
+This tool adds new content after a specific top-level form (like a function, def, or namespace declaration) without modifying the form itself. The form is identified by its type (defn, def, deftest, s/def, ns, defmethod etc.) and name.
    
-   Example: Insert a test function after 'example-fn':
+   Example: Insert a test after a function named `example-fn`:
    - file_path: \"/path/to/file.clj\"
    - form_name: \"example-fn\"
    - form_type: \"defn\"
    - content: \"(deftest example-fn-test\n  (is (= 4 (example-fn 2))))\"
    
-   Note: For defmethod forms, you can specify either just the method name (\"area\") or 
-   include the dispatch value (\"area :rectangle\"). When using just the method name, 
-   the dispatch value will be automatically extracted from the replacement content.
-   
+Note: For `defmethod` forms it's better to include the dispatch value (`area :rectangle` or `qualified/area :rectangle`) in the `form-name`. Many `defmethod` definitions often have qualified names ie. they include a namespace alias in the text of their name like `shape/area` it's best to match the text of the `form_name` to the unique identifying text that is actually present in the file.
+
+   Example: Insert a test after a `defmethod` named `shape/area :square`:
+   - file_path: \"/path/to/file.clj\"
+   - form_name: \"shape/area :square\"
+   - form_type: \"defmethod\"
+   - content: \"(deftest square-area-test\n  (is (= 25 (:area (shape/area :square {:w 5 :h 5}))))\"
+
+   Example: Insert a test after a `defmethod` with a vector dispatch value:
+   - file_path: \"/path/to/file.clj\"
+   - form_name: \"convert-length [:feet :inches]\"
+   - form_type: \"defmethod\"
+   - content: \"(deftest feet-to-inches-test\n  (is (= 24 (convert-length [:feet :inches] 2))))\"
+
    The tool will find the form, insert the new content after it, and format the result.
-   It returns the updated file content, the location offsets, and a diff of the changes.")
+   It returns a diff showing the changes made to the file.")
 
 (defmethod tool-system/tool-schema :clojure-edit-insert-after-form [_]
   {:type :object
@@ -497,17 +548,37 @@ Recommended workflow:
 (defmethod tool-system/tool-description :clojure-edit-replace-sexp [_]
   "Edits a file by finding and replacing specific s-expressions.
 
-Use this tool for targeted edits of sub-expressions within forms. For complete top-level form replacements, 
-prefer specialized tools like clojure_edit_replace_definition which provide better structure validation.
+Use this tool for targeted edits of sub-expressions within forms. For complete top-level form replacements, prefer specialized tools like `clojure_edit_replace_definition` and friends.
+
+KEY BENEFITS:
+- Syntax-aware matching that understands Clojure code structure
+- Ignores whitespace differences by default, focusing on actual code meaning
+- Matches expressions regardless of formatting, indentation, or spacing
+- Prevents errors from mismatched text or irrelevant formatting differences
+- Can find and replace all occurrences with replace_all: true
 
 CONSTRAINTS:
 - match_form must contain only a SINGLE s-expression (error otherwise)
-- whitespace_sensitive=true preserves exact spacing patterns
+- Setting whitespace_sensitive=true requires exact whitespace matching (rarely needed)
+- Requires syntactically valid Clojure expressions in both match_form and new_form
 
-Examples:
+WARNING: You will receive errors if the syntax is wrong. The most common error is an extra or missing parenthesis in either match_form or new_form, so count your parentheses carefully!
+
+COMMON APPLICATIONS:
+- Renaming symbols throughout the file: {\"match_form\": \"old-name\", \"new_form\": \"new-name\", \"replace_all\": true}
+- Editing special forms like if/cond/let/when within functions:
+  * Changing if branches: {\"match_form\": \"(if condition expr1 expr2)\", \"new_form\": \"(if condition (do expr1) expr2)\"}
+  * Enhancing let bindings: {\"match_form\": \"(let [x 10] (+ x 2))\", \"new_form\": \"(let [x 10 y 20] (+ x y))\"}
+  * Converting cond to case: {\"match_form\": \"(cond (= x :a) \\\"A\\\" (= x :b) \\\"B\\\")\", \"new_form\": \"(case x :a \\\"A\\\" :b \\\"B\\\")\"}
+- Modifying nested function calls: {\"match_form\": \"(str (+ a b))\", \"new_form\": \"(str (+ a b c))\"}
+- Changing anonymous function syntax: {\"match_form\": \"#(update % :count inc)\", \"new_form\": \"(fn [x] (update x :count inc))\"}
+
+Other Examples:
 - Replace a calculation: {\"match_form\": \"(+ x 2)\", \"new_form\": \"(+ x 10)\"}
+  * Will match regardless of spaces: (+ x 2), (+   x   2), etc. unless whitespace_sensitive=true
 - Delete an expression: {\"match_form\": \"(println debug-info)\", \"new_form\": \"\"}
 - Edit anonymous function: {\"match_form\": \"#(inc %)\", \"new_form\": \"#(+ % 2)\"}
+- Replace multiple occurrences: {\"match_form\": \"(inc x)\", \"new_form\": \"(+ x 1)\", \"replace_all\": true}
 
 Returns a diff showing the changes made to the file.")
 
