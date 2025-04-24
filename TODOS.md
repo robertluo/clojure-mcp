@@ -19,6 +19,12 @@ very clear that we need a separate mode with no editing tools available
 should the fs_read_file tool provide line numbers as in the clod
 should diffs have line numbers?
 
+
+clojure_edit_replace_ and insert
+We should suggest a matching edit name if the name matches but not the
+namespace. 
+
+
 clojure_edit_insert_after
 - maybe move to any definition not just top level
   needed to handle cljc forms perhaps
@@ -28,29 +34,30 @@ clojure_edit_insert_after
 
 clojure_edit_docstring should add a missing docstring
 
-is not picking up comment block edit to eddit comment blocks 
+LLM is not picking up comment block edit to eddit comment blocks 
   * perhaps file_edit is better
   
-get_all_namespaces could take a search substring
-list_vars_in_namespace could do the same
-
 read_file 
  - needs to store the read time
 
-edit_file 
- - should lint format output if clojure
+unified_file_edit
  - also needs to check the write time
- - maybe it needs the longer prompt?
- - is not returning diff?
- - can highlight 
+ - can highlight
+ - needs emacs-notify flag
+ - checks if editing clojure file with old string to provide advice on 
+   using the clojure_edit tools
+ - should have a flag to turn linting off
+ - test linting failures
+ - add editing with clojure tools advice
  
 clojure_eval should warn or re-write requires to require_reloads 
- 
- 
 
 write-file 
  - needs to check mod time like clod 
  - maybe shouldn't return full file diff- check clod behavior
+
+
+
 
 Need to clean up tests
 
