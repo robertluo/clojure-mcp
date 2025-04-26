@@ -12,44 +12,86 @@
 
 ;; Form identification and location functions
 
+(defn get-node-string
+  "Extract the string value from a node, handling metadata nodes.
+   Returns the trimmed string value."
+  [zloc]
+  (when zloc
+    (let [node (z/node zloc)
+          tag (n/tag node)]
+      (str/trim
+       (if (= tag :meta)
+         (some-> zloc z/down z/right z/node n/string)
+         (n/string node))))))
+
+(defn parse-form-name
+  "Parse a form name string into [method-name dispatch-value] parts.
+   Normalizes whitespace in the process."
+  [form-name]
+  (if (string? form-name)
+    (let [normalized (-> form-name
+                         str/trim
+                         (str/replace #"\s+" " "))
+          parts (str/split normalized #"\s+" 2)]
+      [(first parts) (second parts)])
+    [form-name nil]))
+
+(defn method-name-matches?
+  "Check if the method name from the zipper matches the expected name."
+  [method-elem expected-name]
+  (= (get-node-string method-elem) expected-name))
+
+(defn dispatch-value-matches?
+  "Check if the dispatch value from the zipper matches the expected dispatch."
+  [dispatch-elem expected-dispatch]
+  (when (and dispatch-elem expected-dispatch)
+    (= (get-node-string dispatch-elem) expected-dispatch)))
+
+(defn check-tag
+  "Check if the first element matches the expected tag."
+  [first-elem tag]
+  (when (= (str/trim (n/string (z/node first-elem))) tag)
+    first-elem))
+
+(defn check-method-and-dispatch
+  "Check if method name and optionally dispatch value match the expected patterns."
+  [method-elem expected-name expected-dispatch]
+  (when (method-name-matches? method-elem expected-name)
+    (if expected-dispatch
+      (some-> method-elem z/right (dispatch-value-matches? expected-dispatch))
+      true)))
+
 (defn is-top-level-form?
-  "Check if a sexp is a top-level definition with a specific tag and name.
-   Supports defmethod forms with dispatch values.
+  "Check if a form matches the given tag and name pattern.
+   Handles metadata and complex dispatch values.
+   
+   This function uses direct zipper navigation and string comparison rather than 
+   sexpr conversion, enabling it to properly handle namespaced keywords (::keyword) 
+   and complex dispatch values (vectors, maps, qualified symbols/keywords).
    
    For defmethod forms, the name can be either:
    - Just the method name (e.g., 'area') - will match ANY defmethod with that name
-   - A compound name with dispatch value (e.g., 'area :rectangle') - will match only that specific implementation
+   - A compound name with dispatch value (e.g., 'area :rectangle' or 'tool-system/validate-inputs ::tool') 
+     - will match only that specific implementation
    
    Arguments:
    - zloc: The zipper location to check
-   - tag: The definition tag (e.g., 'defn, 'def, 'defmethod)
+   - tag: The definition tag (e.g., 'defn', 'def', 'defmethod')
    - dname: The name of the definition, which can include dispatch value for defmethod
    
-   Returns true if the sexp matches the pattern."
+   Returns true if the form matches the pattern."
   [zloc tag dname]
   (try
-    (let [sexp (z/sexpr zloc)]
-      (if (and (list? sexp) (= (first sexp) (symbol tag)))
-        ;; Special handling for defmethod forms
-        (if (= (symbol tag) 'defmethod)
-          (let [method-name (second sexp)
-                dispatch-value (nth sexp 2 nil)
-                ;; Parse the provided name to see if it includes a dispatch value
-                [name-part dispatch-part] (if (string? dname)
-                                            (let [parts (str/split dname #"\s+")]
-                                              [(first parts)
-                                               (when (> (count parts) 1)
-                                                 (try
-                                                   (read-string (second parts))
-                                                   (catch Exception _ nil)))])
-                                            [dname nil])]
-            (and (= method-name (symbol name-part))
-                 (or (nil? dispatch-part)
-                     (= dispatch-value dispatch-part))))
-          ;; Standard handling for other forms
-          (= (second sexp) (symbol dname)))
-        false))
-    (catch Exception _ false)))
+    (some-> zloc
+            z/down
+            (check-tag tag)
+            z/right
+            (#(let [[expected-name expected-dispatch] (parse-form-name dname)]
+                (check-method-and-dispatch % expected-name expected-dispatch))))
+    (catch Exception _
+      ;; Silent error handling in production - use logging in debug mode
+      ;; Don't use println as it can interfere with stdin/stdout in server context
+      false)))
 
 (defn find-top-level-form
   "Find a top-level form with a specific tag and name in a zipper.

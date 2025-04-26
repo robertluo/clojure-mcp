@@ -148,7 +148,7 @@
           (is (map? replace-schema))
           (is (= :object (:type replace-schema)))
           (is (contains? (:properties replace-schema) :file_path))
-          (is (contains? (:properties replace-schema) :form_name))
+          (is (contains? (:properties replace-schema) :form_identifier))
           (is (contains? (:properties replace-schema) :form_type))
           (is (contains? (:properties replace-schema) :content))
 
@@ -177,7 +177,7 @@
 
       (testing "Replace form validation checks required parameters"
         (let [valid-inputs {:file_path (get-file-path)
-                            :form_name "example-fn"
+                            :form_identifier "example-fn"
                             :form_type "defn"
                             :content "(defn example-fn [x] (* x 2))"}
               validated (tool-system/validate-inputs replace-tool valid-inputs)]
@@ -190,7 +190,7 @@
 
         (is (thrown? clojure.lang.ExceptionInfo
                      (tool-system/validate-inputs replace-tool
-                                                  {:form_name "example-fn"
+                                                  {:form_identifier "example-fn"
                                                    :form_type "defn"
                                                    :content "(defn example-fn [x] (* x 2))"}))
             "Should throw exception when file_path is missing")
@@ -204,7 +204,7 @@
 
       (testing "Docstring validation checks required parameters"
         (let [valid-inputs {:file_path (get-file-path)
-                            :form_name "example-fn"
+                            :form_identifier "example-fn"
                             :form_type "defn"
                             :docstring "New docstring"}
               validated (tool-system/validate-inputs docstring-tool valid-inputs)]
@@ -218,7 +218,7 @@
         (is (thrown? clojure.lang.ExceptionInfo
                      (tool-system/validate-inputs docstring-tool
                                                   {:file_path (get-file-path)
-                                                   :form_name "example-fn"
+                                                   :form_identifier "example-fn"
                                                    :form_type "defn"}))
             "Should throw exception when docstring is missing"))
 
@@ -321,7 +321,7 @@
     (testing "Replace form tool can modify files"
       (let [file-path (get-file-path)
             inputs {:file_path file-path
-                    :form_name "example-fn"
+                    :form_identifier "example-fn"
                     :form_type "defn"
                     :content "(defn example-fn [x]\n  (* x 2))"}
             validated (tool-system/validate-inputs replace-tool inputs)
@@ -351,7 +351,7 @@
                                    "(comment\n  (example-fn 1 2))\n\n"
                                    ";; Test comment\n;; spans multiple lines"))
             inputs {:file_path file-path
-                    :form_name "example-fn"
+                    :form_identifier "example-fn"
                     :form_type "defn"
                     :docstring "Updated docstring for testing"}
             validated (tool-system/validate-inputs docstring-tool inputs)
@@ -489,7 +489,7 @@
 
       (testing "Can update defmethod with just the multimethod name"
         (let [inputs {:file_path file-path
-                      :form_name "area" ;; Just the multimethod name
+                      :form_identifier "area" ;; Just the multimethod name
                       :form_type "defmethod"
                       :content "(defmethod area :rectangle [rect]\n  ;; Updated implementation\n  (let [w (:width rect)\n        h (:height rect)]\n    (* w h)))"}
               validated (tool-system/validate-inputs replace-tool inputs)
@@ -507,7 +507,7 @@
 
         (testing "Can update defmethod with multimethod name and dispatch value"
           (let [inputs {:file_path file-path
-                        :form_name "area :circle" ;; Compound name with dispatch value
+                        :form_identifier "area :circle" ;; Compound name with dispatch value
                         :form_type "defmethod"
                         :content "(defmethod area :circle [circle]\n  ;; Updated circle implementation\n  (let [r (:radius circle)]\n    (* Math/PI r r)))"}
                 validated (tool-system/validate-inputs replace-tool inputs)
@@ -526,7 +526,7 @@
 
           (testing "Inserting new defmethod implementation"
             (let [inputs {:file_path file-path
-                          :form_name "area :circle" ;; Insert after circle implementation
+                          :form_identifier "area :circle" ;; Insert after circle implementation
                           :form_type "defmethod"
                           :content "(defmethod area :triangle [triangle]\n  (* 0.5 (:base triangle) (:height triangle)))"}
                   before-tool (sut/create-edit-insert-after-form-tool client-atom)
@@ -562,7 +562,7 @@
           (testing "Replace form tool works via callback"
             (replace-fn nil
                         {"file_path" (get-file-path)
-                         "form_name" "example-fn"
+                         "form_identifier" "example-fn"
                          "form_type" "defn"
                          "content" "(defn example-fn [x]\n  (str \"result: \" (* x 3)))"}
                         cb1)
