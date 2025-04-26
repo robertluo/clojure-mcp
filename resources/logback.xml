@@ -27,5 +27,6 @@
   <logger name="clojure-mcp.core" level="DEBUG"/>
   <logger name="clojure-mcp.nrepl" level="DEBUG"/>
   <logger name="clojure-mcp.tools" level="INFO"/>
+  <logger name="clojure-mcp.agent" level="DEBUG"/>
 
 </configuration>
