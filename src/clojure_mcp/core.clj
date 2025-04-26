@@ -5,7 +5,8 @@
             [clojure-mcp.prompts :as prompts]
             [clojure-mcp.resources :as resources]
             [clojure.edn :as edn]
-            [clojure.java.io :as io])
+            [clojure.java.io :as io]
+            [clojure.tools.logging :as log])
   (:gen-class)
   (:import [io.modelcontextprotocol.server.transport StdioServerTransportProvider]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
@@ -225,79 +226,140 @@
 (defn mcp-server
   "Creates a basic stdio mcp server"
   []
-  (let [transport-provider (StdioServerTransportProvider. (ObjectMapper.))
-        server (-> (McpServer/async transport-provider)
-                   (.serverInfo "clojure-server" "0.1.0")
-                   (.capabilities (-> (McpSchema$ServerCapabilities/builder)
-                                      (.tools true)
-                                      (.prompts true)
-                                      (.resources true true) ;; Fixed: resources method takes two boolean parameters
-                                      #_(.logging false)
-                                      (.build)))
-                   (.build))]
+  (log/info "Starting MCP server")
+  (try
+    (let [transport-provider (StdioServerTransportProvider. (ObjectMapper.))
+          server (-> (McpServer/async transport-provider)
+                     (.serverInfo "clojure-server" "0.1.0")
+                     (.capabilities (-> (McpSchema$ServerCapabilities/builder)
+                                        (.tools true)
+                                        (.prompts true)
+                                        (.resources true true) ;; Fixed: resources method takes two boolean parameters
+                                        #_(.logging true)
+                                        (.build)))
+                     (.build))]
 
-    #_(-> server
+      ;; Enable server-side logging
+      #_(-> server
+          (.logging)
           (.level McpSchema$LoggingLevel/INFO)
-          (.logger "ClojureMCPlog")
-          (.data ("Server initialized"))
+          (.logger "ClojureMCP")
+          (.data "Server initialized")
           (.build))
 
-    ;; Prompts will be registered in nrepl-mcp-server function
-
-    server))
+      (log/info "MCP server initialized successfully")
+      server)
+    (catch Exception e
+      (log/error e "Failed to initialize MCP server")
+      (throw e))))
 
 (defn create-and-start-nrepl-connection [config]
-  (let [nrepl-client (nrepl/create config)]
-    (nrepl/start-polling nrepl-client)
-    ;; Ensure clojure.repl is loaded for apropos/source-fn used in tools
-    (nrepl/eval-code nrepl-client
-                     (str
-                      "(require 'clojure.repl)"
-                      "(require 'nrepl.util.print)")
-                     identity)
-    (nrepl/tool-eval-code nrepl-client (slurp (io/resource "repl_helpers.clj")))
-    (nrepl/tool-eval-code nrepl-client "(in-ns 'user)")
-    
-    (let [user-dir (try
-                     (edn/read-string
-                      (nrepl/tool-eval-code
-                       nrepl-client
-                       "(System/getProperty \"user.dir\")"))
-                     (catch Exception _
-                       nil))]
-      (cond-> nrepl-client
-        user-dir (assoc ::nrepl-user-dir user-dir
-                        ::allowed-directories [user-dir]
-                        ::emacs-notify true)))))
+  (log/info "Creating nREPL connection with config:" config)
+  (try
+    (let [nrepl-client (nrepl/create config)]
+      (log/info "nREPL client created")
+      (nrepl/start-polling nrepl-client)
+      (log/info "Started polling nREPL")
 
-(defn close-servers [mcp] ;; Remove :nrepl from destructuring
-  (when-let [client @nrepl-client-atom] ;; Get client from atom
-    (nrepl/stop-polling client))
-  (.closeGracefully mcp))
+      ;; Ensure clojure.repl is loaded for apropos/source-fn used in tools
+      (log/debug "Loading necessary namespaces and helpers")
+      (nrepl/eval-code nrepl-client
+                       (str
+                        "(require 'clojure.repl)"
+                        "(require 'nrepl.util.print)")
+                       identity)
+      (nrepl/tool-eval-code nrepl-client (slurp (io/resource "repl_helpers.clj")))
+      (nrepl/tool-eval-code nrepl-client "(in-ns 'user)")
+      (log/debug "Required namespaces loaded")
+
+      (let [user-dir (try
+                       (edn/read-string
+                        (nrepl/tool-eval-code
+                         nrepl-client
+                         "(System/getProperty \"user.dir\")"))
+                       (catch Exception e
+                         (log/warn e "Failed to get user.dir")
+                         nil))]
+        (if user-dir
+          (log/info "Working directory set to:" user-dir)
+          (log/warn "Could not determine working directory"))
+
+        (cond-> nrepl-client
+          user-dir (assoc ::nrepl-user-dir user-dir
+                          ::allowed-directories [user-dir]
+                          ::emacs-notify true))))
+    (catch Exception e
+      (log/error e "Failed to create nREPL connection")
+      (throw e))))
+
+(defn close-servers [mcp]
+  (log/info "Shutting down servers")
+  (try
+    (when-let [client @nrepl-client-atom]
+      (log/info "Stopping nREPL polling")
+      (nrepl/stop-polling client))
+    (log/info "Closing MCP server gracefully")
+    (.closeGracefully mcp)
+    (log/info "Servers shut down successfully")
+    (catch Exception e
+      (log/error e "Error during server shutdown")
+      (throw e))))
 
 ;; the args is a config map that must have :port and may have :host
 (defn nrepl-mcp-server [args]
-  (let [nrepl-client (create-and-start-nrepl-connection args)
-        mcp (mcp-server)] ;; Get only mcp server
-    (reset! nrepl-client-atom nrepl-client)
+  (log/info "Starting nREPL MCP server with args:" args)
+  (try
+    (let [nrepl-client (create-and-start-nrepl-connection args)
+          mcp (mcp-server)] ;; Get only mcp server
+      (reset! nrepl-client-atom nrepl-client)
+      (log/info "nREPL client connected successfully")
 
-    ;; Register all defined tools
-    (doseq [tool (repl-tools/get-all-tools nrepl-client-atom)]
-      (add-tool mcp tool))
+      ;; Register all defined tools
+      (log/info "Registering tools...")
+      (let [tools (repl-tools/get-all-tools nrepl-client-atom)]
+        (log/info "Found" (count tools) "tools to register")
+        (doseq [tool tools]
+          (log/debug "Registering tool:" (:name tool))
+          (add-tool mcp tool)))
 
-    ;; Register all defined prompts
-    (doseq [prompt (prompts/get-all-prompts nrepl-client-atom)]
-      (add-prompt mcp prompt))
+      ;; Register all defined prompts
+      (log/info "Registering prompts...")
+      (let [all-prompts (prompts/get-all-prompts nrepl-client-atom)]
+        (log/info "Found" (count all-prompts) "prompts to register")
+        (doseq [prompt all-prompts]
+          (log/debug "Registering prompt:" (:name prompt))
+          (add-prompt mcp prompt)))
 
-    ;; Register all defined resources
-    (doseq [resource (resources/get-all-resources nrepl-client-atom)]
-      (add-resource mcp resource))
+      ;; Register all defined resources
+      (log/info "Registering resources...")
+      (let [all-resources (resources/get-all-resources nrepl-client-atom)]
+        (log/info "Found" (count all-resources) "resources to register")
+        (doseq [resource all-resources]
+          (log/debug "Registering resource:" (:name resource))
+          (add-resource mcp resource)))
 
-    mcp))
+      (log/info "nREPL MCP server started successfully")
+      mcp)
+    (catch Exception e
+      (log/error e "Failed to start nREPL MCP server")
+      (throw e))))
 
 (comment
   (def mcp-serv (nrepl-mcp-server {:port 54171})) ;; Start server, sets atom
-  (close-servers mcp-serv) ;; Pass the map containing the mcp server
+  (close-servers mcp-serv) ;; Close server
+
+  ;; Test logging at different levels
+  (defn test-logging []
+    (log/trace "This is a TRACE message")
+    (log/debug "This is a DEBUG message")
+    (log/info "This is an INFO message")
+    (log/warn "This is a WARN message")
+    (log/error "This is an ERROR message")
+    (log/error (Exception. "Test exception") "This is an ERROR with exception"))
+
+  (test-logging)
+
+  ;; Check the logs/clojure-mcp.log file to verify the log messages
   )
 #_(defn -main [& args]
     (let [server (mcp-server args)]
