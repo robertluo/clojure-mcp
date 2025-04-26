@@ -25,9 +25,8 @@
 (defn get-all-tools
   "Returns a list of all defined tools for registration with the MCP server."
   [nrepl-client-atom]
-  [;; Add the unified read file tool before the read-file-tool to override it
-
-   (new-directory-tree-tool/directory-tree-tool nrepl-client-atom)
+  
+  [(new-directory-tree-tool/directory-tree-tool nrepl-client-atom)
 
    (new-unified-read-file-tool/unified-read-file-tool nrepl-client-atom)
    (new-unified-file-edit-tool/unified-file-edit-tool nrepl-client-atom)
@@ -36,7 +35,7 @@
 
    (new-think-tool/think-tool nrepl-client-atom)
 
-   (new-code-critique-tool/code-critique-tool nrepl-client-atom)
+   (new-code-critique-tool/code-critique-tool nrepl-client-atom) 
 
    (new-symbol-tool/symbol-search-tool nrepl-client-atom)
 
@@ -74,7 +73,7 @@
   (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
   (clojure-mcp.nrepl/start-polling @client-atom)
   (clojure-mcp.nrepl/stop-polling @client-atom)
-
+  (new-code-critique-tool/code-critique-tool client-atom)
   (defn make-test-tool [{:keys [tool-fn] :as _tool-map}]
     (fn [arg-map]
       (let [prom (promise)]
