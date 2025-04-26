@@ -47,6 +47,7 @@ The project allows AI assistants to:
 - `/resources/prompts/system/`: Core system prompts
 - `/resources/agent/`: Agent-specific resources
 - `/resources/configs/`: Configuration examples
+- `/resources/logback.xml`: Logging configuration file
 
 ## Dependencies and Versions
 
@@ -58,6 +59,8 @@ The project allows AI assistants to:
 - `rewrite-clj/rewrite-clj` (1.1.47): Library for parsing and transforming Clojure code
 - `dev.weavejester/cljfmt` (0.13.1): Clojure code formatting
 - `clj-kondo/clj-kondo` (2024.03.13): Static analyzer and linter for Clojure
+- `org.clojure/tools.logging` (1.3.0): Logging abstraction for Clojure
+- `ch.qos.logback/logback-classic` (1.4.14): Logback implementation for SLF4J
 
 ### AI Integration Dependencies
 
@@ -184,7 +187,24 @@ clojure_inspect_project:
    - Use `clojure_eval` for testing code snippets
    - Use `clojure_edit_*` tools for syntax-aware code editing
 
-4. **Project Maintenance**:
+4. **Logging System**:
+   - Uses `clojure.tools.logging` with Logback backend
+   - Logs are written to `logs/clojure-mcp.log` with daily rotation
+   - Configure log levels in `resources/logback.xml`
+   - Server startup/shutdown and errors are logged automatically
+   - Add logging in your code with:
+     ```clojure
+     (ns your.namespace
+       (:require [clojure.tools.logging :as log]))
+       
+     (log/debug "Debug message")
+     (log/info "Info message")
+     (log/warn "Warning message")
+     (log/error "Error message")
+     (log/error exception "Error with exception")
+     ```
+
+5. **Project Maintenance**:
    - Run tests with `clojure -X:test`
    - Update this project summary after significant changes
 
