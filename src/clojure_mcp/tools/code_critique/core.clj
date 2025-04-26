@@ -3,32 +3,40 @@
    This namespace contains the pure functionality without any MCP-specific code."
   (:require
    [clojure.string :as string]
-   [clojure-mcp.agent.langchain :as chain])
+   [clojure-mcp.agent.langchain :as chain]
+   [clojure.tools.logging :as log])
   (:import
    [clojure_mcp.agent.langchain AiService]))
 
 (declare system-message)
 
-(defn create-ai-service []
-  (let [memory (chain/chat-memory 12)
-        model (-> (chain/create-model-claude-3-7)
-                  (.thinkingType "enabled")
-                  (.thinkingBudgetTokens (int 1024))
-                  (.beta "prompt-caching-2024-07-31")
-                  (.cacheSystemMessages true)
-                  (.maxTokens (int 2048))
-                  (.temperature 1.0)
-                  (.build))
-        ai-service-data {:memory memory
-                         :model model
-                         :system-message (system-message 2)}
-        service (-> (chain/create-service AiService
-                                          ai-service-data)
-                    (.build))]
-    (assoc ai-service-data
-           :service service)))
+(defn create-ai-service
+  "Creates an AI service for code critique using Claude model."
+  []
+  (try
+    (let [memory (chain/chat-memory 12)
+          model (-> (chain/create-model-claude-3-7)
+                    (.thinkingType "enabled")
+                    (.thinkingBudgetTokens (int 1024))
+                    (.beta "prompt-caching-2024-07-31")
+                    (.cacheSystemMessages true)
+                    (.maxTokens (int 2048))
+                    (.temperature 1.0)
+                    (.build))
+          ai-service-data {:memory memory
+                           :model model
+                           :system-message (system-message 2)}
+          service (-> (chain/create-service AiService
+                                            ai-service-data)
+                      (.build))]
+      (assoc ai-service-data
+             :service service))
+    (catch Exception e
+      (log/error e "Failed to create AI service for code critique")
+      (throw e))))
 
-(defn get-ai-service [nrepl-client-atom]
+(defn get-ai-service
+  [nrepl-client-atom]
   (or (::ai-service @nrepl-client-atom)
       (let [ai (create-ai-service)]
         (swap! nrepl-client-atom assoc ::ai-service ai)
@@ -36,20 +44,19 @@
 
 (defn critique-code
   [{:keys [nrepl-client-atom]} code]
-    (if (string/blank? code)
-      {:critique "Error: Cannot critique empty code"
-       :error true}
-      (let [ai-service (get-ai-service nrepl-client-atom)]
-        (let [critique (.chat (:service ai-service) code)]
-          {:critique critique
-           :error false}))))
+  (if (string/blank? code)
+    {:critique "Error: Cannot critique empty code"
+     :error true}
+    (let [ai-service (get-ai-service nrepl-client-atom)]
+      (let [critique (.chat (:service ai-service) code)]
+        {:critique critique
+         :error false}))))
 
 (comment
   (def ai-service (create-ai-service))
 
   (critique-code (atom {})
                  "(defn i [x] x)"))
-
 
 ;; beter to read this from an text file in resources
 (defn system-message [n]
@@ -99,7 +106,6 @@ This function is using state, probably better to use `iterate`
 </example-response>"
      nstr
      improvement)))
-
 
 (comment
   ;; === Examples of using the code critique functionality directly ===
