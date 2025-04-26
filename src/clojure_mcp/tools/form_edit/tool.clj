@@ -99,31 +99,37 @@
   
 PREFER this tool along with `clojure_edit_insert_before_definition` ``clojure_edit_insert_after_definition` are for editing Clojure files (`.clj` `.cljs` `.cljc` `.bb`)
 
-These tools MAKE it EASIER to match a definition that exists in the file AS you only have to match the type of definition `form_type` and the name identifier `form_name` of the definition. This prevents the repeated mismatch errors that occur when trying match an entire `old_string` to replace it.
+These tools MAKE it EASIER to match a definition that exists in the file AS you only have to match the type of definition `form_type` and the complete identifier `form_identifier` of the definition. This prevents the repeated mismatch errors that occur when trying match an entire `old_string` to replace it.
 These tools validates the structure of the structure of the Clojure code that is being inserted into the file and will provide linting feedback for things such as parenthetical errors.
 These tools reduces the number of tokens that need to be generated and that makes me happy!
  
 WARNING: you will receive errors if the syntax is wrong, the most common error is an extra or missing parenthesis at the end of the replacement function in `content`, so be careful with parenthesis.
 
-This tool can replace a specific top-level form (like a function, def, or namespace declaration) with new content. The form is identified by its type (defn, def, deftest, s/def, ns, defmethod etc.) and name.
+This tool can replace a specific top-level form (like a function, def, or namespace declaration) with new content. The form is identified by its type (defn, def, deftest, s/def, ns, defmethod etc.) and complete identifier.
    
    Example: Replace the implementation of a `defn` named `example-fn`:
    - file_path: \"/path/to/file.clj\"
-   - form_name: \"example-fn\"
+   - form_identifier: \"example-fn\"
    - form_type: \"defn\"
    - content: \"(defn example-fn [x] (* x 2))\"
    
-Note: For `defmethod` forms it's better to include the dispatch value (`area :rectangle` or `qualified/area :rectangle`) in the `form-name`. Many `defmethod` definitions often have qualified names ie. they include a namespace alias in the text of their name like `shape/area` it's best to match the text of the `form_name` to the unique identifying text that is actually present in the file. 
+Note: For `defmethod` forms, be sure to include the dispatch value (`area :rectangle` or `qualified/area :rectangle`) in the `form_identifier`. Many `defmethod` definitions have qualified names (they include a namespace alias in their identifier like `shape/area`), so it's crucial to use the complete identifier that appears in the file. 
 
    Example: Replace the implementation of a `defmethod` named `shape/area :square`:
    - file_path: \"/path/to/file.clj\"
-   - form_name: \"shape/area :square\"
+   - form_identifier: \"shape/area :square\"
    - form_type: \"defmethod\"
    - content: \"(defmethod shape/area :square [{:keys [w h]}] (* w h))\"
 
+   Example: Replace the implementation of a `defmethod` with a namespaced multimethod:
+   - file_path: \"/path/to/file.clj\"
+   - form_identifier: \"tool-system/validate-inputs :clojure-eval\"
+   - form_type: \"defmethod\"
+   - content: \"(defmethod tool-system/validate-inputs :clojure-eval [_ inputs] ...)\"
+
    Example: Replace the implementation of a `defmethod` named `convert-length [:meters :inches]`:
    - file_path: \"/path/to/file.clj\"
-   - form_name: \"convert-length [:feet :inches]\"
+   - form_identifier: \"convert-length [:feet :inches]\"
    - form_type: \"defmethod\"
    - content: \"(defmethod convert-length [:feet :inches] [_ n]  (* 12 n))\"
 
@@ -133,19 +139,21 @@ Note: For `defmethod` forms it's better to include the dispatch value (`area :re
   {:type :object
    :properties {:file_path {:type :string
                             :description "Path to the file containing the form to edit"}
-                :form_name {:type :string
-                            :description "Name of the form to edit (e.g., function identifiers like \"square\" or \"shape/area\")"}
+                :form_identifier {:type :string
+                                  :description "Complete identifier of the form to edit (e.g., function identifiers like \"square\", \"shape/area\", or \"tool-system/validate-inputs :clojure-eval\")"}
                 :form_type {:type :string
                             :description "Type of the form (e.g., \"defn\", \"def\", \"ns\")"}
                 :content {:type :string
                           :description "New content to replace the form with"}}
-   :required [:file_path :form_name :form_type :content]})
+   :required [:file_path :form_identifier :form_type :content]})
 
 (defmethod tool-system/validate-inputs :clojure-edit-replace-form [{:keys [nrepl-client-atom]} inputs]
   (let [file-path (validate-file-path inputs nrepl-client-atom)
-        {:keys [form_name form_type content]} inputs]
-    (when-not form_name
-      (throw (ex-info "Missing required parameter: form_name"
+        ;; Accept form_identifier but map it to form_name internally for compatibility
+        {:keys [form_identifier form_type content]} inputs
+        form_name form_identifier]
+    (when-not form_identifier
+      (throw (ex-info "Missing required parameter: form_identifier"
                       {:inputs inputs})))
     (when-not form_type
       (throw (ex-info "Missing required parameter: form_type"
@@ -153,7 +161,7 @@ Note: For `defmethod` forms it's better to include the dispatch value (`area :re
     (when-not content
       (throw (ex-info "Missing required parameter: content"
                       {:inputs inputs})))
-    ;; Return validated inputs
+    ;; Return validated inputs with form_name for backward compatibility
     {:file_path file-path
      :form_name form_name
      :form_type form_type
@@ -182,31 +190,37 @@ Note: For `defmethod` forms it's better to include the dispatch value (`area :re
    
 PREFER this tool along with `clojure_edit_replace_definition` and `clojure_edit_insert_after_definition` for editing Clojure files (`.clj` `.cljs` `.cljc` `.bb`)
 
-These tools MAKE it EASIER to match a definition that exists in the file AS you only have to match the type of definition `form_type` and the name identifier `form_name` of the definition. This prevents the repeated mismatch errors that occur when trying match an entire `old_string` to replace it.
+These tools MAKE it EASIER to match a definition that exists in the file AS you only have to match the type of definition `form_type` and the complete identifier `form_identifier` of the definition. This prevents the repeated mismatch errors that occur when trying match an entire `old_string` to replace it.
 These tools validates the structure of the Clojure code that is being inserted into the file and will provide linting feedback for things such as parenthetical errors.
 These tools reduces the number of tokens that need to be generated and that makes me happy!
  
 WARNING: you will receive errors if the syntax is wrong, the most common error is an extra or missing parenthesis at the end of the inserted content in `content`, so be careful with parenthesis.
 
-This tool adds new content before a specific top-level form (like a function, def, or namespace declaration) without modifying the form itself. The form is identified by its type (defn, def, deftest, s/def, ns, defmethod etc.) and name.
+This tool adds new content before a specific top-level form (like a function, def, or namespace declaration) without modifying the form itself. The form is identified by its type (defn, def, deftest, s/def, ns, defmethod etc.) and complete identifier.
    
    Example: Insert a helper function before `example-fn`:
    - file_path: \"/path/to/file.clj\"
-   - form_name: \"example-fn\"
+   - form_identifier: \"example-fn\"
    - form_type: \"defn\"
    - content: \"(defn helper-fn [x] (* x 2))\"
    
-Note: For `defmethod` forms it's better to include the dispatch value (`area :rectangle` or `qualified/area :rectangle`) in the `form-name`. Many `defmethod` definitions often have qualified names ie. they include a namespace alias in the text of their name like `shape/area` it's best to match the text of the `form_name` to the unique identifying text that is actually present in the file.
+Note: For `defmethod` forms, be sure to include the dispatch value (`area :rectangle` or `qualified/area :rectangle`) in the `form_identifier`. Many `defmethod` definitions have qualified names (they include a namespace alias in their identifier like `shape/area`), so it's crucial to use the complete identifier that appears in the file.
 
    Example: Insert a helper function before a `defmethod` named `shape/area :square`:
    - file_path: \"/path/to/file.clj\"
-   - form_name: \"shape/area :square\"
+   - form_identifier: \"shape/area :square\"
    - form_type: \"defmethod\"
    - content: \"(defn calculate-area [w h] (* w h))\"
 
+   Example: Insert a helper function before a `defmethod` with a namespaced multimethod:
+   - file_path: \"/path/to/file.clj\"
+   - form_identifier: \"tool-system/validate-inputs :clojure-eval\"
+   - form_type: \"defmethod\"
+   - content: \"(def validation-helpers {:required-keys #{:code}})\"
+
    Example: Insert a helper function before a `defmethod` with a vector dispatch value:
    - file_path: \"/path/to/file.clj\"
-   - form_name: \"convert-length [:feet :inches]\"
+   - form_identifier: \"convert-length [:feet :inches]\"
    - form_type: \"defmethod\"
    - content: \"(def inches-per-foot 12)\"
 
@@ -217,19 +231,21 @@ Note: For `defmethod` forms it's better to include the dispatch value (`area :re
   {:type :object
    :properties {:file_path {:type :string
                             :description "Path to the file containing the form"}
-                :form_name {:type :string
-                            :description "Name of the form (e.g., function name)"}
+                :form_identifier {:type :string
+                                  :description "Complete identifier of the form (e.g., function name, \"shape/area\", or \"tool-system/validate-inputs :clojure-eval\")"}
                 :form_type {:type :string
                             :description "Type of the form (e.g., \"defn\", \"def\", \"ns\")"}
                 :content {:type :string
                           :description "Content to insert before the form"}}
-   :required [:file_path :form_name :form_type :content]})
+   :required [:file_path :form_identifier :form_type :content]})
 
 (defmethod tool-system/validate-inputs :clojure-edit-insert-before-form [{:keys [nrepl-client-atom]} inputs]
   (let [file-path (validate-file-path inputs nrepl-client-atom)
-        {:keys [form_name form_type content]} inputs]
-    (when-not form_name
-      (throw (ex-info "Missing required parameter: form_name"
+        ;; Accept form_identifier but map it to form_name internally for compatibility
+        {:keys [form_identifier form_type content]} inputs
+        form_name form_identifier]
+    (when-not form_identifier
+      (throw (ex-info "Missing required parameter: form_identifier"
                       {:inputs inputs})))
     (when-not form_type
       (throw (ex-info "Missing required parameter: form_type"
@@ -237,7 +253,7 @@ Note: For `defmethod` forms it's better to include the dispatch value (`area :re
     (when-not content
       (throw (ex-info "Missing required parameter: content"
                       {:inputs inputs})))
-    ;; Return validated inputs
+    ;; Return validated inputs with form_name for backward compatibility
     {:file_path file-path
      :form_name form_name
      :form_type form_type
@@ -266,31 +282,37 @@ Note: For `defmethod` forms it's better to include the dispatch value (`area :re
    
 PREFER this tool along with `clojure_edit_replace_definition` and `clojure_edit_insert_before_definition` for editing Clojure files (`.clj` `.cljs` `.cljc` `.bb`)
 
-These tools MAKE it EASIER to match a definition that exists in the file AS you only have to match the type of definition `form_type` and the name identifier `form_name` of the definition. This prevents the repeated mismatch errors that occur when trying match an entire `old_string` to replace it.
+These tools MAKE it EASIER to match a definition that exists in the file AS you only have to match the type of definition `form_type` and the complete identifier `form_identifier` of the definition. This prevents the repeated mismatch errors that occur when trying match an entire `old_string` to replace it.
 These tools validates the structure of the Clojure code that is being inserted into the file and will provide linting feedback for things such as parenthetical errors.
 These tools reduces the number of tokens that need to be generated and that makes me happy!
  
 WARNING: you will receive errors if the syntax is wrong, the most common error is an extra or missing parenthesis at the end of the inserted content in `content`, so be careful with parenthesis.
 
-This tool adds new content after a specific top-level form (like a function, def, or namespace declaration) without modifying the form itself. The form is identified by its type (defn, def, deftest, s/def, ns, defmethod etc.) and name.
+This tool adds new content after a specific top-level form (like a function, def, or namespace declaration) without modifying the form itself. The form is identified by its type (defn, def, deftest, s/def, ns, defmethod etc.) and complete identifier.
    
    Example: Insert a test after a function named `example-fn`:
    - file_path: \"/path/to/file.clj\"
-   - form_name: \"example-fn\"
+   - form_identifier: \"example-fn\"
    - form_type: \"defn\"
    - content: \"(deftest example-fn-test\n  (is (= 4 (example-fn 2))))\"
    
-Note: For `defmethod` forms it's better to include the dispatch value (`area :rectangle` or `qualified/area :rectangle`) in the `form-name`. Many `defmethod` definitions often have qualified names ie. they include a namespace alias in the text of their name like `shape/area` it's best to match the text of the `form_name` to the unique identifying text that is actually present in the file.
+Note: For `defmethod` forms, be sure to include the dispatch value (`area :rectangle` or `qualified/area :rectangle`) in the `form_identifier`. Many `defmethod` definitions have qualified names (they include a namespace alias in their identifier like `shape/area`), so it's crucial to use the complete identifier that appears in the file.
 
    Example: Insert a test after a `defmethod` named `shape/area :square`:
    - file_path: \"/path/to/file.clj\"
-   - form_name: \"shape/area :square\"
+   - form_identifier: \"shape/area :square\"
    - form_type: \"defmethod\"
    - content: \"(deftest square-area-test\n  (is (= 25 (:area (shape/area :square {:w 5 :h 5}))))\"
 
+   Example: Insert a test after a `defmethod` with a namespaced multimethod:
+   - file_path: \"/path/to/file.clj\"
+   - form_identifier: \"tool-system/validate-inputs :clojure-eval\"
+   - form_type: \"defmethod\"
+   - content: \"(deftest validate-clojure-eval-test\n  (is (map? (tool-system/validate-inputs nil {:code \"(+ 1 2)\"}))))\"
+
    Example: Insert a test after a `defmethod` with a vector dispatch value:
    - file_path: \"/path/to/file.clj\"
-   - form_name: \"convert-length [:feet :inches]\"
+   - form_identifier: \"convert-length [:feet :inches]\"
    - form_type: \"defmethod\"
    - content: \"(deftest feet-to-inches-test\n  (is (= 24 (convert-length [:feet :inches] 2))))\"
 
@@ -301,19 +323,21 @@ Note: For `defmethod` forms it's better to include the dispatch value (`area :re
   {:type :object
    :properties {:file_path {:type :string
                             :description "Path to the file containing the form"}
-                :form_name {:type :string
-                            :description "Name of the form (e.g., function name)"}
+                :form_identifier {:type :string
+                                  :description "Complete identifier of the form (e.g., function name, \"shape/area\", or \"tool-system/validate-inputs :clojure-eval\")"}
                 :form_type {:type :string
                             :description "Type of the form (e.g., \"defn\", \"def\", \"ns\")"}
                 :content {:type :string
                           :description "Content to insert after the form"}}
-   :required [:file_path :form_name :form_type :content]})
+   :required [:file_path :form_identifier :form_type :content]})
 
 (defmethod tool-system/validate-inputs :clojure-edit-insert-after-form [{:keys [nrepl-client-atom]} inputs]
   (let [file-path (validate-file-path inputs nrepl-client-atom)
-        {:keys [form_name form_type content]} inputs]
-    (when-not form_name
-      (throw (ex-info "Missing required parameter: form_name"
+        ;; Accept form_identifier but map it to form_name internally for compatibility
+        {:keys [form_identifier form_type content]} inputs
+        form_name form_identifier]
+    (when-not form_identifier
+      (throw (ex-info "Missing required parameter: form_identifier"
                       {:inputs inputs})))
     (when-not form_type
       (throw (ex-info "Missing required parameter: form_type"
@@ -321,7 +345,7 @@ Note: For `defmethod` forms it's better to include the dispatch value (`area :re
     (when-not content
       (throw (ex-info "Missing required parameter: content"
                       {:inputs inputs})))
-    ;; Return validated inputs
+    ;; Return validated inputs with form_name for backward compatibility
     {:file_path file-path
      :form_name form_name
      :form_type form_type
@@ -349,13 +373,19 @@ Note: For `defmethod` forms it's better to include the dispatch value (`area :re
   "Edits only the docstring of a top-level form in a Clojure file.
    
    This tool updates the docstring of a function, def, or other form without
-   modifying the rest of the form. The form is identified by its type and name.
+   modifying the rest of the form. The form is identified by its type and complete identifier.
    
    Example: Update the docstring of 'example-fn':
    - file_path: \"/path/to/file.clj\"
-   - form_name: \"example-fn\"
+   - form_identifier: \"example-fn\"
    - form_type: \"defn\"
    - docstring: \"Takes an integer and doubles it.\"
+   
+   Example: Update the docstring of a namespaced multimethod implementation:
+   - file_path: \"/path/to/file.clj\"
+   - form_identifier: \"tool-system/validate-inputs :clojure-eval\"
+   - form_type: \"defmethod\"
+   - docstring: \"Validates inputs for the clojure-eval tool.\"
    
    The tool will find the form, update only its docstring, and format the result.
    It returns the updated file content, the location offsets, and a diff of the changes.")
@@ -364,19 +394,21 @@ Note: For `defmethod` forms it's better to include the dispatch value (`area :re
   {:type :object
    :properties {:file_path {:type :string
                             :description "Path to the file containing the form"}
-                :form_name {:type :string
-                            :description "Name of the form (e.g., function name)"}
+                :form_identifier {:type :string
+                                  :description "Complete identifier of the form (e.g., function name, \"shape/area\", or \"tool-system/validate-inputs :clojure-eval\")"}
                 :form_type {:type :string
                             :description "Type of the form (e.g., \"defn\", \"def\")"}
                 :docstring {:type :string
                             :description "New docstring content"}}
-   :required [:file_path :form_name :form_type :docstring]})
+   :required [:file_path :form_identifier :form_type :docstring]})
 
 (defmethod tool-system/validate-inputs :clojure-edit-replace-docstring [{:keys [nrepl-client-atom]} inputs]
   (let [file-path (validate-file-path inputs nrepl-client-atom)
-        {:keys [form_name form_type docstring]} inputs]
-    (when-not form_name
-      (throw (ex-info "Missing required parameter: form_name"
+        ;; Accept form_identifier but map it to form_name internally for compatibility
+        {:keys [form_identifier form_type docstring]} inputs
+        form_name form_identifier]
+    (when-not form_identifier
+      (throw (ex-info "Missing required parameter: form_identifier"
                       {:inputs inputs})))
     (when-not form_type
       (throw (ex-info "Missing required parameter: form_type"
@@ -384,7 +416,7 @@ Note: For `defmethod` forms it's better to include the dispatch value (`area :re
     (when-not docstring
       (throw (ex-info "Missing required parameter: docstring"
                       {:inputs inputs})))
-    ;; Return validated inputs
+    ;; Return validated inputs with form_name for backward compatibility
     {:file_path file-path
      :form_name form_name
      :form_type form_type

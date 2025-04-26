@@ -1,521 +1,214 @@
-# Clojure MCP - LLM Assistant Guide
+# Clojure MCP Project Summary
 
 ## Project Overview
 
-Clojure MCP is a Model Context Protocol (MCP) server that enables LLM assistants (like Claude) to interact directly with a Clojure REPL environment. The core concept is to facilitate REPL-driven development where AI assistants can evaluate Clojure code in real-time, providing immediate feedback and enabling step-by-step verification of solutions.
+Clojure MCP is a Model Context Protocol (MCP) server that enables AI assistants (like Claude) to interact directly with a Clojure REPL. It provides a collaborative, REPL-driven development workflow between humans and LLMs. The core philosophy is "tiny steps with high quality rich feedback" for effective development.
 
-## Key Project Files
+The project allows AI assistants to:
+- Evaluate Clojure code and see immediate results
+- Incrementally develop solutions with step-by-step verification
+- Navigate and explore namespaces and symbols
+- Edit Clojure files with proper formatting and structure-aware operations
+- Access documentation and source code
+- Test code directly in the REPL environment
 
-### Core Implementation
-- **`src/clojure_mcp/core.clj`**: Main entry point and server setup, creates the MCP server and registers tools, prompts, and resources
-- **`src/clojure_mcp/nrepl.clj`**: Manages communication with nREPL server
-- **`src/clojure_mcp/repl_tools.clj`**: Centralizes tool registration via the `get-all-tools` function
-- **`src/clojure_mcp/resources.clj`**: Provides resource definitions for the MCP server
-- **`src/clojure_mcp/prompts.clj`**: Defines prompts and centralizes prompt registration
-- **`src/clojure_mcp/tool_system.clj`**: Core multimethod-based system for tools implementation
+## Key File Paths and Descriptions
+
+### Core System Files
+
+- `/src/clojure_mcp/core.clj`: Main entry point, sets up the MCP server and tools
+- `/src/clojure_mcp/nrepl.clj`: nREPL client implementation for connecting to Clojure REPL
+- `/src/clojure_mcp/tool_system.clj`: Defines the multimethod-based architecture for tools
+- `/src/clojure_mcp/repl_tools.clj`: Central registry for all available tools
+- `/src/clojure_mcp/prompts.clj`: Manages system prompts for AI assistants
+- `/src/clojure_mcp/resources.clj`: Manages resources to be exposed to AI assistants
+- `/src/clojure_mcp/linting.clj`: Code quality and formatting utilities
 
 ### Tool Implementations
-The project has been refactored to use a modular multimethod-based architecture:
 
-#### Tool System Structure
-Each tool follows this pattern:
-- **`src/clojure_mcp/tools/{tool_name}/core.clj`**: Pure business logic independent of MCP
-- **`src/clojure_mcp/tools/{tool_name}/tool.clj`**: MCP-specific implementation using the multimethods
-- **`test/clojure_mcp/tools/{tool_name}/core_test.clj` and `tool_test.clj`**: Tests for both layers
+- `/src/clojure_mcp/tools/eval/`: Code evaluation tools
+- `/src/clojure_mcp/tools/read_file/`: File reading utilities
+- `/src/clojure_mcp/tools/form_edit/`: Structure-aware Clojure code editing
+- `/src/clojure_mcp/tools/file_edit/`: Basic file editing operations
+- `/src/clojure_mcp/tools/unified_file_edit/`: Combined file editing capabilities
+- `/src/clojure_mcp/tools/unified_read_file/`: Enhanced file reading with Clojure-specific features
+- `/src/clojure_mcp/tools/directory_tree/`: Filesystem navigation
+- `/src/clojure_mcp/tools/grep/`: Content searching in files
+- `/src/clojure_mcp/tools/glob_files/`: Pattern-based file finding
+- `/src/clojure_mcp/tools/namespace/`: Clojure namespace exploration
+- `/src/clojure_mcp/tools/symbol/`: Symbol information and documentation
+- `/src/clojure_mcp/tools/project/`: Project structure analysis
+- `/src/clojure_mcp/tools/code_critique/`: Code quality feedback
+- `/src/clojure_mcp/tools/think/`: Reflective thinking tool for AI assistants
 
-#### Available Tools by Category
-- **Code Evaluation**: `src/clojure_mcp/tools/eval/`
-- **File Operations**: 
-  - `src/clojure_mcp/tools/read_file/`
-  - `src/clojure_mcp/tools/directory_tree/`
-  - `src/clojure_mcp/tools/list_directory/`
-  - `src/clojure_mcp/tools/file_write/`
-  - `src/clojure_mcp/tools/grep/`
-  - `src/clojure_mcp/tools/glob_files/`
-- **Code Navigation and Metadata**:
-  - `src/clojure_mcp/tools/namespace/`
-  - `src/clojure_mcp/tools/symbol/`
-- **Code Editing**:
-  - `src/clojure_mcp/tools/form_edit/`
-- **Project Metadata**:
-  - `src/clojure_mcp/tools/project/`
+### Resource Directories
 
-### Configuration
-- **`deps.edn`**: Project dependencies and aliases
-- **`resources/configs/claude_desktop_config.json.example`**: Example MCP server configuration for Claude Desktop
+- `/resources/prompts/`: System prompts for AI assistants
+- `/resources/prompts/system/`: Core system prompts
+- `/resources/agent/`: Agent-specific resources
+- `/resources/configs/`: Configuration examples
 
-## Dependencies
+## Dependencies and Versions
 
-The project relies on the following key dependencies (from `deps.edn`):
+### Core Dependencies
 
-```clojure
-{:deps {clj-kondo/clj-kondo {:mvn/version "2024.03.13"} ;; Static analysis
-        org.clojure/clojure {:mvn/version "1.11.1"}
-        org.clojure/data.json {:mvn/version "2.5.1"}
-        io.modelcontextprotocol.sdk/mcp {:mvn/version "0.8.1"} ;; MCP SDK
-        org.slf4j/slf4j-nop {:mvn/version "2.0.3"}
-        nrepl/nrepl {:mvn/version "1.3.1"} ;; nREPL client
-        com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.15.2"}
-        rewrite-clj/rewrite-clj {:mvn/version "1.1.47"} ;; Code parsing/editing
-        dev.weavejester/cljfmt {:mvn/version "0.13.1"} ;; Code formatting
-        pogonos/pogonos {:mvn/version "0.2.1"} ;; Templating library
-        }}
-```
+- `org.clojure/clojure` (1.11.1): The Clojure language
+- `io.modelcontextprotocol.sdk/mcp` (0.8.1): Model Context Protocol SDK
+- `nrepl/nrepl` (1.3.1): Network REPL server for Clojure
+- `rewrite-clj/rewrite-clj` (1.1.47): Library for parsing and transforming Clojure code
+- `dev.weavejester/cljfmt` (0.13.1): Clojure code formatting
+- `clj-kondo/clj-kondo` (2024.03.13): Static analyzer and linter for Clojure
 
-## Available MCP Tools
+### AI Integration Dependencies
+
+- `dev.langchain4j/langchain4j` (1.0.0-beta3): Java library for LLM integration
+- `dev.langchain4j/langchain4j-anthropic` (1.0.0-beta3): Anthropic-specific integration
+- `pogonos/pogonos` (0.2.1): Mustache templating for prompts
+
+## Available Tools and Examples
 
 ### Code Evaluation
-- **`clojure_eval`**: Evaluates Clojure code in the REPL
-  - Input: `{"code": "(+ 1 2)"}`
-  - Output: Evaluation result and/or error messages
-  - Implementation: `src/clojure_mcp/tools/eval/`
 
-### Namespace Management
-- **`current_namespace`**: Gets the active namespace
-  - Implementation: `src/clojure_mcp/tools/namespace/`
-- **`clojure_list_namespaces`**: Lists all available namespaces
-  - Implementation: `src/clojure_mcp/tools/namespace/`
-- **`clojure_list_vars_in_namespace`**: Lists vars in a namespace with formatted output
-  - Input: `{"namespace": "clojure.string"}`
-  - Output: Human-readable formatted display of functions with their argument lists and docstrings
-  - Example output:
-    ```
-    blank?
-      ([s])
-      True if s is nil, empty, or contains only whitespace.
-    ---
-    capitalize
-      ([s])
-      Converts first character of the string to upper-case, all other characters to lower-case.
-    ```
-  - Implementation: `src/clojure_mcp/tools/namespace/`
-
-### Symbol Information
-- **`symbol_completions`**: Gets completions for symbol prefixes
-  - Input: `{"prefix": "map"}`
-  - Implementation: `src/clojure_mcp/tools/symbol/`
-- **`symbol_metadata`**: Retrieves detailed metadata for symbols
-  - Input: `{"symbol": "map"}`
-  - Implementation: `src/clojure_mcp/tools/symbol/`
-- **`symbol_documentation`**: Gets docstrings and usage information
-  - Input: `{"symbol": "map"}`
-  - Implementation: `src/clojure_mcp/tools/symbol/`
-- **`source_code`**: Views source code implementation
-  - Input: `{"symbol": "map"}`
-  - Implementation: `src/clojure_mcp/tools/symbol/`
-- **`symbol_search`**: Searches for symbols across namespaces
-  - Input: `{"search-str": "seq"}`
-  - Implementation: `src/clojure_mcp/tools/symbol/`
-
-### Form Editing Tools
-- **`clojure_file_structure`**: Shows file structure with top-level forms
-  - Input: `{"file_path": "src/my_namespace/core.clj", "expand_symbols": ["my-function"]}`
-  - Implementation: `src/clojure_mcp/tools/form_edit/`
-  - Output shows collapsed view of the file with optional expanded functions
-- **`clojure_edit_replace_form`**: Updates top-level forms
-  - Input: `{"file_path": "...", "form_name": "my-function", "form_type": "defn", "content": "..."}`
-  - Implementation: `src/clojure_mcp/tools/form_edit/`
-  - Supports replacing a single form with multiple forms in one operation
-  - For defmethod forms, the form_name can be:
-    - Just the method name (e.g., "test-multi") to edit the first matching method
-    - Method name with dispatch value (e.g., "test-multi :default") to edit a specific implementation
-- **`clojure_edit_insert_before_form`**: Inserts code before existing forms
-  - Input: `{"file_path": "...", "form_name": "main-fn", "form_type": "defn", "content": "..."}`
-  - Implementation: `src/clojure_mcp/tools/form_edit/`
-  - Supports inserting multiple forms in one operation
-- **`clojure_edit_insert_after_form`**: Inserts code after existing forms
-  - Input: `{"file_path": "...", "form_name": "helper-fn", "form_type": "defn", "content": "..."}`
-  - Implementation: `src/clojure_mcp/tools/form_edit/`
-  - Supports inserting multiple forms in one operation
-- **`clojure_edit_comment_block`**: Edits or updates comment blocks
-  - Input: `{"file_path": "...", "comment_substring": "Example usage", "new_content": "..."}`
-  - Implementation: `src/clojure_mcp/tools/form_edit/`
-- **`clojure_edit_replace_docstring`**: Updates function docstrings
-  - Input: `{"file_path": "...", "form_name": "my-function", "form_type": "defn", "docstring": "..."}`
-  - Implementation: `src/clojure_mcp/tools/form_edit/`
-- **`clojure_edit_replace_sexp`**: Edits specific s-expressions within files
-  - Input: `{"file_path": "...", "match_form": "(+ x 1)", "new_form": "(+ x 10)", "replace_all": true, "whitespace_sensitive": false}`
-  - Implementation: `src/clojure_mcp/tools/form_edit/`
-  - Useful for editing sub-expressions and symbols throughout a file
-  - Can replace all occurrences or just the first match
-  - Whitespace sensitivity option for precise matching
-  - The tool displays a diff showing both removed and added content
-  - Recommended for smaller targeted changes, not whole-form replacements
+```clojure
+clojure_eval:
+  Input: (+ 1 2)
+  Output: => 3
+```
 
 ### File Operations
-- **`file_write`**: Writes content to a file with formatting and linting
-  - Input: `{"file_path": "/path/to/file.clj", "content": "(ns my.namespace)\n\n(defn my-function [x]\n  (* x 2))"}`
-  - Output: Status indicating creation or update, plus a diff showing changes
-  - Performs Clojure-aware linting and formatting on the content
-  - Returns a detailed diff showing the changes made to the file
-  - Implementation: `src/clojure_mcp/tools/file_write/`
-  - Best practices:
-    - Use `read_file` first to understand file contents and context
-    - Use `list_directory` to verify parent directories exist for new files
-    - Preferred for replacing large portions of a file (saves tokens)
 
-- **`file_edit`**: Edits files by replacing specific text strings
-  - Input: `{"file_path": "/path/to/file.clj", "old_string": "text to replace", "new_string": "replacement text"}`
-  - Intended as a safety mechanism, requiring that the string to replace occurs exactly once
-  - Implementation: `src/clojure_mcp/tools/file_edit/`
-  - Note: The specialized form editing tools are generally preferred for Clojure code changes
+```clojure
+read_file:
+  Input: {:path "/path/to/file.clj"}
+  Output: File contents with optional Clojure-specific collapsed view
+  
+edit_file:
+  Input: {:file_path "/path/to/file.clj", :old_string "(defn old", :new_string "(defn new"}
+  Output: Diff showing changes made
+```
 
-### Filesystem Tools
-- **`directory_tree`**: Shows a recursively indented tree view of files and directories
-  - Input: `{"path": "/path/to/directory", "max_depth": 2}`
-  - Output: Text representation of the directory tree with proper indentation
-  - Filters out temporary files like Emacs backups and hidden files
-  - Adds "..." indicators for directories truncated due to max_depth
-  - Implementation: `src/clojure_mcp/tools/directory_tree/`
+### Clojure-Specific Editing
 
-- **`fs_list_directory`**: Lists files and directories at a specified path
-  - Input: `{"path": "/path/to/directory"}`
-  - Output: Formatted directory listing with files and subdirectories
-  - Implementation: `src/clojure_mcp/tools/list_directory/`
+```clojure
+clojure_edit_replace_definition:
+  Input: {:file_path "/path/to/file.clj", :form_type "defn", :form_identifier "my-func", :content "(defn my-func [x] (* x 2))"}
+  Output: Diff showing syntax-aware function replacement
+  
+clojure_edit_insert_before_definition:
+  Input: {:file_path "/path/to/file.clj", :form_type "defn", :form_identifier "my-func", :content "(def magic-multiplier 2)"}
+  Output: Diff showing insertion before the specified function
+  
+clojure_edit_insert_after_definition:
+  Input: {:file_path "/path/to/file.clj", :form_type "defn", :form_identifier "my-func", :content "(deftest my-func-test (is (= 4 (my-func 2))))"}
+  Output: Diff showing insertion after the specified function
 
-- **`fs_read_file`**: Reads file contents with optional line limits and offsets
-  - Input: `{"path": "/path/to/file", "offset": 0, "limit": 2000}`
-  - Output: File contents wrapped in XML tags with metadata
-  - Implementation: `src/clojure_mcp/tools/read_file/`
+# Examples with namespace-qualified forms and defmethod
 
-- **`glob_files`**: Fast file pattern matching using glob patterns
-  - Input: `{"path": "/path/to/directory", "pattern": "**/*.clj", "max_results": 1000}`
-  - Output: JSON with filenames (sorted by modification time), count, duration, and truncation flag
-  - Supports standard glob patterns like "**/*.js" (recursive) or "src/*.ts" (single directory)
-  - Implementation: `src/clojure_mcp/tools/glob_files/`
+clojure_edit_replace_definition:
+  Input: {:file_path "/path/to/file.clj", 
+          :form_type "defmethod", 
+          :form_identifier "tool-system/validate-inputs :clojure-eval", 
+          :content "(defmethod tool-system/validate-inputs :clojure-eval [_ inputs]\n  (validate-clojure-eval-inputs inputs))"}
+  Output: Diff showing replacement of a specific multimethod implementation
+```
 
-- **`fs_grep`**: Fast content search tool for finding text patterns in files
-  - Input: `{"path": "/path/to/directory", "pattern": "function\\s+\\w+", "include": "*.{js,ts}", "max_results": 1000}`
-  - Output: JSON with matching files (sorted by modification time), count, and duration
-  - Uses system grep command with extended regex support when available
-  - Provides pure Java fallback implementation for cross-platform compatibility
-  - Supports multiple file types through brace expansion (e.g., "*.{clj,md}")
-  - Implementation: `src/clojure_mcp/tools/grep/`
+### Code Search and Navigation
 
-### Project Tools
-- **`clojure_inspect_project`**: Analyzes project structure and dependencies
-  - Implementation: `src/clojure_mcp/tools/project/`
+```clojure
+glob_files:
+  Input: {:pattern "**/*.clj"}
+  Output: List of matching file paths
+  
+fs_grep:
+  Input: {:pattern "defn my-func"}
+  Output: List of files containing the pattern
+  
+symbol_search:
+  Input: {:search-str "map"}
+  Output: List of symbol names containing "map"
+```
 
-## MCP Resources
+### Project Information
 
-The MCP server provides several resources that can be accessed by clients:
+```clojure
+clojure_inspect_project:
+  Input: {}
+  Output: Detailed project structure information
+```
 
-- **`custom://project-summary`**: Serves the PROJECT_SUMMARY.md file
-  - MIME Type: text/markdown
-  - Implementation: `src/clojure_mcp/resources.clj`
+## Architecture and Design Patterns
 
-- **`custom://readme`**: Serves the README.md file
-  - MIME Type: text/markdown
-  - Implementation: `src/clojure_mcp/resources.clj`
+### Core Architecture Components
 
-- **`custom://claude`**: Serves the CLAUDE.md file with instructions
-  - MIME Type: text/markdown
-  - Implementation: `src/clojure_mcp/resources.clj`
+1. **MCP Server**: Entry point that exposes tools to AI assistants
+2. **nREPL Client**: Connects to the Clojure REPL for code evaluation
+3. **Tool System**: Extensible multimethod-based architecture for defining tools
+4. **Prompt System**: Provides context and guidance to AI assistants
 
-- **`custom://project-info`**: Provides dynamic information about the project structure
-  - MIME Type: text/markdown
-  - Implementation: `src/clojure_mcp/resources.clj`
+### Key Implementation Patterns
 
-## Architecture
+1. **Multimethod Dispatch**: The tool system uses multimethods for extensibility:
+   - `tool-name`: Determines the name of a tool
+   - `tool-description`: Provides human-readable description
+   - `tool-schema`: Defines the input/output schema
+   - `validate-inputs`: Validates tool inputs
+   - `execute-tool`: Performs the actual operation
+   - `format-results`: Formats the results for the AI
 
-### Multimethod-Based Tool System
+2. **Core/Tool Separation**: Each tool follows a pattern:
+   - `core.clj`: Pure functionality without MCP dependencies
+   - `tool.clj`: MCP integration layer using the tool system
 
-The project implements tools using a centralized multimethod-based architecture:
+3. **Structured Clojure Code Editing**: Uses rewrite-clj to:
+   - Parse Clojure code into zipper structure
+   - Perform structure-aware transformations
+   - Maintain proper formatting and whitespace
 
-1. **Core Multimethods** (defined in `tool_system.clj`):
-   - `tool-name`, `tool-description`, `tool-schema`: Define metadata
-   - `validate-inputs`, `execute-tool`, `format-results`: Define behavior 
-   - `registration-map`: Creates MCP registration map
+4. **REPL-Driven Development**: All tools designed to support:
+   - Incremental development
+   - Immediate feedback
+   - Step-by-step verification
 
-2. **Improved Separation of Concerns**:
-   - Each tool has two main components:
-     - `core.clj`: Pure business logic independent of MCP
-     - `tool.clj`: MCP-specific implementation using the multimethods
+## Development Workflow Recommendations
 
-3. **Standardized Error Handling**:
-   - Centralized validation with clear error messages
-   - Consistent response format for both success and error states
+1. **Setup and Configuration**:
+   - Configure Claude Desktop with the Clojure MCP server
+   - Set up file system and Git integration if needed
 
-### MCP Server Layer
+2. **REPL-Driven Development**:
+   - Start with small, incremental steps
+   - Evaluate code in the REPL to verify correctness
+   - Save working code to files when verified
 
-- Implemented in `src/clojure_mcp/core.clj`
-- Handles MCP protocol communication via `io.modelcontextprotocol.sdk/mcp`
-- Creates and registers tools, prompts, and resources
-- Uses `StdioServerTransportProvider` for communication
-- Maintains the nREPL client atom with ::nrepl-user-dir and ::allowed-directories settings
+3. **Tool Usage Best Practices**:
+   - Use `clojure_eval` for testing code snippets
+   - Use `clojure_edit_*` tools for syntax-aware code editing
 
-### nREPL Client Layer
-
-- Implemented in `src/clojure_mcp/nrepl.clj`
-- Manages connection and communication with nREPL
-- Handles code evaluation and result formatting
-
-### Tool Implementation Layer
-
-- Organized in `src/clojure_mcp/tools/` directory
-- Each tool follows the pattern of core.clj for logic and tool.clj for MCP integration
-- Uses `rewrite-clj` for code parsing and manipulation
-- Implements specific multimethods for each tool type
-
-### Resource Layer
-
-- Implemented in `src/clojure_mcp/resources.clj`
-- Defines resources that can be served by the MCP server
-- Provides utility functions for creating different types of resources
-
-### Prompt Layer
-
-- Implemented in `src/clojure_mcp/prompts.clj`
-- Defines prompts for the MCP server
-- Provides access to template-based prompts
-
-## Form Editing Pipeline
-
-For form editing operations, the project uses a standardized pipeline pattern:
-
-1. **Context Map**: Operations use a context map (with ::namespaced keys) to pass data through a series of processing functions
-2. **Thread-Ctx**: The `thread-ctx` function chains pipeline functions while short-circuiting on error
-3. **Pipeline Components**: Individual functions perform specific operations and update the context map:
-   - `load-source`: Loads file content into the context
-   - `parse-source`: Parses source into a zipper
-   - `find-form`: Locates the top-level form to modify
-   - `edit-form`: Performs the actual edit operation
-   - `format-source`: Formats code according to Clojure conventions
-   - `generate-diff`: Creates a human-readable diff of changes
-   - `save-file`: Writes content to file with offset tracking
-   - `emacs-set-auto-revert`, `highlight-form`: Provides integration with Emacs
-   - `enhance-defmethod-name`: Special handling for defmethod forms to extract dispatch values
-
-This pattern enables:
-- Clear separation of concerns
-- Consistent error handling
-- Reusable components across different tools
-- Easy extension with new processing steps
-
-## Development Workflow
-
-### Build Commands
-- Run REPL with MCP server: `clojure -X:mcp` (starts on port 7888)
-- Run all tests: `clojure -X:test`
-- Run single test: `clojure -X:test :dirs '["test"]' :include '"repl_tools_test"'`
-- Run linter: `clojure -M:lint` (checks src directory)
-- Build JAR: `clojure -T:build ci`
-- Install locally: `clojure -T:build install`
-
-### Test Environment Setup
-For testing tools, the project provides test utilities:
-- Dynamic test fixtures (`use-fixtures`)
-- Temporary directories and files
-- Mock nREPL client setup
-- Integration tests with real nREPL server
-- When testing functions that use zippers, always create zippers with `{:track-position? true}` when position information is needed
-
-### Recommended REPL-Driven Development Pattern
-
-When developing with this tool:
-
-1. **Start with exploration**: Use namespace and symbol tools to understand available functionality
-2. **Develop incrementally**: Evaluate small pieces of code to verify correctness
-3. **Build up solutions**: Chain successful evaluations into complete solutions
-4. **Edit with care**: Use the specialized editing tools that maintain correct syntax
-5. **Verify saved code**: After editing files, re-evaluate to ensure correctness
-6. **Access documentation**: Use resource URLs to access project documentation when needed
-7. **File access**: Use filesystem tools to navigate and read code files when needed
-
-### Best Practices for Effective Tool Usage
-
-#### Project Navigation and Exploration
-- Use `fs_directory_tree` for a quick overview of project structure
-- Use `glob_files` with pattern "**/*.clj" to find all Clojure files
-- Use `fs_grep` to search for functions, vars or namespaces by name
-- Use `clojure_inspect_project` to understand dependencies and namespaces
-- Examine imports in existing files to understand namespace conventions
-
-#### Code Evaluation and Development
-- Start REPL exploration with `current_namespace` to know where you are
-- Use `clojure_eval` with small, focused expressions to test ideas
-- Verify functions in isolation before using them in larger contexts
-- Test boundary cases and error conditions explicitly
-- When evaluating forms from files, use require with `:reload` to ensure you have the latest code
-
-#### Form Editing Strategy 
-- Choose the right tool for the job:
-  - Use `clojure_edit_replace_definition` for complete function rewrites
-  - Use `clojure_edit_replace_sexp` for targeted expression changes 
-  - Use `clojure_edit_replace_docstring` for documentation updates
-  - Use `clojure_edit_replace_comment_block` for comment changes
-- Break complex edits into a series of smaller, focused changes
-- Validate file edits by evaluating the updated code afterward
-- Use `replace_all: true` sparingly and with caution
-- Handle tool errors by examining error messages and fixing the underlying issues
-
-#### Working with defmethod Forms
-- For specific implementations, use form_name with dispatch value: "my-multi :circle"
-- For general method edits, use just the method name: "my-multi"
-- Remember that dispatch values can be any Clojure data type (keywords, strings, vectors, etc.)
-- Add proper typehints when working with Java interop defmethods
-
-#### Debugging and Error Handling
-- Read tool error messages carefully - they're designed to be informative
-- Test code in the REPL before saving to catch syntax errors early
-- Use the `clojure_file_structure` tool to verify file structure after complex edits
-- When code doesn't work as expected, break it down into smaller pieces for debugging
-- Remember that the tool pipelines short-circuit on errors, so fix the first reported issue first
-
-## Code Style Guidelines
-- **Imports**: Use `:require` with ns aliases (e.g., `[clojure.string :as string]`)
-- **Naming**: Use kebab-case for vars/functions; end predicates with `?` (e.g., `is-top-level-form?`)
-- **Documentation**: Provide docstrings for all public vars and functions
-   - Skip docstrings during development to save on tokens
-   - Defer docstring addition until requested by the user
-   - Keep docstrings concise and let arglists document function parameters
-- **Error handling**: Use `try/catch` with general exception handling and `ex-info`/`ex-data` for contextualized errors
-- **Formatting**: 2-space indentation; maintain whitespace in edited forms
-- **Namespaces and File Paths**: 
-  - Namespaces use dashes: `clojure-mcp.tools.file-write.core`
-  - File paths use underscores: `clojure_mcp/tools/file_write/core.clj`
-  - Example: Namespace `clojure-mcp.tools.file-write.core` corresponds to file path `src/clojure_mcp/tools/file_write/core.clj`
-- **Testing**: Use `deftest` with descriptive names; `testing` for subsections; `is` for assertions
-- **Control Flow**: Consider `cond->` and `cond->>` for conditional threading
-- **Destructuring**:
-  - For regular keywords: `[{:keys [zloc match-form] :as ctx}]`
-  - For namespaced keys: `[{:keys [::zloc ::match-form] :as ctx}]`
-- **Functions**: Keep functions small to reduce tokens and make edits faster
-
-### Using Shell Commands
-- Prefer the idiomatic `clojure.java.shell/sh` for executing shell commands
-- Always handle potential errors from shell command execution
-- Use explicit working directory for relative paths: `(shell/sh "cmd" :dir "/path")`
-- For testing builds and tasks, run `clojure -X:test` instead of running tests piecemeal
-- When capturing shell output, remember it may be truncated for very large outputs
-- Consider using shell commands for tasks that have mature CLI tools like diffing or git operations
-
-## MCP Tool Guidelines
-- Include clear tool `:description` for LLM guidance
-- Validate inputs and provide helpful error messages 
-- Each tool returns a vector of strings and a boolean error flag
-- Implement all required multimethods for each tool
+4. **Project Maintenance**:
+   - Run tests with `clojure -X:test`
+   - Update this project summary after significant changes
 
 ## Extension Points
 
-To extend this project:
+1. **Adding New Tools**:
+   - Create a new tool namespace in `/src/clojure_mcp/tools/`
+   - Implement the required multimethods from `tool-system`
+   - Register the tool in `repl_tools.clj`
 
-1. **Add new tools**:
-   - Create a new directory at `src/clojure_mcp/tools/your_tool_name/`
-   - Create `core.clj` with pure business logic
-   - Create `tool.clj` implementing required multimethods
-   - Add tests in `test/clojure_mcp/tools/your_tool_name/`
-   - Add the tool to the tool list in `src/clojure_mcp/repl_tools.clj`
+2. **Enhancing Prompt System**:
+   - Add new prompts in `/resources/prompts/`
+   - Register them in `prompts.clj`
 
-2. **Add new prompts**:
-   - Add to `src/clojure_mcp/prompts.clj` and include them in `get-all-prompts`
+3. **Improving Code Editing**:
+   - Extend form editing capabilities in `tools/form_edit/core.clj`
+   - Add specialized tools for common editing patterns
 
-3. **Add new resources**:
-   - Add to `src/clojure_mcp/resources.clj` and include them in `get-all-resources`
+4. **Language Model Integration**:
+   - Explore langchain4j integration for more advanced AI capabilities
+   - Implement feedback mechanisms for model improvements
 
-4. **Enhance the form editing pipeline**:
-   - Add new steps in `src/clojure_mcp/tools/form_edit/pipeline.clj`
+5. **IDE Integration**:
+   - Extend `/src/clojure_mcp/utils/emacs_integration.clj` for better editor support
+   - Add support for VS Code or other editors
 
-## Recent Fixes and Improvements
-
-### Fixed Diff Output in S-Expression Replacement Tool
-- **Issue**: The `clojure_edit_replace_sexp` tool was failing to show complete diff output
-- **Root Cause**: The `generate_diff` function in the pipeline was not receiving the correct old and new content, and the zipper wasn't being created with `:track-position?` set to true
-- **Fix Applied**: 
-  - Reordered pipeline steps, calling `format-source` before `generate-diff` to ensure proper formatting
-  - Enhanced the `generate-diff` function to more robustly handle different input sources
-  - Made sure zippers are created with position tracking enabled
-  - Fixed the order of operations in the s-expression replacement pipeline
-  ```clojure
-  ;; Modified the generate-diff function to better handle edge cases
-  (defn generate-diff [{:keys [::old-content ::output-source ::zloc] :as ctx}]
-    (let [old-content (or old-content "")
-          new-content (or output-source
-                          (and zloc (z/root-string zloc))
-                          "")
-          ;; Rest of function...
-  ```
-- **Benefits**:
-  - Diffs now correctly show both removed (with `-`) and added (with `+`) content
-  - More reliable results when working with complex code structures
-  - Better user experience when reviewing changes
-
-### Fixed Error Handling in Form Editing Tools
-- **Issue**: Form editing tools were failing silently when requested forms didn't exist
-- **Root Cause**: Error results from pipelines weren't being properly formatted for MCP
-- **Fix Applied**: Updated all `format-results` methods in `form_edit/tool.clj` to properly handle error conditions:
-  ```clojure
-  (defmethod tool-system/format-results :clojure-edit-replace-form [_ result]
-    (if (or (:error result) (:clojure-mcp.tools.form-edit.pipeline/error result))
-      {:result [(or (:message result) (:clojure-mcp.tools.form-edit.pipeline/message result))]
-       :error true}
-    result))
-  ```
-- **Benefits**:
-  - Users now get clear error messages when editing non-existent forms or files
-  - Error messages are properly propagated through the MCP protocol
-  - Consistent error handling across all form editing tools
-
-### Working with defmethod Forms
-- Special handling for editing `defmethod` forms is now working correctly
-- The `form_name` parameter can be specified in two ways:
-  - Just the method name (e.g., `test-multi`) to edit the first matching method
-  - Method name with dispatch value (e.g., `test-multi :default`) to edit a specific implementation
-- The pipeline's `enhance-defmethod-name` step extracts dispatch values from replacement code
-- When only specifying the method name, the tool automatically updates the first matching method by default
-
-### Updated Tool Descriptions
-- Improved the description for `clojure_edit_replace_sexp` to clarify its purpose
-- Updated the description for `file_edit` to recommend using `file_write` for larger changes to save tokens
-- Removed linting claims from `file_edit` description that weren't applicable
-
-### MCP Result Format Requirements
-- All tools must return results in a specific format for the MCP system
-- Error results should always have the structure:
-  ```clojure
-  {:result ["Error message here"]
-   :error true}
-  ```
-- Success results should have:
-  ```clojure
-  {:result ["Output string 1", "Output string 2", ...]
-   :error false}
-  ```
-
-### Form Editing Tool Validation Requirements
-
-The form editing tools have specific validation requirements to ensure correct usage:
-
-#### clojure_edit_replace_form, clojure_edit_insert_before_form, clojure_edit_insert_after_form, clojure_edit_replace_docstring
-- The `form_type` parameter cannot be "comment"
-- Use `clojure_edit_replace_comment_block` for comment editing instead
-- The validation happens in the `validate-form-type` function in `form_edit/pipeline.clj`
-- This prevents misuse of form editing tools on comment forms which have special syntax rules
-
-#### clojure_edit_replace_sexp
-- The `match_form` parameter must contain only a single s-expression
-- Multiple expressions like `(+ x 1) (- y 2)` will be rejected
-- Validation is done by parsing the string with `parse-string-all` and checking the child node count
-- Uses the rewrite-clj library to properly handle Clojure's syntax
-- Provides a clear error message directing users to simplify their match form
-
-#### All Form Editing Tools
-- Verify file paths are within allowed directories
-- Check for required parameters and throw helpful error messages when missing
-- For defmethod forms, handle both simple method names and method names with dispatch values
-- Uses pipeline approach to short-circuit on first validation error
-- All errors are properly formatted into the MCP result format with explanatory messages
-
-## Project Goals
-
-The primary goal is to enable high-quality collaborative development between humans and AI through:
-
-1. Immediate feedback via REPL evaluation
-2. Incremental development with step-by-step verification
-3. Human oversight for maintaining code quality
-4. Functional programming patterns that produce more maintainable code
-5. Access to contextual project information via resources
-6. Efficient file and directory navigation and manipulation
-7. Secure file access with proper path validation
-8. Pattern-based file searching for quickly locating relevant code
-9. Clear error reporting for better user experience
+This project summary is designed to provide AI assistants with a quick understanding of the Clojure MCP project structure and capabilities, enabling more effective assistance with minimal additional context.
