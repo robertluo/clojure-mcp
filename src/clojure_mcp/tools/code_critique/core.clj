@@ -29,6 +29,7 @@
           service (-> (chain/create-service AiService
                                             ai-service-data)
                       (.build))]
+      (log/info "AI service for code critique successfully created")
       (assoc ai-service-data
              :service service))
     (catch Exception e
