@@ -31,8 +31,8 @@
       (.apiKey (System/getenv "ANTHROPIC_API_KEY"))
       (.modelName AnthropicChatModelName/CLAUDE_3_7_SONNET_20250219)
       #_(.modelName AnthropicChatModelName/CLAUDE_3_5_SONNET_20241022)
-      #_(.logRequests true)
-      #_(.logResponses true)))
+      (.logRequests true)
+      (.logResponses true)))
 
 (defn chat-memory
   ([]
