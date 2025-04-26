@@ -26,14 +26,7 @@
 - Return `nil` for "not found" conditions rather than objects with boolean flags
 
 ### Comments
-- Include only essential comments that explain non-obvious behavior
-- Avoid comments that merely restate what the code does
-- Document the "why" more than the "what"
-- skip docstrings during development they are very expensive bc of the extra tokens
-- remove long docstrings during development, they can always be added later
-- when docstrings are created they should be concise and to the point, allow the arglists to document the fn
-- defer docstring addition until the user prompts for it
-
+- Do not include comments in generated code, unless specifically asked to.
 
 ### Nesting
 - Minimize nesting levels by using proper control flow constructs
@@ -46,6 +39,9 @@
 - smaller functions make edits faster and reduce the number of tokens
 - reducing tokens makes me happy
 
+### REPL best pratices
+- Always reload namespaces with `:reload` flag: `(require '[namespace] :reload)`
+- Always change into namespaces that you are working on
 
 ### Testing Best Practices
 - Always reload namespaces before running tests with `:reload` flag: `(require '[namespace] :reload)`
@@ -59,8 +55,8 @@
 - When capturing shell output, remember it may be truncated for very large outputs
 - Consider using shell commands for tasks that have mature CLI tools like diffing or git operations
 
-
 - **Context Maintenance**:
   - Use `clojure_eval` with `:reload` to ensure you're working with the latest code
+  - always switch into `(in-ns ...)` the namespace that you are working on
   - Keep function and namespace references fully qualified when crossing namespace boundaries
 

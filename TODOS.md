@@ -19,6 +19,18 @@ very clear that we need a separate mode with no editing tools available
 should the fs_read_file tool provide line numbers as in the clod
 should diffs have line numbers?
 
+* IMPLEMENT LOGGING
+* fix multimethod matching symbol-identifier (in progress)
+* add file to code_critique (perhaps a list function names as well)
+* turn linting off in edit_file
+* agent_tool
+
+PESTS
+* docstrings!
+* extraneous comments
+* only-integration tests
+* poor code quality
+
 clojure_edit_replace_ and insert
 We should suggest a matching edit name if the name matches but not the
 namespace. 

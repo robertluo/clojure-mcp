@@ -19,13 +19,14 @@
    [clojure-mcp.tools.unified-read-file.tool :as new-unified-read-file-tool]
    [clojure-mcp.tools.unified-file-edit.tool :as new-unified-file-edit-tool]
    [clojure-mcp.tools.think.tool :as new-think-tool]
-   [clojure-mcp.tools.code-critique.tool :as new-code-critique-tool]))
+   [clojure-mcp.tools.code-critique.tool :as new-code-critique-tool]
+   [clojure-mcp.tools.dispatch-agent.tool :as new-dispatch-agent-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
   "Returns a list of all defined tools for registration with the MCP server."
   [nrepl-client-atom]
-  
+
   [(new-directory-tree-tool/directory-tree-tool nrepl-client-atom)
 
    (new-unified-read-file-tool/unified-read-file-tool nrepl-client-atom)
@@ -35,7 +36,9 @@
 
    (new-think-tool/think-tool nrepl-client-atom)
 
-   (new-code-critique-tool/code-critique-tool nrepl-client-atom) 
+   (new-code-critique-tool/code-critique-tool nrepl-client-atom)
+
+   (new-dispatch-agent-tool/dispatch-agent-tool nrepl-client-atom)
 
    (new-symbol-tool/symbol-search-tool nrepl-client-atom)
 
