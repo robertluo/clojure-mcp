@@ -8,6 +8,8 @@
     McpSchema$LoggingLevel
     McpSchema$LoggingMessageNotification]))
 
+;; NOTE: use logger-name "clojure_connect" ?
+
 (defn send-log-message
   "Sends a log message to MCP clients with the specified level."
   [mcp-server level logger-name message]
