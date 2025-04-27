@@ -20,10 +20,12 @@ should the fs_read_file tool provide line numbers as in the clod
 should diffs have line numbers?
 
 * IMPLEMENT LOGGING
+* eval :critique flag
 * fix multimethod matching symbol-identifier (in progress)
-* add file to code_critique (perhaps a list function names as well)
+* add file_path to code_critique (perhaps a list function names as well)
 * turn linting off in edit_file
-* agent_tool
+* agent_tool finish up
+* eval only workflow
 
 PESTS
 * docstrings!

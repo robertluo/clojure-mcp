@@ -38,7 +38,7 @@
 
    (new-code-critique-tool/code-critique-tool nrepl-client-atom)
 
-   (new-dispatch-agent-tool/dispatch-agent-tool nrepl-client-atom)
+   #_(new-dispatch-agent-tool/dispatch-agent-tool nrepl-client-atom)
 
    (new-symbol-tool/symbol-search-tool nrepl-client-atom)
 
