@@ -234,18 +234,10 @@
                      (.capabilities (-> (McpSchema$ServerCapabilities/builder)
                                         (.tools true)
                                         (.prompts true)
-                                        (.resources true true) ;; Fixed: resources method takes two boolean parameters
-                                        #_(.logging true)
+                                        (.resources true true) ;; resources method takes two boolean parameters
+                                        (.logging)
                                         (.build)))
                      (.build))]
-
-      ;; Enable server-side logging
-      #_(-> server
-          (.logging)
-          (.level McpSchema$LoggingLevel/INFO)
-          (.logger "ClojureMCP")
-          (.data "Server initialized")
-          (.build))
 
       (log/info "MCP server initialized successfully")
       server)
@@ -311,7 +303,7 @@
   (try
     (let [nrepl-client (create-and-start-nrepl-connection args)
           mcp (mcp-server)] ;; Get only mcp server
-      (reset! nrepl-client-atom nrepl-client)
+      (reset! nrepl-client-atom (assoc nrepl-client ::mcp-server mcp))
       (log/info "nREPL client connected successfully")
 
       ;; Register all defined tools
