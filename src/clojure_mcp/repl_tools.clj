@@ -30,7 +30,8 @@
   [(new-directory-tree-tool/directory-tree-tool nrepl-client-atom)
 
    (new-unified-read-file-tool/unified-read-file-tool nrepl-client-atom)
-   (new-unified-file-edit-tool/unified-file-edit-tool nrepl-client-atom)
+
+   #_(new-unified-file-edit-tool/unified-file-edit-tool nrepl-client-atom)
 
    (new-eval-tool/eval-code nrepl-client-atom)
 
@@ -66,8 +67,8 @@
    #_(new-symbol-tool/source-code-tool nrepl-client-atom)
    #_(new-form-edit-tool/clojure-file-outline-tool nrepl-client-atom)
    #_(new-read-file-tool/read-file-tool nrepl-client-atom)
-   #_(new-file-edit-tool/file-edit-tool nrepl-client-atom)
-   #_(new-file-write-tool/file-write-tool nrepl-client-atom)
+   (new-file-edit-tool/file-edit-tool nrepl-client-atom)
+   (new-file-write-tool/file-write-tool nrepl-client-atom)
 
    #_(new-list-directory-tool/list-directory-tool nrepl-client-atom)])
 
