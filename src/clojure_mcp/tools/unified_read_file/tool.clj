@@ -47,8 +47,8 @@
   (str "Reads file contents with intelligent handling based on file type.
    
 For Clojure files (.clj, .cljc, .cljs):
-- Shows a collapsed view with function signatures by default
-- Can display complete implementations of specified functions
+- Shows a collapsed view with function signatures with `clojure-mode:` `on`
+- Can display complete implementations of specified functions with expand-symbols
 - Returns content wrapped in <collapsed-clojure-view> XML tags with metadata attributes
 - Includes concise advice for viewing specific functions or raw content
 
@@ -57,7 +57,7 @@ For all other file types:
 
 Parameters:
 - path: Path to the file (required)
-- clojure_mode: Control Clojure-specific formatting (auto|on|off, default: auto)
+- clojure_mode: Control Clojure-specific formatting (auto|on|off, default: off)
 - expand_symbols: List of function names to show in full (Clojure mode only)
 - line_offset: Line to start reading from (non-Clojure mode only, default: 0)
 - limit: Maximum lines to read (non-Clojure mode only, default: " max-lines ")
@@ -96,7 +96,7 @@ This unified tool combines the functionality of fs_read_file and clojure_read_fi
     (let [validated-path (utils/validate-path-with-client path nrepl-client)]
       ;; Return validated inputs with normalized path
       {:path validated-path
-       :clojure_mode (or clojure_mode "auto")
+       :clojure_mode (or clojure_mode "off")
        :expand_symbols (or expand_symbols [])
        :line_offset (or line_offset 0)
        :limit limit})))
@@ -159,8 +159,13 @@ This unified tool combines the functionality of fs_read_file and clojure_read_fi
                     "\", \"expand_symbols\": [\"function-name\"]}\n"
                     "     For raw text view: {\"path\": \"" path
                     "\", \"clojure_mode\": \"off\"} -->")]
-    [(str xml-open-tag content xml-close-tag)
-     advice]))
+    
+    [(str
+      ;;xml-open-tag
+      content
+      ;;xml-close-tag
+      )
+     #_advice]))
 
 (defn format-raw-file
   "Formats raw file content with XML tags and metadata.
@@ -185,7 +190,8 @@ This unified tool combines the functionality of fs_read_file and clojure_read_fi
                    (cond->
                     line-lengths-truncated? (str "line-lengths-truncated=\"true\" "))
                    (str ">\n"))]
-    [(str header content "\n</file-content>")]))
+    ;; TODO clean this up and maybe add line numbers
+    [content #_(str header content "\n</file-content>")]))
 
 (defmethod tool-system/format-results :unified-read-file [{:keys [max-lines]} result]
   (if (:error result)
