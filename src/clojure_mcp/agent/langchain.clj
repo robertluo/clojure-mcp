@@ -1,7 +1,8 @@
 (ns clojure-mcp.agent.langchain
   (:require
    [clojure.data.json :as json]
-   [clojure-mcp.agent.langchain.schema :as schema])
+   [clojure-mcp.agent.langchain.schema :as schema]
+   [clojure.tools.logging :as log])
   (:import
    ;; LangChain4j Core and Service classes
    [dev.langchain4j.service AiServices MemoryId]
@@ -55,16 +56,20 @@
     (execute [_this request memory-id]
       (let [tool-name (.name request)
             arg-str (.arguments request)]
+
         (if-let [arg-result (is-well-formed-json? arg-str)]
           (try
+            (log/info (str "Calling tool" (pr-str {:tool-name tool-name
+                                                   :arg-result (:result arg-result)})))
             (let [callback-result (promise)]
               (tool-fn nil
                        (:result arg-result)
                        (fn [result error]
                          (deliver callback-result
                                   (if error
-                                    (throw (ex-info (str "Tool error: " (first result))
-                                                    {:tool-error true, :result result}))
+                                    (throw
+                                     (ex-info (str "Tool error: " (first result))
+                                              {:tool-error true, :result result}))
                                     (if (sequential? result)
                                       (clojure.string/join "\n\n" result)
                                       (str result))))))

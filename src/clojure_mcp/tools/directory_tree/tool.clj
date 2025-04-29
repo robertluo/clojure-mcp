@@ -20,8 +20,7 @@
   "LS")
 
 (defmethod tool-system/tool-description :directory-tree [_]
-  "Returns a recursive tree view of files and directories starting from the specified path.
-Formats the output as an indented tree structure showing the hierarchy of files and folders.")
+  "Returns a recursive tree view of files and directories starting from the specified path. The path parameter must be an absolute path, not a relative path. You should generally prefer the `glob_files` and `fx_grep` tools, if you know which directories to search.")
 
 (defmethod tool-system/tool-schema :directory-tree [_]
   {:type :object

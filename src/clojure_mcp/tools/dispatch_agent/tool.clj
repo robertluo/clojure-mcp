@@ -40,7 +40,7 @@ Usage notes:
 
 (defmethod tool-system/execute-tool :dispatch-agent [{:keys [nrepl-client-atom]} inputs]
   (let [prompt (:prompt inputs)
-        result (core/dispatch-agent prompt)]
+        result (core/dispatch-agent nrepl-client-atom prompt)]
     result))
 
 (defmethod tool-system/format-results :dispatch-agent [_ {:keys [result error] :as results}]
