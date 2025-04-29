@@ -19,6 +19,17 @@ very clear that we need a separate mode with no editing tools available
 should the fs_read_file tool provide line numbers as in the clod
 should diffs have line numbers?
 
+# Most important
+* implement matching reccomendations for clojure_edits 
+* stop wrapping file contents, this is causing corruption
+  - maybe markdown block delimiters are the best separators
+* separate file_write from file_edit
+* think more about read file, make it summary and make it opt-in, and
+  use prompts to guide it's use.
+* clojure-edit needs matching feedback
+* emacs notfications going awry
+  - switch to buffer
+
 * IMPLEMENT LOGGING
 * eval :critique flag
 * fix multimethod matching symbol-identifier (in progress)
