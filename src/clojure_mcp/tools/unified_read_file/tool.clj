@@ -10,15 +10,12 @@
    [clojure.java.io :as io]
    [clojure.string :as str]))
 
+ ;; Import our pattern-based functionality
+(require '[clojure-mcp.tools.unified-read-file.pattern-core :as pattern-core])
+
 ;; Factory function to create the tool configuration
 (defn create-unified-read-file-tool
-  "Creates the unified-read-file tool configuration with optional parameters.
-   
-   Parameters:
-   - nrepl-client-atom: Atom containing the nREPL client
-   - opts: Optional map with configuration options:
-     - :max-lines: Maximum number of lines to read (default: 2000)
-     - :max-line-length: Maximum length per line before truncation (default: 1000)"
+  "Creates the unified-read-file tool configuration with optional parameters."
   ([nrepl-client-atom]
    (create-unified-read-file-tool nrepl-client-atom {}))
   ([nrepl-client-atom {:keys [max-lines max-line-length]
@@ -32,8 +29,7 @@
  ;; Helper functions
 
 (defn clojure-file?
-  "Determines if a file is a Clojure source file based on its extension.
-   Only .clj, .cljc, and .cljs files are considered Clojure files."
+  "Determines if a file is a Clojure source file based on its extension."
   [file-path]
   (when file-path
     (let [extension (last (str/split file-path #"\."))]
@@ -44,186 +40,156 @@
   "read_file")
 
 (defmethod tool-system/tool-description :unified-read-file [{:keys [max-lines max-line-length]}]
-  (str "Reads file contents with intelligent handling based on file type.
-   
-For Clojure files (.clj, .cljc, .cljs):
-- Shows a collapsed view with function signatures with `clojure-mode:` `on`
-- Can display complete implementations of specified functions with expand-symbols
-- Returns content wrapped in <collapsed-clojure-view> XML tags with metadata attributes
-- Includes concise advice for viewing specific functions or raw content
-
-For all other file types:
-- Shows raw file contents with optional line limits and offsets
+  (str "Smart file reader with pattern-based exploration for Clojure files.
 
 Parameters:
 - path: Path to the file (required)
-- clojure_mode: Control Clojure-specific formatting (auto|on|off, default: off)
-- expand_symbols: List of function names to show in full (Clojure mode only)
-- line_offset: Line to start reading from (non-Clojure mode only, default: 0)
-- limit: Maximum lines to read (non-Clojure mode only, default: " max-lines ")
+- collapsed: Show collapsed view (default: true)
+- name_pattern: Regex to match function names (e.g., \"validate.*\")
+- content_pattern: Regex to match function content (e.g., \"try|catch\")
+- include_comments: Include comment blocks (default: false)
+- line_offset: Start reading from line N (default: 0)
+- limit: Maximum lines to read (default: " max-lines ")
 
-By default, reads up to " max-lines " lines, truncating lines longer than " max-line-length " characters.
-This unified tool combines the functionality of fs_read_file and clojure_read_file."))
+Deprecated: clojure_mode, expand_symbols"))
 
 (defmethod tool-system/tool-schema :unified-read-file [_]
   {:type :object
    :properties {:path {:type :string
                        :description "Path to the file to read"}
-                :clojure_mode {:type :string
-                               :enum ["auto" "on" "off"]
-                               :description "Control Clojure-specific formatting: auto(detect), on(force), off(raw)"}
-                :expand_symbols {:type :array
-                                 :items {:type :string}
-                                 :description "Function names to show in expanded form (Clojure mode only)"}
+                :collapsed {:type :boolean
+                            :description "Whether to show collapsed view for Clojure files (default: true)"}
+                :name_pattern {:type :string
+                               :description "Pattern to match function names (e.g., \"validate.*\")"}
+                :content_pattern {:type :string
+                                  :description "Pattern to match function content (e.g., \"try|catch\")"}
+                :include_comments {:type :boolean
+                                   :description "Include comment blocks in pattern matching (default: false)"}
                 :line_offset {:type :integer
-                              :description "Line to start reading from (non-Clojure mode only)"}
+                              :description "Line to start reading from for raw mode (default: 0)"}
                 :limit {:type :integer
-                        :description "Maximum lines to read (non-Clojure mode only)"}}
+                        :description "Maximum lines to read (default: 2000)"}}
    :required [:path]})
 
 (defmethod tool-system/validate-inputs :unified-read-file [{:keys [nrepl-client-atom]} inputs]
-  (let [{:keys [path clojure_mode expand_symbols line_offset limit]} inputs
+  (let [{:keys [path collapsed name_pattern content_pattern include_comments line_offset limit]} inputs
         nrepl-client @nrepl-client-atom]
     (when-not path
       (throw (ex-info "Missing required parameter: path" {:inputs inputs})))
 
-    ;; Validate mode value
-    (when (and clojure_mode (not (contains? #{"auto" "on" "off"} clojure_mode)))
-      (throw (ex-info "Invalid clojure_mode value. Must be 'auto', 'on', or 'off'."
-                      {:inputs inputs})))
+    (when (and name_pattern (not= name_pattern ""))
+      (try (re-pattern name_pattern)
+           (catch Exception e
+             (throw (ex-info (str "Invalid name_pattern regex: " (.getMessage e))
+                             {:pattern name_pattern})))))
 
-    ;; Use the existing validate-path-with-client function
+    (when (and content_pattern (not= content_pattern ""))
+      (try (re-pattern content_pattern)
+           (catch Exception e
+             (throw (ex-info (str "Invalid content_pattern regex: " (.getMessage e))
+                             {:pattern content_pattern})))))
+
     (let [validated-path (utils/validate-path-with-client path nrepl-client)]
-      ;; Return validated inputs with normalized path
       {:path validated-path
-       :clojure_mode (or clojure_mode "off")
-       :expand_symbols (or expand_symbols [])
+       :collapsed (if (nil? collapsed) true collapsed)
+       :name_pattern name_pattern
+       :content_pattern content_pattern
+       :include_comments (boolean include_comments)
        :line_offset (or line_offset 0)
        :limit limit})))
 
 (defmethod tool-system/execute-tool :unified-read-file [{:keys [max-lines max-line-length]} inputs]
-  (let [{:keys [path clojure_mode expand_symbols line_offset limit]} inputs
+  (let [{:keys [path collapsed name_pattern content_pattern include_comments line_offset limit]} inputs
         limit-val (or limit max-lines)
-        is-clojure-file (clojure-file? path)
-        use-clojure-mode (or (= clojure_mode "on")
-                             (and (= clojure_mode "auto") is-clojure-file))
-        use-raw-mode (or (= clojure_mode "off")
-                         (and (= clojure_mode "auto") (not is-clojure-file)))]
+        is-clojure-file (clojure-file? path)]
 
-    (if use-clojure-mode
-      ;; Use Clojure-aware file reading
+    (cond
+      (and is-clojure-file collapsed)
       (try
-        (let [collapsed-view (form-edit-core/generate-collapsed-file-view path expand_symbols)]
+        (let [result (pattern-core/generate-pattern-based-file-view
+                      path
+                      name_pattern
+                      content_pattern
+                      true
+                      include_comments)
+              matching-names (:matches result)
+              collapsed-view (form-edit-core/generate-collapsed-file-view path matching-names)]
+
           {:mode :clojure
            :content collapsed-view
            :path path
-           :clojure-mode clojure_mode
-           :expand-symbols expand_symbols
+           :pattern-info (:pattern-info result)
            :error false})
         (catch Exception e
-          ;; Don't use :mode :clojure for errors
           {:error true
            :message (.getMessage e)}))
 
-      ;; Use raw file reading
+      :else
       (let [result (read-file-core/read-file path line_offset limit-val :max-line-length max-line-length)]
         (if (:error result)
-          ;; Don't use :mode for errors
           {:error true
            :message (:error result)}
           (assoc result :mode :raw))))))
 
+(defn format-clojure-view
+  "Formats Clojure file view with markdown and usage advice."
+  [content path pattern-info]
+  (let [{:keys [name-pattern content-pattern match-count]} pattern-info
+        pattern-text (cond
+                       (and name-pattern content-pattern)
+                       (str "name_pattern: \"" name-pattern "\" and content_pattern: \"" content-pattern "\"")
+                       name-pattern
+                       (str "name_pattern: \"" name-pattern "\"")
+                       content-pattern
+                       (str "content_pattern: \"" content-pattern "\"")
+                       :else
+                       "no patterns")
+        preamble (str "# Collapsed view of " path "\n\n"
+                      (when (or name-pattern content-pattern)
+                        (str "Matching " pattern-text " (" match-count " matches)\n\n")))
+
+        usage-tips (str "\n\n## Usage Tips\n\n"
+                        "- Use `name_pattern` with regex to match function names (e.g., \"validate.*\")\n"
+                        "- Use `content_pattern` to find code containing specific text (e.g., \"try|catch\")\n"
+                        "- Set `collapsed: false` to view the entire file\n"
+                        "- Use `include_comments: true` to include comment blocks")]
+
+    [(str preamble "```clojure\n" content "\n```" usage-tips)]))
+
 ;; Formatter helper functions for different content types
 
-(defn format-clojure-view
-  "Formats a Clojure file view with XML tags and usage advice.
-   
-   Parameters:
-   - content: The collapsed Clojure file content
-   - path: The path to the file
-   - clojure-mode: The Clojure mode setting ('auto', 'on', or 'off')
-   - expand-symbols: List of symbols shown in expanded form
-   
-   Returns:
-   - A formatted string with the collapsed view wrapped in XML tags"
-  [content path clojure-mode expand-symbols]
-  (let [expand-symbols-str (if (empty? expand-symbols)
-                             "[]"
-                             (pr-str expand-symbols))
-        xml-open-tag (str "<collapsed-clojure-view clojure_mode=\"" clojure-mode
-                          "\" file_path=\"" path "\" expand_symbols=" expand-symbols-str ">\n")
-        xml-close-tag "\n</collapsed-clojure-view>"
-        advice (str "\n<!-- This is a COLLAPSED VIEW"
-                    "\nTo see specific functions in full: {\"path\": \""
-                    path
-                    "\", \"expand_symbols\": [\"function-name\"]}\n"
-                    "     For raw text view: {\"path\": \"" path
-                    "\", \"clojure_mode\": \"off\"} -->")]
-    
-    [(str
-      ;;xml-open-tag
-      content
-      ;;xml-close-tag
-      )
-     #_advice]))
-
 (defn format-raw-file
-  "Formats raw file content with XML tags and metadata.
-   
-   Parameters:
-   - result: The raw file reading result map
-   - max-lines: Maximum number of lines limit (for header info)
-   
-   Returns:
-   - A formatted string with the file content wrapped in XML tags"
+  "Formats raw file content with markdown."
   [result max-lines]
   (let [{:keys [content path size line-count offset truncated? line-lengths-truncated?]} result
-        file (io/file path)
-        size (or size (.length file))
-        limit (or max-lines 2000)
-        header (-> (str "<file-content path=\"" path "\" "
-                        "byte-size=\"" size "\" "
-                        "line-count=\"" line-count "\" "
-                        "line-offset=\"" offset "\" "
-                        "line-limit=\"" limit "\" "
-                        "truncated=\"" (boolean truncated?) "\" ")
-                   (cond->
-                    line-lengths-truncated? (str "line-lengths-truncated=\"true\" "))
-                   (str ">\n"))]
-    ;; TODO clean this up and maybe add line numbers
-    [content #_(str header content "\n</file-content>")]))
+        file-type (last (str/split path #"\."))
+        lang-hint (when file-type (str file-type))
+        preamble (str "# " path "\n\n"
+                      (when truncated?
+                        (str "File truncated (showing " line-count " of " size " lines)\n\n")))]
+    [(str preamble "```" lang-hint "\n" content "\n```")]))
 
 (defmethod tool-system/format-results :unified-read-file [{:keys [max-lines]} result]
   (if (:error result)
-    ;; If there's an error, return it directly without XML wrapping
     {:result [(or (:message result) "Unknown error")]
      :error true}
-    ;; Format based on the mode
     (case (:mode result)
       :clojure
       {:result (format-clojure-view (:content result)
                                     (:path result)
-                                    (:clojure-mode result)
-                                    (:expand-symbols result))
+                                    (:pattern-info result))
        :error false}
 
       :raw
       {:result (format-raw-file result max-lines)
        :error false}
 
-      ;; Default case (should not happen)
       {:result ["Unknown result mode"]
        :error true})))
 
 ;; Function to register the tool that returns the registration map
 (defn unified-read-file-tool
-  "Returns the registration map for the unified-read-file tool.
-   
-   Parameters:
-   - nrepl-client-atom: Atom containing the nREPL client
-   - opts: Optional map with configuration options:
-     - :max-lines: Maximum number of lines to read (default: 2000)
-     - :max-line-length: Maximum length per line before truncation (default: 1000)"
+  "Returns the registration map for the unified-read-file tool."
   ([nrepl-client-atom]
    (unified-read-file-tool nrepl-client-atom {}))
   ([nrepl-client-atom opts]

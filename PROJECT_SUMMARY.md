@@ -31,7 +31,9 @@ The project allows AI assistants to:
 - `/src/clojure_mcp/tools/form_edit/`: Structure-aware Clojure code editing
 - `/src/clojure_mcp/tools/file_edit/`: Basic file editing operations
 - `/src/clojure_mcp/tools/unified_file_edit/`: Combined file editing capabilities
-- `/src/clojure_mcp/tools/unified_read_file/`: Enhanced file reading with Clojure-specific features
+- `/src/clojure_mcp/tools/unified_read_file/`: Enhanced file reading with pattern-based code exploration
+  - `tool.clj`: Main tool implementation with MCP integration
+  - `pattern_core.clj`: Core pattern matching functionality for Clojure code analysis
 - `/src/clojure_mcp/tools/directory_tree/`: Filesystem navigation
 - `/src/clojure_mcp/tools/grep/`: Content searching in files
 - `/src/clojure_mcp/tools/glob_files/`: Pattern-based file finding
@@ -82,8 +84,12 @@ clojure_eval:
 
 ```clojure
 read_file:
-  Input: {:path "/path/to/file.clj"}
-  Output: File contents with optional Clojure-specific collapsed view
+  Input: {:path "/path/to/file.clj", 
+          :collapsed true,
+          :name_pattern "validate.*", 
+          :content_pattern "try|catch",
+          :include_comments false}
+  Output: File contents with pattern-based collapsed view
   
 edit_file:
   Input: {:file_path "/path/to/file.clj", :old_string "(defn old", :new_string "(defn new"}
@@ -139,6 +145,52 @@ clojure_inspect_project:
   Output: Detailed project structure information
 ```
 
+## Collapsed View and Pattern-Based Code Exploration
+
+The `read_file` tool provides a powerful code exploration feature through its pattern-based collapsed view:
+
+### Key Features
+
+1. **Collapsed View**: Shows only function signatures by default, making large files navigable
+2. **Pattern Matching**: Expands functions matching specific patterns
+   - `name_pattern`: Regex to match function names (e.g., "validate.*")
+   - `content_pattern`: Regex to match function content (e.g., "try|catch")
+3. **Comment Control**: Option to include/exclude comments with `include_comments`
+4. **Markdown Formatting**: Results are formatted in markdown with:
+   - File header and pattern information
+   - Syntax-highlighted code blocks
+   - Usage tips for further exploration
+
+### Implementation
+
+The implementation uses rewrite-clj to:
+1. Parse Clojure code into zipper structures
+2. Collect top-level forms with metadata
+3. Apply regex pattern matching to function names and content
+4. Generate a collapsed view with selected expansions
+
+### Usage Examples
+
+```clojure
+;; Basic collapsed view of a file
+{:path "/path/to/file.clj", :collapsed true}
+
+;; Find all functions with 'validate' in their names
+{:path "/path/to/file.clj", :name_pattern "validate"}
+
+;; Find all error handling code
+{:path "/path/to/file.clj", :content_pattern "try|catch|throw"}
+
+;; Combined patterns - find validation functions that handle errors
+{:path "/path/to/file.clj", :name_pattern "validate", :content_pattern "try|catch"}
+
+;; Include comments in search
+{:path "/path/to/file.clj", :content_pattern "TODO", :include_comments true}
+
+;; View entire file without collapsing
+{:path "/path/to/file.clj", :collapsed false}
+```
+
 ## Architecture and Design Patterns
 
 ### Core Architecture Components
@@ -171,6 +223,12 @@ clojure_inspect_project:
    - Incremental development
    - Immediate feedback
    - Step-by-step verification
+
+5. **Pattern-Based Code Exploration**: The `read_file` tool supports:
+   - Regular expression matching for function names with `name_pattern`
+   - Content-based pattern matching with `content_pattern`
+   - Focused code reading with collapsed view and selective expansion
+   - Markdown-formatted output with usage hints
 
 ## Development Workflow Recommendations
 
@@ -207,6 +265,15 @@ clojure_inspect_project:
 5. **Project Maintenance**:
    - Run tests with `clojure -X:test`
    - Update this project summary after significant changes
+
+6. **Pattern-Based Code Exploration**:
+   - Use the enhanced `read_file` tool for efficient codebase navigation
+   - Combine `name_pattern` and `content_pattern` to focus on relevant code
+   - Examples:
+     - Find all validation functions: `{:name_pattern "validate.*"}`
+     - Find error handling: `{:content_pattern "try|catch|throw"}`
+     - Find where a specific function is used: `{:content_pattern "some-important-function"}`
+   - Markdown-formatted output includes useful tips and pattern match information
 
 ## Extension Points
 
