@@ -93,7 +93,7 @@
              (file-timestamps/file-modified-since-read? nrepl-client-atom file-path))
       {::error true
        ::message (str "File has been modified since last read: " file-path
-                      "\nPlease read the file again before editing.")}
+                      "\nPlease read the WHOLE file again with `collapse: false` before editing.")}
       ctx)))
 
 (defn lint-code
