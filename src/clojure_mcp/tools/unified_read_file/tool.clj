@@ -54,6 +54,11 @@ can give patterns to match the names for top level definitions
 
 The functions that match these patterns will the only functions expanded in collapsed view.
 
+For defmethod forms:
+- The name includes both the method name and the dispatch value (e.g., \"area :rectangle\")
+- For vector dispatch values, use the exact pattern (e.g., \"dispatch-with-vector \\[:feet :inches\\]\")
+- For qualified/namespaced multimethod names, include the namespace (e.g., \"tool-system/validate-inputs :clojure-eval\")
+
 For all other file types:
 - Collapsed view will be not be applied and the will return the raw contents of the file
 
@@ -65,6 +70,12 @@ Collapsed View mode function expansion parameters:
 
 - name_pattern: Regex to match function names (e.g., \"validate.*\")
 - content_pattern: Regex to match function content (e.g., \"try|catch\")
+
+Example usage for defmethod forms:
+- Find all implementations of a multimethod: `name_pattern: \"area\"`
+- Find specific dispatch values: `name_pattern: \"area :circle\"`
+- Find vector dispatch values: `name_pattern: \"convert-length \\\\[:feet :inches\\\\]\"`
+- Find namespace-qualified methods: `name_pattern: \"tool-system/validate-inputs\"`
 
 Non collapsed view mode respects these parameters:
 
@@ -166,7 +177,9 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
 
         usage-tips (str "\n\n## `read_file` Tool Usage Tips\n\n"
                         "- Use `name_pattern` with regex to match function names (e.g., \"validate.*\")\n"
-                        "- Use `content_pattern` to find code containing specific text (e.g., \"try|trunctate.*selection\")\n"
+                        "- Use `content_pattern` to find code containing specific text (e.g., \"try|catch\")\n"
+                        "- For defmethod forms: Include the dispatch value (e.g., \"area :rectangle\" or \"dispatch-with-vector \\[:feet :inches\\]\")\n"
+                        "- For namespaced methods: Include namespace (e.g., \"tool-system/validate-inputs :clojure-eval\")\n"
                         "- Set `collapsed: false` to view the entire file\n")]
 
     [(str preamble "```clojure\n" content "\n```" usage-tips)]))
@@ -210,16 +223,12 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
   ([nrepl-client-atom opts]
    (tool-system/registration-map (create-unified-read-file-tool nrepl-client-atom opts))))
 
-
 (comment
-  
+
   (let [path "/Users/bruce/workspace/llempty/clojure-mcp/src/clojure_mcp/tools/form_edit/tool.clj"
         path2 "NEXT_STEPS.md"
         user-dir (System/getProperty "user.dir")
         tool (unified-read-file-tool (atom {:clojure-mcp.core/nrepl-user-dir user-dir
                                             :clojure-mcp.core/allowed-directories [user-dir]}))
         tool-fn (:tool-fn tool)]
-    (println (tool-fn nil {:path path2 :name_pattern "validates"}  (fn [a b] [a b])))
-    )
-
-  )
+    (println (tool-fn nil {:path path2 :name_pattern "validates"} (fn [a b] [a b])))))
