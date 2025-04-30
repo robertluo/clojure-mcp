@@ -15,7 +15,7 @@
   (let [test-dir (io/file (System/getProperty "java.io.tmpdir") "clojure-mcp-tool-test")]
     ;; Create test directory
     (.mkdirs test-dir)
-    
+
     ;; Create mock client atom with allowed directories for validation
     (let [client-atom (atom {:clojure-mcp.core/nrepl-user-dir (.getCanonicalPath test-dir)
                              :clojure-mcp.core/allowed-directories [(.getCanonicalPath test-dir)]})]
@@ -125,14 +125,14 @@
           tool-fn (:tool-fn reg-map)
           file-path (str (.getCanonicalPath *test-dir*) "/valid-callback.clj")
           valid-content "(ns test.callback)\n\n(defn callback-fn [x]\n  (+ x 100))"
-          
+
           ;; Create promise for callback result
           p (promise)
           callback (fn [result error] (deliver p {:result result :error error}))]
-      
+
       ;; Execute tool function with callback
       (tool-fn nil {:file_path file-path :content valid-content} callback)
-      
+
       ;; Wait for result (with timeout)
       (let [result (deref p 5000 {:error true :result ["Timeout waiting for callback"]})]
         ;; Validate result
@@ -140,38 +140,38 @@
         (is (vector? (:result result)))
         (is (or (str/includes? (first (:result result)) "Clojure file created")
                 (str/includes? (first (:result result)) "Clojure file updated")))
-        
+
         ;; Verify file exists and has correct content
         (is (.exists (io/file file-path)))
         (is (str/includes? (slurp file-path) "callback-fn")))))
-  
+
   (testing "Tool-fn callback with invalid Clojure code"
     (let [tool-config (file-write-tool/create-file-write-tool *test-client-atom*)
           reg-map (tool-system/registration-map tool-config)
           tool-fn (:tool-fn reg-map)
           file-path (str (.getCanonicalPath *test-dir*) "/invalid-callback.clj")
-          
+
           ;; First create a file with valid content
           _ (spit file-path "(ns test.original)\n\n(defn original-fn [] :ok)")
           original-content (slurp file-path)
-          
+
           ;; Invalid content with syntax error
           invalid-content "(ns test.invalid-callback\n\n(defn syntax-error [] (+ 1 2)"
-          
+
           ;; Create promise for callback result
           p (promise)
           callback (fn [result error] (deliver p {:result result :error error}))]
-      
+
       ;; Execute tool function with callback
       (tool-fn nil {:file_path file-path :content invalid-content} callback)
-      
+
       ;; Wait for result (with timeout)
       (let [result (deref p 5000 {:error true :result ["Timeout waiting for callback"]})]
         ;; Validate error result
         (is (:error result))
         (is (vector? (:result result)))
         (is (str/includes? (first (:result result)) "Syntax errors"))
-        
+
         ;; Verify file still exists but was NOT modified
         (is (.exists (io/file file-path)))
         (is (= original-content (slurp file-path)))))))
@@ -181,69 +181,113 @@
     (let [tool-config (file-write-tool/create-file-write-tool *test-client-atom*)
           file-path (str (.getCanonicalPath *test-dir*) "/valid.clj")
           valid-content "(ns test.valid)\n\n(defn valid-function [x]\n  (+ x 5))"
-          
+
           ;; Execute the full pipeline from validation through execution to formatting results
-          validated-inputs (tool-system/validate-inputs tool-config 
-                                                     {:file_path file-path 
-                                                      :content valid-content})
+          validated-inputs (tool-system/validate-inputs tool-config
+                                                        {:file_path file-path
+                                                         :content valid-content})
           execution-result (tool-system/execute-tool tool-config validated-inputs)
           formatted-result (tool-system/format-results tool-config execution-result)]
-      
+
       ;; Test that tool-system validated and created proper structured inputs
       (is (string? (:file-path validated-inputs)))
       (is (= valid-content (:content validated-inputs)))
-      
+
       ;; Test successful execution
       (is (not (:error execution-result)))
       (is (contains? #{"create" "update"} (:type execution-result)))
       (is (= file-path (:file-path execution-result)))
       (is (string? (:diff execution-result)))
-      
+
       ;; Test formatted results 
       (is (map? formatted-result))
       (is (not (:error formatted-result)))
       (is (vector? (:result formatted-result)))
       (is (or (str/includes? (first (:result formatted-result)) "Clojure file created")
               (str/includes? (first (:result formatted-result)) "Clojure file updated")))
-      
+
       ;; Verify file exists and has correct content
       (is (.exists (io/file file-path)))
       (is (= valid-content (slurp file-path)))))
-      
+
   (testing "End-to-end invalid Clojure file write (linting failure)"
     (let [tool-config (file-write-tool/create-file-write-tool *test-client-atom*)
           file-path (str (.getCanonicalPath *test-dir*) "/invalid.clj")
-          
+
           ;; Create a file first so we can test that it doesn't get overwritten
           _ (spit file-path "(ns test.valid)\n\n(defn original-fn [x] (* x 2))")
           original-content (slurp file-path)
-          
+
           ;; Now try to overwrite with invalid content
           invalid-content "(ns test.invalid\n\n(defn broken-function [x]\n  (let [y (inc x]\n    (println y)))"
-          
+
           ;; Execute the full pipeline from validation through execution to formatting results  
-          validated-inputs (tool-system/validate-inputs tool-config 
-                                                     {:file_path file-path 
-                                                      :content invalid-content})
+          validated-inputs (tool-system/validate-inputs tool-config
+                                                        {:file_path file-path
+                                                         :content invalid-content})
           execution-result (tool-system/execute-tool tool-config validated-inputs)
           formatted-result (tool-system/format-results tool-config execution-result)]
-      
+
       ;; Test that tool-system validated and created proper structured inputs
       (is (string? (:file-path validated-inputs)))
       (is (= invalid-content (:content validated-inputs)))
-      
+
       ;; Test error reported in execution
       (is (:error execution-result))
       (is (string? (:message execution-result)))
       (is (str/includes? (:message execution-result) "Syntax errors detected"))
-      
+
       ;; Test formatted results reflect the error
       (is (map? formatted-result))
       (is (:error formatted-result))
       (is (vector? (:result formatted-result)))
       (is (str/includes? (first (:result formatted-result)) "Syntax errors"))
-      
+
       ;; Verify file still exists but was NOT modified with the invalid content
       (is (.exists (io/file file-path)))
       (is (= original-content (slurp file-path)))
       (is (not= invalid-content (slurp file-path))))))
+
+(deftest file-timestamp-check-test
+  (testing "File modified since last read check"
+    (let [tool-config (file-write-tool/create-file-write-tool *test-client-atom*)
+          file-path (str (.getCanonicalPath *test-dir*) "/modified-test.clj")
+          initial-content "(ns test.modified)\n\n(defn initial-fn [] :initial)"]
+
+      ;; First create the file
+      (spit file-path initial-content)
+
+      ;; Record that we read the file (update timestamp in client)
+      (file-timestamps/update-file-timestamp! *test-client-atom* file-path)
+
+      ;; Modify the file outside of our system
+      (Thread/sleep 100) ;; Ensure modification time is different
+      (spit file-path "(ns test.modified)\n\n(defn modified-fn [] :modified)")
+
+      ;; Now try to write to the file - should fail with "modified since last read" error
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                            #"File has been modified since last read"
+                            (tool-system/validate-inputs
+                             tool-config
+                             {:file_path file-path
+                              :content "(ns test.modified)\n\n(defn new-fn [] :new)"})))
+
+      ;; After reading the file again, the write should succeed
+      (file-timestamps/update-file-timestamp-to-current-mtime! *test-client-atom* file-path)
+
+      (let [validated-inputs (tool-system/validate-inputs
+                              tool-config
+                              {:file_path file-path
+                               :content "(ns test.modified)\n\n(defn new-fn [] :new)"})
+            execution-result (tool-system/execute-tool tool-config validated-inputs)]
+
+        ;; Verify the write was successful
+        (is (not (:error execution-result)))
+        (is (= "update" (:type execution-result)))
+        (is (= file-path (:file-path execution-result)))
+
+        ;; Check the file content was updated
+        (is (str/includes? (slurp file-path) "new-fn")))
+
+      ;; Clean up
+      (io/delete-file file-path true))))

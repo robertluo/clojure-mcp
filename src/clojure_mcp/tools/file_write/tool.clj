@@ -4,7 +4,8 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.file-write.core :as core]
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
-   [clojure-mcp.repl-tools.utils :as utils]))
+   [clojure-mcp.repl-tools.utils :as utils]
+   [clojure.java.io :as io]))
 
 ;; Factory function to create the tool configuration
 (defn create-file-write-tool
@@ -30,6 +31,11 @@ For Clojure files (.clj, .cljs, .cljc, .edn):
 
 For other file types:
 - Content is written directly without linting or formatting
+
+IMPORTANT SAFETY FEATURE:
+- If the file has been modified since it was last read, writing will fail
+- You must use read_file to get the current content before editing a file
+- This prevents accidental overwrites of external changes
 
 Returns information about whether the file was created or updated, along with a diff 
 showing the changes made.
@@ -64,7 +70,17 @@ Before using this tool:
       (throw (ex-info "Missing required parameter: content" {:inputs inputs})))
 
     ;; Use the existing validate-path-with-client function
-    (let [validated-path (utils/validate-path-with-client file_path nrepl-client)]
+    (let [validated-path (utils/validate-path-with-client file_path nrepl-client)
+          file (io/file validated-path)]
+
+      ;; Check if file exists and has been modified since last read
+      (when (and (.exists file) nrepl-client-atom
+                 (file-timestamps/file-modified-since-read? nrepl-client-atom validated-path))
+        (throw (ex-info
+                (str "File has been modified since last read: " validated-path
+                     "\nPlease read the WHOLE file again with `collapse: false` before editing.")
+                {:file-path validated-path})))
+
       ;; Return validated inputs with normalized path
       {:file-path validated-path
        :content content})))
