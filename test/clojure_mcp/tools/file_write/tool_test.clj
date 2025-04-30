@@ -3,6 +3,7 @@
    [clojure.test :refer [deftest is testing use-fixtures]]
    [clojure-mcp.tools.file-write.tool :as file-write-tool]
    [clojure-mcp.tools.file-write.core :as file-write-core]
+   [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [clojure-mcp.tool-system :as tool-system]
    [clojure.java.io :as io]
    [clojure.string :as str]))
@@ -18,7 +19,9 @@
 
     ;; Create mock client atom with allowed directories for validation
     (let [client-atom (atom {:clojure-mcp.core/nrepl-user-dir (.getCanonicalPath test-dir)
-                             :clojure-mcp.core/allowed-directories [(.getCanonicalPath test-dir)]})]
+                             :clojure-mcp.core/allowed-directories [(.getCanonicalPath test-dir)]
+                             ;; Initialize empty file timestamps map
+                             ::file-timestamps/file-timestamps {}})]
       ;; Bind dynamic vars for test
       (binding [*test-dir* test-dir
                 *test-client-atom* client-atom]
@@ -126,6 +129,9 @@
           file-path (str (.getCanonicalPath *test-dir*) "/valid-callback.clj")
           valid-content "(ns test.callback)\n\n(defn callback-fn [x]\n  (+ x 100))"
 
+          ;; For testing purposes, if the file might exist, we should "mark" it as read first
+          _ (file-timestamps/update-file-timestamp-to-current-mtime! *test-client-atom* file-path)
+
           ;; Create promise for callback result
           p (promise)
           callback (fn [result error] (deliver p {:result result :error error}))]
@@ -153,6 +159,8 @@
 
           ;; First create a file with valid content
           _ (spit file-path "(ns test.original)\n\n(defn original-fn [] :ok)")
+          ;; Update timestamp to simulate file being read
+          _ (file-timestamps/update-file-timestamp-to-current-mtime! *test-client-atom* file-path)
           original-content (slurp file-path)
 
           ;; Invalid content with syntax error
@@ -181,6 +189,9 @@
     (let [tool-config (file-write-tool/create-file-write-tool *test-client-atom*)
           file-path (str (.getCanonicalPath *test-dir*) "/valid.clj")
           valid-content "(ns test.valid)\n\n(defn valid-function [x]\n  (+ x 5))"
+
+          ;; For testing purposes, if the file might exist, we should "mark" it as read first
+          _ (file-timestamps/update-file-timestamp-to-current-mtime! *test-client-atom* file-path)
 
           ;; Execute the full pipeline from validation through execution to formatting results
           validated-inputs (tool-system/validate-inputs tool-config
@@ -216,6 +227,8 @@
 
           ;; Create a file first so we can test that it doesn't get overwritten
           _ (spit file-path "(ns test.valid)\n\n(defn original-fn [x] (* x 2))")
+          ;; Update timestamp to simulate file being read
+          _ (file-timestamps/update-file-timestamp-to-current-mtime! *test-client-atom* file-path)
           original-content (slurp file-path)
 
           ;; Now try to overwrite with invalid content
