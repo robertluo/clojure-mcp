@@ -23,6 +23,24 @@
    (swap! nrepl-client-atom update ::file-timestamps
           (fn [timestamps] (assoc timestamps file-path timestamp)))))
 
+(defn update-file-timestamp-to-current-mtime!
+  "Updates the timestamp for a file using its current modification time.
+   This is useful after writing to a file to ensure the timestamp
+   matches exactly what the filesystem reports.
+   
+   Parameters:
+   - nrepl-client-atom: Atom containing the nREPL client
+   - file-path: Absolute path to the file
+   
+   Returns true if successful, false if the file doesn't exist."
+  [nrepl-client-atom file-path]
+  (let [file (io/file file-path)]
+    (if (.exists file)
+      (let [current-mtime (.lastModified file)]
+        (update-file-timestamp! nrepl-client-atom file-path current-mtime)
+        true)
+      false)))
+
 (defn file-modified-since-read?
   "Checks if a file has been modified since it was last read.
    

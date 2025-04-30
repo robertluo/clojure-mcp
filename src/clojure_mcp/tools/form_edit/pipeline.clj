@@ -432,9 +432,7 @@
   (let [file-path (::file-path ctx)
         nrepl-client-atom (::nrepl-client-atom ctx)]
     (when (and nrepl-client-atom (not (::error ctx)))
-      (let [file (io/file file-path)
-            current-mtime (.lastModified file)]
-        (file-timestamps/update-file-timestamp! nrepl-client-atom file-path current-mtime)))
+      (file-timestamps/update-file-timestamp-to-current-mtime! nrepl-client-atom file-path))
     ctx))
 
 (defn highlight-form

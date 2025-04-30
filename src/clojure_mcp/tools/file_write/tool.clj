@@ -3,6 +3,7 @@
   (:require
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.file-write.core :as core]
+   [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [clojure-mcp.repl-tools.utils :as utils]))
 
 ;; Factory function to create the tool configuration
@@ -68,9 +69,13 @@ Before using this tool:
       {:file-path validated-path
        :content content})))
 
-(defmethod tool-system/execute-tool :file-write [_ inputs]
-  (let [{:keys [file-path content]} inputs]
-    (core/write-file file-path content)))
+(defmethod tool-system/execute-tool :file-write [{:keys [nrepl-client-atom]} inputs]
+  (let [{:keys [file-path content]} inputs
+        result (core/write-file file-path content)]
+    ;; Update the timestamp if write was successful and we have a client atom
+    (when (and nrepl-client-atom (not (:error result)))
+      (file-timestamps/update-file-timestamp-to-current-mtime! nrepl-client-atom file-path))
+    result))
 
 (defmethod tool-system/format-results :file-write [_ result]
   (if (:error result)
