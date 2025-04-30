@@ -5,6 +5,7 @@
   (:require
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.read-file.core :as read-file-core]
+   [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [clojure-mcp.tools.form-edit.core :as form-edit-core]
    [clojure-mcp.repl-tools.utils :as utils]
    [clojure.java.io :as io]
@@ -126,7 +127,7 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
        :line_offset (or line_offset 0)
        :limit limit})))
 
-(defmethod tool-system/execute-tool :unified-read-file [{:keys [max-lines max-line-length]} inputs]
+(defmethod tool-system/execute-tool :unified-read-file [{:keys [max-lines max-line-length nrepl-client-atom]} inputs]
   (let [{:keys [path collapsed name_pattern content_pattern include_comments line_offset limit]} inputs
         limit-val (or limit max-lines)
         is-clojure-file (clojure-file? path)]
@@ -150,7 +151,8 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
            :message (.getMessage e)}))
 
       :else
-      (let [result (read-file-core/read-file path line_offset limit-val :max-line-length max-line-length)]
+      (let [result (file-timestamps/read-file-with-timestamp
+                    nrepl-client-atom path line_offset limit-val :max-line-length max-line-length)]
         (if (:error result)
           {:error true
            :message (:error result)}

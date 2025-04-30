@@ -3,6 +3,7 @@
   (:require
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.read-file.core :as core]
+   [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [clojure-mcp.repl-tools.utils :as utils]
    [clojure.java.io :as io]))
 
@@ -63,11 +64,12 @@
       ;; Return validated inputs with normalized path
       (assoc inputs :path validated-path))))
 
-(defmethod tool-system/execute-tool :read-file [{:keys [max-lines max-line-length]} inputs]
+(defmethod tool-system/execute-tool :read-file [{:keys [max-lines max-line-length nrepl-client-atom]} inputs]
   (let [{:keys [path line_offset limit]} inputs
         offset (or line_offset 0)
         limit (or limit max-lines)]
-    (core/read-file path offset limit :max-line-length max-line-length)))
+    (file-timestamps/read-file-with-timestamp
+     nrepl-client-atom path offset limit :max-line-length max-line-length)))
 
 (defmethod tool-system/format-results :read-file [_ {:keys [error path content truncated? line-count offset max-lines line-lengths-truncated? truncated-by] :as result}]
   (if error

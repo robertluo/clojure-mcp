@@ -168,6 +168,10 @@ The implementation uses rewrite-clj to:
 2. Collect top-level forms with metadata
 3. Apply regex pattern matching to function names and content
 4. Generate a collapsed view with selected expansions
+5. Support defmethod forms with special handling for:
+   - Keyword dispatch values (e.g., `:rectangle`)
+   - Vector dispatch values (e.g., `[:feet :inches]`)
+   - Namespace-qualified multimethod names (e.g., `tool-system/validate-inputs`)
 
 ### Usage Examples
 
@@ -189,6 +193,11 @@ The implementation uses rewrite-clj to:
 
 ;; View entire file without collapsing
 {:path "/path/to/file.clj", :collapsed false}
+
+;; Working with defmethod forms
+{:path "/path/to/file.clj", :name_pattern "area :rectangle"}                   ;; Find specific dispatch value
+{:path "/path/to/file.clj", :name_pattern "dispatch-with-vector \\[:feet :inches\\]"} ;; Find vector dispatch value
+{:path "/path/to/file.clj", :name_pattern "tool-system/validate-inputs"}       ;; Find namespaced multimethods
 ```
 
 ## Architecture and Design Patterns
@@ -269,10 +278,13 @@ The implementation uses rewrite-clj to:
 6. **Pattern-Based Code Exploration**:
    - Use the enhanced `read_file` tool for efficient codebase navigation
    - Combine `name_pattern` and `content_pattern` to focus on relevant code
+   - Find specific defmethod implementations using their dispatch values
    - Examples:
      - Find all validation functions: `{:name_pattern "validate.*"}`
      - Find error handling: `{:content_pattern "try|catch|throw"}`
      - Find where a specific function is used: `{:content_pattern "some-important-function"}`
+     - Find a specific defmethod: `{:name_pattern "area :rectangle"}`
+     - Find defmethod with vector dispatch: `{:name_pattern "dispatch-with-vector \\[:feet :inches\\]"}`
    - Markdown-formatted output includes useful tips and pattern match information
 
 ## Extension Points
