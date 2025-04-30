@@ -41,16 +41,37 @@
 
 (defmethod tool-system/tool-description :unified-read-file [{:keys [max-lines max-line-length]}]
   (str "Smart file reader with pattern-based exploration for Clojure files.
+   
+For Clojure files (.clj, .cljc, .cljs):
+
+This tool defaults to a expandable Collased view to quickly grab the information you need from a Clojure file.
+If called without `name_pattern` or `content_pattern` it will return the file content where 
+will see only function signatures. This gives you a quick overview of the file.
+
+When you want to see more this tool has a grep functionality where you
+can give patterns to match the names for top level definitions
+`name_pattern` or match the bodies of top level definitions `content_pattern`.
+
+The functions that match these patterns will the only functions expanded in collapsed view.
+
+For all other file types:
+- Collapsed view will be not be applied and the will return the raw contents of the file
 
 Parameters:
 - path: Path to the file (required)
 - collapsed: Show collapsed view (default: true)
+
+Collapsed View mode function expansion parameters:
+
 - name_pattern: Regex to match function names (e.g., \"validate.*\")
 - content_pattern: Regex to match function content (e.g., \"try|catch\")
-- line_offset: Start reading from line N (default: 0)
-- limit: Maximum lines to read (default: " max-lines ")
 
-Deprecated: clojure_mode, expand_symbols"))
+Non collapsed view mode respects these parameters:
+
+- line_offset: Line to start reading from (non-collapsed mode only, default: 0)
+- limit: Maximum lines to read (non-collapsed mode only, default: " max-lines ")
+
+By default, reads up to " max-lines " lines, truncating lines longer than " max-line-length " characters."))
 
 (defmethod tool-system/tool-schema :unified-read-file [_]
   {:type :object
