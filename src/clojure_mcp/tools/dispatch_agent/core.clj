@@ -5,7 +5,7 @@
             [clojure.string :as string]
             [clojure.tools.logging :as log]
             [clojure-mcp.agent.langchain :as chain]
-            [clojure-mcp.tools.read-file.tool :as read-file-tool]
+            [clojure-mcp.tools.unified-read-file.tool :as read-file-tool]
             [clojure-mcp.tools.directory-tree.tool :as directory-tree-tool]
             [clojure-mcp.tools.grep.tool :as grep-tool]
             [clojure-mcp.tools.glob-files.tool :as glob-files-tool]
@@ -22,7 +22,7 @@
   "Creates an AI service for doings read only tasks"
   [nrepl-client-atom]
   (try
-    (let [memory (chain/chat-memory 12)
+    (let [memory (chain/chat-memory 300)
           model (-> (chain/create-model-claude-3-7)
                     #_(.thinkingType "enabled")
                     #_(.thinkingBudgetTokens (int 1024))
@@ -36,12 +36,12 @@
                            :tools
                            (mapv
                             #(% nrepl-client-atom)
-                            [read-file-tool/read-file-tool
+                            [read-file-tool/unified-read-file-tool
                              directory-tree-tool/directory-tree-tool
                              grep-tool/grep-tool
                              glob-files-tool/glob-files-tool
                              ;; needs REPL setup
-                             ;;project-tool/inspect-project-tool
+                             project-tool/inspect-project-tool
                              think-tool/think-tool])
                            :system-message system-message}
           service (-> (chain/create-service AiService
@@ -69,6 +69,10 @@
     {:critique "Error: Cannot critique empty code"
      :error true}
     (let [ai-service (get-ai-service nrepl-client-atom)]
+      ;; TODO we have a stateful memory problem here.
+      ;; parallel requests will corrupt the memory?
+      ;; should use a Oneshot Memory
+      (.clear (:memory ai-service))
       (let [result (.chat (:service ai-service) prompt)]
         {:result result
          :error false}))))
