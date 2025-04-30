@@ -71,9 +71,9 @@ To make a file edit, provide the file_path, old_string (the text to replace), an
              :old_string old_string
              :new_string new_string))))
 
-(defmethod tool-system/execute-tool :file-edit [_ inputs]
+(defmethod tool-system/execute-tool :file-edit [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [file_path old_string new_string]} inputs
-        result (pipeline/file-edit-pipeline file_path old_string new_string)]
+        result (pipeline/file-edit-pipeline file_path old_string new_string nrepl-client-atom)]
     (pipeline/format-result result)))
 
 (defmethod tool-system/format-results :file-edit [_ {:keys [error message diff type]}]
@@ -119,18 +119,18 @@ To make a file edit, provide the file_path, old_string (the text to replace), an
   ;; Test running the tool-fn directly
   (def tool-fn (:tool-fn reg-map))
   (tool-fn nil {"file_path" test-file "old_string" "Line 3" "new_string" "Line 3 - EDITED"}
-          (fn [result error] (println "Result:" result "Error:" error)))
+           (fn [result error] (println "Result:" result "Error:" error)))
 
   ;; Test with empty old_string (should be rejected)
   (try
-    (tool-system/validate-inputs edit-tool 
-                               {:file_path test-file 
-                                :old_string "" 
-                                :new_string "New content"})
+    (tool-system/validate-inputs edit-tool
+                                 {:file_path test-file
+                                  :old_string ""
+                                  :new_string "New content"})
     (println "ERROR: Empty old_string was not rejected!")
     (catch Exception e
       (println "Correctly rejected empty old_string:" (.getMessage e))))
-  
+
   ;; Clean up
   (.delete (io/file test-file))
   (clojure-mcp.nrepl/stop-polling @client-atom))

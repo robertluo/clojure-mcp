@@ -167,9 +167,9 @@ Note: For `defmethod` forms, be sure to include the dispatch value (`area :recta
      :form_type form_type
      :content content}))
 
-(defmethod tool-system/execute-tool :clojure-edit-replace-form [config inputs]
+(defmethod tool-system/execute-tool :clojure-edit-replace-form [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [file_path form_name form_type content]} inputs
-        result (pipeline/edit-form-pipeline file_path form_name form_type content :replace config)
+        result (pipeline/edit-form-pipeline file_path form_name form_type content :replace nrepl-client-atom)
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
@@ -259,9 +259,9 @@ Note: For `defmethod` forms, be sure to include the dispatch value (`area :recta
      :form_type form_type
      :content content}))
 
-(defmethod tool-system/execute-tool :clojure-edit-insert-before-form [config inputs]
+(defmethod tool-system/execute-tool :clojure-edit-insert-before-form [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [file_path form_name form_type content]} inputs
-        result (pipeline/edit-form-pipeline file_path form_name form_type content :before config)
+        result (pipeline/edit-form-pipeline file_path form_name form_type content :before nrepl-client-atom)
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
@@ -351,9 +351,9 @@ Note: For `defmethod` forms, be sure to include the dispatch value (`area :recta
      :form_type form_type
      :content content}))
 
-(defmethod tool-system/execute-tool :clojure-edit-insert-after-form [config inputs]
+(defmethod tool-system/execute-tool :clojure-edit-insert-after-form [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [file_path form_name form_type content]} inputs
-        result (pipeline/edit-form-pipeline file_path form_name form_type content :after config)
+        result (pipeline/edit-form-pipeline file_path form_name form_type content :after nrepl-client-atom)
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
@@ -422,9 +422,9 @@ Note: For `defmethod` forms, be sure to include the dispatch value (`area :recta
      :form_type form_type
      :docstring docstring}))
 
-(defmethod tool-system/execute-tool :clojure-edit-replace-docstring [config inputs]
+(defmethod tool-system/execute-tool :clojure-edit-replace-docstring [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [file_path form_name form_type docstring]} inputs
-        result (pipeline/docstring-edit-pipeline file_path form_name form_type docstring config)
+        result (pipeline/docstring-edit-pipeline file_path form_name form_type docstring nrepl-client-atom)
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
@@ -475,9 +475,9 @@ For reliable results, use a unique substring that appears in only one comment bl
      :comment_substring comment_substring
      :new_content new_content}))
 
-(defmethod tool-system/execute-tool :clojure-edit-comment-block [config inputs]
+(defmethod tool-system/execute-tool :clojure-edit-comment-block [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [file_path comment_substring new_content]} inputs
-        result (pipeline/comment-block-edit-pipeline file_path comment_substring new_content config)
+        result (pipeline/comment-block-edit-pipeline file_path comment_substring new_content nrepl-client-atom)
         formatted-result (pipeline/format-result result)]
     formatted-result))
 
@@ -667,10 +667,10 @@ Returns a diff showing the changes made to the file.")
      :replace_all (boolean (or replace_all false))
      :whitespace_sensitive (boolean (or whitespace_sensitive false))}))
 
-(defmethod tool-system/execute-tool :clojure-edit-replace-sexp [config inputs]
+(defmethod tool-system/execute-tool :clojure-edit-replace-sexp [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [file_path match_form new_form replace_all whitespace_sensitive]} inputs
         result (pipeline/sexp-replace-pipeline
-                file_path match_form new_form replace_all whitespace_sensitive config)
+                file_path match_form new_form replace_all whitespace_sensitive nrepl-client-atom)
         formatted-result (pipeline/format-result result)]
     formatted-result))
 

@@ -7,6 +7,7 @@
    [clojure-mcp.tools.form-edit.pipeline :as form-pipeline]
    [clojure-mcp.tools.form-edit.core :as form-edit-core]
    [clojure-mcp.tools.file-write.core :as file-write-core]
+   [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [clojure-mcp.repl-tools.utils :as utils]
    [clojure-mcp.linting :as linting]
    [clojure.spec.alpha :as s]
@@ -18,7 +19,10 @@
 ;; Additional context map specs
 (s/def ::old-string string?)
 (s/def ::new-string string?)
+(s/def ::nrepl-client-atom (s/nilable #(instance? clojure.lang.Atom %)))
 ;; Pipeline specific steps
+
+;; Using check-file-modified from form-edit/pipeline instead
 
 (defn validate-edit
   "Validates the file edit operation.
@@ -88,6 +92,8 @@
           ctx))
       ctx)))
 
+;; Using update-file-timestamp from form-edit/pipeline instead
+
 ;; Define our file edit pipeline function that composes steps from form-edit pipeline and our own
 
 (defn file-edit-pipeline
@@ -97,19 +103,22 @@
    - file-path: Path to the file to edit
    - old-string: String to replace
    - new-string: New string to insert
+   - nrepl-client-atom: Atom containing the nREPL client (optional)
    - config: Optional tool configuration map
    
    Returns:
    - A context map with the result of the operation"
-  [file-path old-string new-string & [config]]
+  [file-path old-string new-string & [nrepl-client-atom config]]
   (let [initial-ctx {::form-pipeline/file-path file-path
                      ::old-string old-string
                      ::new-string new-string
+                     ::form-pipeline/nrepl-client-atom nrepl-client-atom
                      ::form-pipeline/config config}]
     ;; Pipeline for existing file edit
     (form-pipeline/thread-ctx
      initial-ctx
      form-pipeline/load-source ;; Load existing file
+     form-pipeline/check-file-modified ;; Check if file modified since last read
      validate-edit ;; Validate the edit (uniqueness, etc.)
      perform-edit ;; Perform the actual edit
      lint-clojure-content ;; Lint Clojure files to catch syntax errors
@@ -117,7 +126,8 @@
      form-pipeline/determine-file-type ;; This will mark as "update"
      form-pipeline/generate-diff ;; Generate diff between old and new
      form-pipeline/emacs-set-auto-revert
-     form-pipeline/save-file)))
+     form-pipeline/save-file ;; Save the file
+     form-pipeline/update-file-timestamp))) ;; Update the timestamp after save
 
 ;; Format result for tool consumption
 (defn format-result

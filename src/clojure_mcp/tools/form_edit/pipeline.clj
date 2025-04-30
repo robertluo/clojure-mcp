@@ -6,6 +6,7 @@
    [clojure-mcp.tools.form-edit.core :as core]
    [clojure-mcp.utils.emacs-integration :as emacs]
    [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [rewrite-clj.zip :as z]
    [rewrite-clj.parser :as p]
    [clojure-mcp.linting :as linting]
@@ -36,6 +37,8 @@
 (s/def ::diff string?)
 (s/def ::type string?)
 
+(s/def ::nrepl-client-atom (s/nilable #(instance? clojure.lang.Atom %)))
+
 ;; Context map that flows through the pipeline
 (s/def ::context
   (s/keys :req [::file-path]
@@ -43,7 +46,7 @@
                 ::top-level-def-type ::edit-type ::error ::message
                 ::zloc ::offsets ::lint-result ::docstring
                 ::comment-substring ::new-content ::expand-symbols
-                ::diff ::type ::output-source]))
+                ::diff ::type ::output-source ::nrepl-client-atom]))
 
 ;; Pipeline helper functions
 
@@ -77,6 +80,21 @@
       (-> ctx
           (assoc ::source (:content result))
           (assoc ::old-content (:content result))))))
+
+(defn check-file-modified
+  "Checks if the file has been modified since last read.
+   Returns error if modified without being read again.
+   
+   Requires ::file-path and ::nrepl-client-atom in context."
+  [ctx]
+  (let [file-path (::file-path ctx)
+        nrepl-client-atom (::nrepl-client-atom ctx)]
+    (if (and nrepl-client-atom
+             (file-timestamps/file-modified-since-read? nrepl-client-atom file-path))
+      {::error true
+       ::message (str "File has been modified since last read: " file-path
+                      "\nPlease read the file again before editing.")}
+      ctx)))
 
 (defn lint-code
   "Lints the new source code to be inserted.
@@ -405,6 +423,20 @@
       {::error true
        ::message (str "Failed to save file: " (.getMessage e))})))
 
+(defn update-file-timestamp
+  "Updates the file timestamp after a successful edit.
+   Uses the actual file modification time from the filesystem.
+   
+   Requires ::file-path and ::nrepl-client-atom in context."
+  [ctx]
+  (let [file-path (::file-path ctx)
+        nrepl-client-atom (::nrepl-client-atom ctx)]
+    (when (and nrepl-client-atom (not (::error ctx)))
+      (let [file (io/file file-path)
+            current-mtime (.lastModified file)]
+        (file-timestamps/update-file-timestamp! nrepl-client-atom file-path current-mtime)))
+    ctx))
+
 (defn highlight-form
   "Highlights the edited form in Emacs if notifications are enabled.
    Requires ::file-path, ::offsets, and ::config in the context."
@@ -443,73 +475,79 @@
 ;; Pipeline function definitions
 
 (defn edit-form-pipeline
-  "Pipeline for editing a top-level form in a file.
+  "Pipeline for handling Clojure form editing operations.
    
    Arguments:
-   - file-path: Path to the file containing the form
-   - form-name: Name of the form to edit
-   - form-type: Type of the form (e.g., \"defn\", \"def\")
-   - content-str: New content for the form
-   - edit-type: Type of edit (:replace, :before, or :after)
-   - config: Optional tool configuration map with notification preferences
+   - file-path: Path to the file to edit
+   - form-name: Name of the form to edit (e.g., function name)
+   - form-type: Type of form (e.g., 'defn', 'defmethod')
+   - content-str: New content to insert
+   - edit-type: Type of edit (:replace, :before, :after)
+   - nrepl-client-atom: Atom containing the nREPL client (optional)
+   - config: Optional tool configuration map
    
-   Returns:
-   - A context map with the result of the operation"
-  [file-path form-name form-type content-str edit-type & [config]]
-  (thread-ctx
-   {::file-path file-path
-    ::top-level-def-name form-name
-    ::top-level-def-type form-type
-    ::new-source-code content-str
-    ::edit-type edit-type
-    ::config config}
-   lint-code
-   determine-file-type
-   load-source
-   validate-form-type
-   enhance-defmethod-name
-   parse-source
-   find-form
-   edit-form
-   capture-edit-offsets
-   zloc->output-source
-   generate-diff
-   format-source
-   emacs-set-auto-revert
-   save-file
-   highlight-form))
+   Returns a context map with the result of the operation"
+  [file-path form-name form-type content-str edit-type & [nrepl-client-atom config]]
+  (let [ctx {::file-path file-path
+             ::top-level-def-name form-name
+             ::top-level-def-type form-type
+             ::new-source-code content-str
+             ::edit-type edit-type
+             ::nrepl-client-atom nrepl-client-atom
+             ::config config}]
+    (thread-ctx
+     ctx
+     load-source ;; Load the file content
+     check-file-modified ;; NEW: Check if file modified since last read
+     enhance-defmethod-name ;; Handle defmethod dispatch values
+     lint-code ;; Lint the new code
+     parse-source ;; Parse the source into zipper
+     find-form ;; Find the specific form to edit
+     edit-form ;; Perform the edit
+     zloc->output-source ;; Convert zipper back to string
+     format-source ;; Format the source
+     determine-file-type ;; Mark as creation or update
+     generate-diff ;; Generate diff for display
+     save-file ;; Save the file
+     update-file-timestamp ;; NEW: Update the timestamp after save
+     highlight-form)))
 
 (defn docstring-edit-pipeline
   "Pipeline for editing a docstring in a file.
    
    Arguments:
    - file-path: Path to the file containing the form
-   - form-name: Name of the form whose docstring to edit
+   - form-name: Name of the form to edit
    - form-type: Type of the form (e.g., \"defn\", \"def\")
    - new-docstring: New docstring content
-   - config: Optional tool configuration map with notification preferences
+   - nrepl-client-atom: Atom containing the nREPL client (optional)
+   - config: Optional tool configuration map
    
    Returns:
    - A context map with the result of the operation"
-  [file-path form-name form-type new-docstring & [config]]
-  (thread-ctx
-   {::file-path file-path
-    ::top-level-def-name form-name
-    ::top-level-def-type form-type
-    ::docstring new-docstring
-    ::config config}
-   determine-file-type
-   load-source
-   validate-form-type
-   parse-source
-   edit-docstring
-   capture-edit-offsets
-   zloc->output-source
-   generate-diff
-   format-source
-   emacs-set-auto-revert
-   save-file
-   highlight-form))
+  [file-path form-name form-type new-docstring & [nrepl-client-atom config]]
+  (let [ctx {::file-path file-path
+             ::top-level-def-name form-name
+             ::top-level-def-type form-type
+             ::docstring new-docstring
+             ::edit-type :docstring
+             ::nrepl-client-atom nrepl-client-atom
+             ::config config}]
+    (thread-ctx
+     ctx
+     load-source ;; Load the file content
+     check-file-modified ;; NEW: Check if file modified since last read
+     enhance-defmethod-name ;; Handle defmethod dispatch values
+     parse-source ;; Parse the source into zipper
+     find-form ;; Find the specific form to edit
+     edit-docstring ;; Replace just the docstring
+     zloc->output-source ;; Convert zipper back to string
+     format-source ;; Format the source
+     determine-file-type ;; Mark as update
+     generate-diff ;; Generate diff for display
+     save-file ;; Save the file
+     update-file-timestamp ;; NEW: Update the timestamp after save
+     highlight-form)))
 
 (defn comment-block-edit-pipeline
   "Pipeline for editing a comment block in a file.
@@ -518,26 +556,27 @@
    - file-path: Path to the file containing the comment
    - comment-substring: Substring to identify the comment block
    - new-content: New content for the comment block
-   - config: Optional tool configuration map with notification preferences
+   - nrepl-client-atom: Atom containing the nREPL client (optional)
+   - config: Optional tool configuration map
    
    Returns:
    - A context map with the result of the operation"
-  [file-path comment-substring new-content & [config]]
-  (thread-ctx
-   {::file-path file-path
-    ::comment-substring comment-substring
-    ::new-content new-content
-    ::config config}
-   determine-file-type
-   load-source
-   find-and-edit-comment
-   capture-edit-offsets
-   zloc->output-source
-   generate-diff
-   format-source
-   emacs-set-auto-revert
-   save-file
-   highlight-form))
+  [file-path comment-substring new-content & [nrepl-client-atom config]]
+  (let [ctx {::file-path file-path
+             ::comment-substring comment-substring
+             ::new-content new-content
+             ::nrepl-client-atom nrepl-client-atom
+             ::config config}]
+    (thread-ctx
+     ctx
+     load-source ;; Load the file content
+     check-file-modified ;; NEW: Check if file modified since last read
+     find-and-edit-comment ;; Find and edit the comment block
+     determine-file-type ;; Mark as update
+     generate-diff ;; Generate diff for display
+     save-file ;; Save the file
+     update-file-timestamp ;; NEW: Update the timestamp after save
+     highlight-form)))
 
 (defn file-outline-pipeline
   "Pipeline for generating a collapsed view of a file.
@@ -598,34 +637,37 @@
   "Pipeline for replacing s-expressions in a file.
    
    Arguments:
-   - file-path: Path to the file
-   - match-form: The form to match as a string
-   - new-form: The form to replace with as a string
-   - replace-all: Whether to replace all occurrences (default: false)
-   - whitespace-sensitive: Whether matching should be sensitive to whitespace (default: false)
+   - file-path: Path to the file containing the forms
+   - match-form: S-expression to find and replace
+   - new-form: Replacement s-expression
+   - replace-all: Whether to replace all occurrences
+   - whitespace-sensitive: Whether to match forms exactly as written
+   - nrepl-client-atom: Atom containing the nREPL client (optional)
    - config: Optional tool configuration map
    
    Returns:
    - A context map with the result of the operation"
-  [file-path match-form new-form replace-all whitespace-sensitive & [config]]
-  (thread-ctx
-   {::file-path file-path
-    ::match-form match-form
-    ::new-form new-form
-    ::replace-all replace-all
-    ::whitespace-sensitive whitespace-sensitive
-    ::config config}
-   determine-file-type
-   load-source
-   parse-source
-   replace-sexp
-   capture-edit-offsets
-   zloc->output-source
-   generate-diff
-   format-source
-   emacs-set-auto-revert
-   save-file
-   highlight-form))
+  [file-path match-form new-form replace-all whitespace-sensitive & [nrepl-client-atom config]]
+  (let [ctx {::file-path file-path
+             ::match-form match-form
+             ::new-form new-form
+             ::replace-all replace-all
+             ::whitespace-sensitive whitespace-sensitive
+             ::nrepl-client-atom nrepl-client-atom
+             ::config config}]
+    (thread-ctx
+     ctx
+     load-source ;; Load the file content
+     check-file-modified ;; NEW: Check if file modified since last read
+     parse-source ;; Parse the source into a zipper
+     replace-sexp ;; Replace the s-expressions
+     zloc->output-source ;; Convert zipper back to string
+     format-source ;; Format the source
+     determine-file-type ;; Mark as update
+     generate-diff ;; Generate diff for display
+     save-file ;; Save the file 
+     update-file-timestamp ;; NEW: Update the timestamp after save
+     highlight-form)))
 
 (comment
   ;; Example usage of the pipelines
