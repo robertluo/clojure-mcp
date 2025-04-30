@@ -3,7 +3,8 @@
   (:require
    [rewrite-clj.zip :as z]
    [rewrite-clj.node :as n]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [clojure-mcp.tools.form-edit.core :as form-edit]))
 
 (defn valid-form-to-include?
   "Checks if a form should be included in analysis, excluding comments unless specified."
@@ -19,11 +20,29 @@
       false)))
 
 (defn extract-form-name
-  "Extracts name from a form, e.g., 'foo' from (defn foo [x] ...)."
+  "Extracts name from a form, e.g., 'foo' from (defn foo [x] ...).
+   For defmethod forms, includes the dispatch value, e.g., 'area :square'."
   [sexpr]
   (try
-    (when (and (seq? sexpr) (> (count sexpr) 1) (symbol? (second sexpr)))
-      (name (second sexpr)))
+    (when (and (seq? sexpr) (> (count sexpr) 1))
+      (cond
+        ;; Special handling for defmethod forms
+        (and (symbol? (first sexpr))
+             (= (name (first sexpr)) "defmethod")
+             (>= (count sexpr) 3))
+        (let [method-sym (second sexpr)
+              method-name (if (and (symbol? method-sym) (namespace method-sym))
+                            (str (namespace method-sym) "/" (name method-sym))
+                            (name method-sym))
+              dispatch-val (nth sexpr 2)
+              dispatch-str (pr-str dispatch-val)]
+          (str method-name " " dispatch-str))
+
+        ;; Regular form handling
+        (symbol? (second sexpr))
+        (name (second sexpr))
+
+        :else nil))
     (catch Exception _
       nil)))
 
@@ -55,7 +74,8 @@
                       {:file-path file-path})))))
 
 (defn filter-forms-by-pattern
-  "Filters forms based on name and/or content regex patterns."
+  "Filters forms based on name and/or content regex patterns.
+   For defmethod forms, matches against the combined 'method-name dispatch-value' string."
   [forms name-pattern content-pattern]
   (let [name-regex (when (and name-pattern (not= name-pattern ""))
                      (try (re-pattern name-pattern)
@@ -79,12 +99,23 @@
 
 (defn generate-pattern-based-file-view
   "Generates collapsed view with pattern-based expansion of Clojure files."
-  [file-path name-pattern content-pattern collapsed include-comments]
-  (if-not collapsed
-    {:content (slurp file-path)
-     :mode :raw}
-    (let [forms (collect-top-level-forms file-path include-comments)
-          result (filter-forms-by-pattern forms name-pattern content-pattern)
-          matching-names (:matches result)]
-      {:matches matching-names
-       :pattern-info (:pattern-info result)})))
+  [file-path name-pattern content-pattern]
+  (let [forms (collect-top-level-forms file-path false)
+        result (filter-forms-by-pattern forms name-pattern content-pattern)
+        matching-names (:matches result)]
+    {:matches matching-names
+     :pattern-info (:pattern-info result)}))
+
+(comment
+  (def tmp-path "/Users/bruce/workspace/llempty/clojure-mcp/src/clojure_mcp/tools/form_edit/tool.clj")
+  
+  (-> (collect-top-level-forms tmp-path false)
+      (filter-forms-by-pattern "validate" nil)
+      :matches
+      (->>
+         (form-edit/generate-collapsed-file-view tmp-path))
+      println
+      )
+
+  )
+

@@ -47,7 +47,6 @@ Parameters:
 - collapsed: Show collapsed view (default: true)
 - name_pattern: Regex to match function names (e.g., \"validate.*\")
 - content_pattern: Regex to match function content (e.g., \"try|catch\")
-- include_comments: Include comment blocks (default: false)
 - line_offset: Start reading from line N (default: 0)
 - limit: Maximum lines to read (default: " max-lines ")
 
@@ -63,8 +62,6 @@ Deprecated: clojure_mode, expand_symbols"))
                                :description "Pattern to match function names (e.g., \"validate.*\")"}
                 :content_pattern {:type :string
                                   :description "Pattern to match function content (e.g., \"try|catch\")"}
-                :include_comments {:type :boolean
-                                   :description "Include comment blocks in pattern matching (default: false)"}
                 :line_offset {:type :integer
                               :description "Line to start reading from for raw mode (default: 0)"}
                 :limit {:type :integer
@@ -72,7 +69,7 @@ Deprecated: clojure_mode, expand_symbols"))
    :required [:path]})
 
 (defmethod tool-system/validate-inputs :unified-read-file [{:keys [nrepl-client-atom]} inputs]
-  (let [{:keys [path collapsed name_pattern content_pattern include_comments line_offset limit]} inputs
+  (let [{:keys [path collapsed name_pattern content_pattern line_offset limit]} inputs
         nrepl-client @nrepl-client-atom]
     (when-not path
       (throw (ex-info "Missing required parameter: path" {:inputs inputs})))
@@ -94,7 +91,6 @@ Deprecated: clojure_mode, expand_symbols"))
        :collapsed (if (nil? collapsed) true collapsed)
        :name_pattern name_pattern
        :content_pattern content_pattern
-       :include_comments (boolean include_comments)
        :line_offset (or line_offset 0)
        :limit limit})))
 
@@ -109,12 +105,9 @@ Deprecated: clojure_mode, expand_symbols"))
         (let [result (pattern-core/generate-pattern-based-file-view
                       path
                       name_pattern
-                      content_pattern
-                      true
-                      include_comments)
+                      content_pattern)
               matching-names (:matches result)
               collapsed-view (form-edit-core/generate-collapsed-file-view path matching-names)]
-
           {:mode :clojure
            :content collapsed-view
            :path path
@@ -144,15 +137,16 @@ Deprecated: clojure_mode, expand_symbols"))
                        (str "content_pattern: \"" content-pattern "\"")
                        :else
                        "no patterns")
-        preamble (str "# Collapsed view of " path "\n\n"
+        preamble (str "# THIS IS A COLLAPSED VIEW " path "\n"
+                      "Set `collapsed: false` to view the entire file\n"
                       (when (or name-pattern content-pattern)
-                        (str "Matching " pattern-text " (" match-count " matches)\n\n")))
+                        (str "Matching " pattern-text " (" match-count " matches)\n"))
+                      "*** `" path "`\n")
 
-        usage-tips (str "\n\n## Usage Tips\n\n"
+        usage-tips (str "\n\n## `read_file` Tool Usage Tips\n\n"
                         "- Use `name_pattern` with regex to match function names (e.g., \"validate.*\")\n"
-                        "- Use `content_pattern` to find code containing specific text (e.g., \"try|catch\")\n"
-                        "- Set `collapsed: false` to view the entire file\n"
-                        "- Use `include_comments: true` to include comment blocks")]
+                        "- Use `content_pattern` to find code containing specific text (e.g., \"try|trunctate.*selection\")\n"
+                        "- Set `collapsed: false` to view the entire file\n")]
 
     [(str preamble "```clojure\n" content "\n```" usage-tips)]))
 
@@ -164,7 +158,7 @@ Deprecated: clojure_mode, expand_symbols"))
   (let [{:keys [content path size line-count offset truncated? line-lengths-truncated?]} result
         file-type (last (str/split path #"\."))
         lang-hint (when file-type (str file-type))
-        preamble (str "# " path "\n\n"
+        preamble (str "### " path "\n"
                       (when truncated?
                         (str "File truncated (showing " line-count " of " size " lines)\n\n")))]
     [(str preamble "```" lang-hint "\n" content "\n```")]))
@@ -194,3 +188,17 @@ Deprecated: clojure_mode, expand_symbols"))
    (unified-read-file-tool nrepl-client-atom {}))
   ([nrepl-client-atom opts]
    (tool-system/registration-map (create-unified-read-file-tool nrepl-client-atom opts))))
+
+
+(comment
+  
+  (let [path "/Users/bruce/workspace/llempty/clojure-mcp/src/clojure_mcp/tools/form_edit/tool.clj"
+        path2 "NEXT_STEPS.md"
+        user-dir (System/getProperty "user.dir")
+        tool (unified-read-file-tool (atom {:clojure-mcp.core/nrepl-user-dir user-dir
+                                            :clojure-mcp.core/allowed-directories [user-dir]}))
+        tool-fn (:tool-fn tool)]
+    (println (tool-fn nil {:path path2 :name_pattern "validates"}  (fn [a b] [a b])))
+    )
+
+  )

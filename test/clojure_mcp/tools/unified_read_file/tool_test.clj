@@ -275,6 +275,112 @@
       (is (vector? (:result result)))
       (is (= ["File not found"] (:result result))))))
 
+(deftest pattern-based-validation-test
+  (testing "Validates pattern-based parameters"
+    (let [tool-instance (unified-read-file-tool/create-unified-read-file-tool *nrepl-client-atom*)
+          result (tool-system/validate-inputs
+                  tool-instance
+                  {:path (.getAbsolutePath *clojure-test-file*)
+                   :collapsed true
+                   :name_pattern "test.*"
+                   :content_pattern "\\+"
+                   :include_comments false})]
+      (is (map? result))
+      (is (string? (:path result)))
+      (is (true? (:collapsed result)))
+      (is (= "test.*" (:name_pattern result)))
+      (is (= "\\+" (:content_pattern result)))
+      (is (false? (:include_comments result)))))
+
+  (testing "Rejects invalid name pattern regex"
+    (let [tool-instance (unified-read-file-tool/create-unified-read-file-tool *nrepl-client-atom*)]
+      (is (thrown-with-msg? Exception
+                            #"Invalid name_pattern regex"
+                            (tool-system/validate-inputs
+                             tool-instance
+                             {:path (.getAbsolutePath *clojure-test-file*)
+                              :name_pattern "["})))))
+
+  (testing "Rejects invalid content pattern regex"
+    (let [tool-instance (unified-read-file-tool/create-unified-read-file-tool *nrepl-client-atom*)]
+      (is (thrown-with-msg? Exception
+                            #"Invalid content_pattern regex"
+                            (tool-system/validate-inputs
+                             tool-instance
+                             {:path (.getAbsolutePath *clojure-test-file*)
+                              :content_pattern "("}))))))
+
+(deftest pattern-based-execution-test
+  (testing "Pattern-based name matching works"
+    (let [tool-instance (unified-read-file-tool/create-unified-read-file-tool *nrepl-client-atom*)
+          validated {:path (.getAbsolutePath *clojure-test-file*)
+                     :collapsed true
+                     :name_pattern "test.*"
+                     :content_pattern nil
+                     :include_comments false
+                     :line_offset 0}
+          result (tool-system/execute-tool tool-instance validated)]
+      (is (map? result))
+      (is (= :clojure (:mode result)))
+      (is (contains? result :content))
+      (is (contains? result :pattern-info))
+      (is (= "test.*" (get-in result [:pattern-info :name-pattern])))
+      (is (str/includes? (:content result) "test-function"))
+      (is (not (str/includes? (:content result) "another-function")))
+      (is (not (:error result)))))
+
+  (testing "Pattern-based content matching works"
+    (let [tool-instance (unified-read-file-tool/create-unified-read-file-tool *nrepl-client-atom*)
+          validated {:path (.getAbsolutePath *clojure-test-file*)
+                     :collapsed true
+                     :name_pattern nil
+                     :content_pattern "(\\+ x y)"
+                     :include_comments false
+                     :line_offset 0}
+          result (tool-system/execute-tool tool-instance validated)]
+      (is (map? result))
+      (is (= :clojure (:mode result)))
+      (is (contains? result :content))
+      (is (contains? result :pattern-info))
+      (is (= "(\\+ x y)" (get-in result [:pattern-info :content-pattern])))
+      (is (str/includes? (:content result) "test-function"))
+      (is (not (str/includes? (:content result) "another-function")))
+      (is (not (:error result)))))
+
+  (testing "Combined pattern matching works"
+    (let [tool-instance (unified-read-file-tool/create-unified-read-file-tool *nrepl-client-atom*)
+          validated {:path (.getAbsolutePath *clojure-test-file*)
+                     :collapsed true
+                     :name_pattern "another.*"
+                     :content_pattern "(\\* a b)"
+                     :include_comments false
+                     :line_offset 0}
+          result (tool-system/execute-tool tool-instance validated)]
+      (is (map? result))
+      (is (= :clojure (:mode result)))
+      (is (contains? result :content))
+      (is (contains? result :pattern-info))
+      (is (str/includes? (:content result) "another-function"))
+      (is (not (str/includes? (:content result) "test-function")))
+      (is (not (:error result)))))
+
+  (testing "Include comments option works"
+    (let [tool-instance (unified-read-file-tool/create-unified-read-file-tool *nrepl-client-atom*)
+          validated {:path (.getAbsolutePath *clojure-test-file*)
+                     :collapsed true
+                     :name_pattern nil
+                     :content_pattern "test-function 1 2"
+                     :include_comments true
+                     :line_offset 0}
+          result (tool-system/execute-tool tool-instance validated)]
+      (is (map? result))
+      (is (= :clojure (:mode result)))
+      (is (contains? result :content))
+      (is (contains? result :pattern-info))
+      ;; Should have matched the text in the comment block
+      (is (pos? (get-in result [:pattern-info :match-count])))
+      (is (not (:error result))))))
+
 (deftest tool-execution-test
   (testing "Basic text file reading"
     (let [tool-instance (unified-read-file-tool/create-unified-read-file-tool *nrepl-client-atom*)
@@ -321,3 +427,50 @@
       (is (true? (:error? result)))
       (is (vector? (:result result)))
       (is (str/includes? (first (:result result)) "not exist")))))
+
+(deftest pattern-based-tool-execution-test
+  (testing "Name pattern based filtering"
+    (let [tool-instance (unified-read-file-tool/create-unified-read-file-tool *nrepl-client-atom*)
+          tool-tester (test-utils/make-tool-tester tool-instance)
+          result (tool-tester {"path" (.getAbsolutePath *clojure-test-file*)
+                               "name_pattern" "test.*"})]
+      (is (false? (:error? result)))
+      (is (vector? (:result result)))
+      (let [formatted-content (first (:result result))]
+        (is (str/includes? formatted-content "test-function"))
+        (is (not (str/includes? formatted-content "another-function"))))))
+
+  (testing "Content pattern based filtering"
+    (let [tool-instance (unified-read-file-tool/create-unified-read-file-tool *nrepl-client-atom*)
+          tool-tester (test-utils/make-tool-tester tool-instance)
+          result (tool-tester {"path" (.getAbsolutePath *clojure-test-file*)
+                               "content_pattern" "\\* a b"})]
+      (is (false? (:error? result)))
+      (is (vector? (:result result)))
+      (let [formatted-content (first (:result result))]
+        (is (str/includes? formatted-content "another-function"))
+        (is (not (str/includes? formatted-content "test-function"))))))
+
+  (testing "Combined pattern based filtering"
+    (let [tool-instance (unified-read-file-tool/create-unified-read-file-tool *nrepl-client-atom*)
+          tool-tester (test-utils/make-tool-tester tool-instance)
+          result (tool-tester {"path" (.getAbsolutePath *clojure-test-file*)
+                               "name_pattern" ".*function"
+                               "content_pattern" "\\+"})]
+      (is (false? (:error? result)))
+      (is (vector? (:result result)))
+      (let [formatted-content (first (:result result))]
+        (is (str/includes? formatted-content "test-function"))
+        (is (not (str/includes? formatted-content "another-function"))))))
+
+  (testing "Include comments option"
+    (let [tool-instance (unified-read-file-tool/create-unified-read-file-tool *nrepl-client-atom*)
+          tool-tester (test-utils/make-tool-tester tool-instance)
+          result (tool-tester {"path" (.getAbsolutePath *clojure-test-file*)
+                               "content_pattern" "test-function 1 2"
+                               "include_comments" true})]
+      (is (false? (:error? result)))
+      (is (vector? (:result result)))
+      (let [formatted-content (first (:result result))]
+        ;; Should include the comment block with the pattern
+        (is (str/includes? formatted-content "comment"))))))
