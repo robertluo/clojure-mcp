@@ -4,6 +4,7 @@
    [clojure-mcp.tools.form-edit.tool :as sut]
    [clojure-mcp.tools.form-edit.pipeline :as pipeline]
    [clojure-mcp.tool-system :as tool-system]
+   [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [clojure.java.io :as io]
    [clojure.string :as str]
    [rewrite-clj.parser :as p]
@@ -29,7 +30,11 @@
                 *test-file* test-file
                 ;; Use a mock nrepl client atom for isolated testing
                 *client-atom* (atom {:clojure-mcp.core/nrepl-user-dir (.getAbsolutePath test-dir)
-                                     :clojure-mcp.core/allowed-directories [(.getAbsolutePath test-dir)]})]
+                                     :clojure-mcp.core/allowed-directories [(.getAbsolutePath test-dir)]
+                                     ;; Initialize with the test file already marked as read
+                                     ::file-timestamps/file-timestamps {(.getAbsolutePath test-file) (.lastModified test-file)}})]
+        ;; Add a brief pause to ensure timestamps differ if files are modified
+        (Thread/sleep 50)
         (try
           (f)
           (finally
@@ -320,6 +325,8 @@
 
     (testing "Replace form tool can modify files"
       (let [file-path (get-file-path)
+            ;; Update timestamp to simulate file being read
+            _ (file-timestamps/update-file-timestamp-to-current-mtime! client-atom file-path)
             inputs {:file_path file-path
                     :form_identifier "example-fn"
                     :form_type "defn"
@@ -350,6 +357,8 @@
                                    "(def a 1)\n\n"
                                    "(comment\n  (example-fn 1 2))\n\n"
                                    ";; Test comment\n;; spans multiple lines"))
+            ;; Update timestamp to simulate file being read
+            _ (file-timestamps/update-file-timestamp-to-current-mtime! client-atom file-path)
             inputs {:file_path file-path
                     :form_identifier "example-fn"
                     :form_type "defn"
@@ -371,6 +380,8 @@
 
     (testing "Comment tool can update comment blocks"
       (let [file-path (get-file-path)
+            ;; Update timestamp to simulate file being read
+            _ (file-timestamps/update-file-timestamp-to-current-mtime! client-atom file-path)
             inputs {:file_path file-path
                     :comment_substring "Test comment"
                     :new_content ";; Updated test comment\n;; with multiple lines"}
@@ -392,6 +403,8 @@
 
     (testing "File structure tool can generate outlines"
       (let [file-path (get-file-path)
+            ;; Update timestamp to simulate file being read
+            _ (file-timestamps/update-file-timestamp-to-current-mtime! client-atom file-path)
             inputs {:file_path file-path}
             validated (tool-system/validate-inputs structure-tool inputs)
             result (tool-system/execute-tool structure-tool validated)
@@ -423,6 +436,8 @@
       (let [;; Using a file path that exists but is not a valid Clojure file
             invalid-file-path (str (.getAbsolutePath *test-dir*) "/invalid_clojure.xyz")
             _ (spit invalid-file-path "This is not a valid Clojure file { syntax error )")
+            ;; Update timestamp to simulate file being read
+            _ (file-timestamps/update-file-timestamp-to-current-mtime! client-atom invalid-file-path)
             inputs {:file_path invalid-file-path}
             validated (tool-system/validate-inputs structure-tool inputs)
             result (tool-system/execute-tool structure-tool validated)
@@ -463,6 +478,8 @@
     (let [c (+ a b)]
       c))))"
             _ (spit test-file-path content)
+            ;; Update timestamp to simulate file being read
+            _ (file-timestamps/update-file-timestamp-to-current-mtime! client-atom test-file-path)
             inputs {:file_path test-file-path}
             validated (tool-system/validate-inputs structure-tool inputs)
             result (tool-system/execute-tool structure-tool validated)
@@ -485,7 +502,12 @@
           _ (spit file-path (str "(ns test.multimethods)\n\n"
                                  "(defmulti area :shape)\n\n"
                                  "(defmethod area :rectangle [rect]\n  (* (:width rect) (:height rect)))\n\n"
-                                 "(defmethod area :circle [circle]\n  (* Math/PI (:radius circle) (:radius circle)))\n"))]
+                                 "(defmethod area :circle [circle]\n  (* Math/PI (:radius circle) (:radius circle)))\n"))
+          file (io/file file-path)
+          ;; Directly update the timestamp in the atom
+          _ (swap! client-atom assoc-in [::file-timestamps/file-timestamps file-path] (.lastModified file))
+          ;; Add a brief pause to ensure timestamps differ if modified
+          _ (Thread/sleep 50)]
 
       (testing "Can update defmethod with just the multimethod name"
         (let [inputs {:file_path file-path
@@ -560,6 +582,8 @@
               [p3 cb3] (make-callback)]
 
           (testing "Replace form tool works via callback"
+            ;; Update timestamp to ensure we can modify the file
+            (file-timestamps/update-file-timestamp-to-current-mtime! client-atom (get-file-path))
             (replace-fn nil
                         {"file_path" (get-file-path)
                          "form_identifier" "example-fn"
@@ -574,6 +598,8 @@
                   "The file should contain the updated function implementation")))
 
           (testing "Comment tool works via callback"
+            ;; Update timestamp to ensure we can modify the file
+            (file-timestamps/update-file-timestamp-to-current-mtime! client-atom (get-file-path))
             (comment-fn nil
                         {"file_path" (get-file-path)
                          "comment_substring" "(example-fn"
@@ -587,6 +613,8 @@
                   "The file should contain the updated comment")))
 
           (testing "Structure tool works via callback"
+            ;; Update timestamp to ensure we can read the file
+            (file-timestamps/update-file-timestamp-to-current-mtime! client-atom (get-file-path))
             (structure-fn nil
                           {"file_path" (get-file-path)}
                           cb3)
