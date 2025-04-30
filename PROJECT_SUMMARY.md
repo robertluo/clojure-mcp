@@ -28,6 +28,9 @@ The project allows AI assistants to:
 
 - `/src/clojure_mcp/tools/eval/`: Code evaluation tools
 - `/src/clojure_mcp/tools/read_file/`: File reading utilities
+  - `core.clj`: Core file reading functionality
+  - `tool.clj`: Tool implementation with MCP integration
+  - `file_timestamps.clj`: Track file read/modification timestamps for safety
 - `/src/clojure_mcp/tools/form_edit/`: Structure-aware Clojure code editing
 - `/src/clojure_mcp/tools/file_edit/`: Basic file editing operations
 - `/src/clojure_mcp/tools/unified_file_edit/`: Combined file editing capabilities
@@ -239,6 +242,12 @@ The implementation uses rewrite-clj to:
    - Focused code reading with collapsed view and selective expansion
    - Markdown-formatted output with usage hints
 
+6. **File Timestamp Tracking**: Ensures file operation safety:
+   - Tracks when files are last read or modified
+   - Prevents editing files that have been externally modified
+   - Automatically updates timestamps after write operations
+   - Enables multiple sequential edits after a single read
+
 ## Development Workflow Recommendations
 
 1. **Setup and Configuration**:
@@ -253,6 +262,8 @@ The implementation uses rewrite-clj to:
 3. **Tool Usage Best Practices**:
    - Use `clojure_eval` for testing code snippets
    - Use `clojure_edit_*` tools for syntax-aware code editing
+   - Always read a file with `read_file` before editing if it might have been modified externally
+   - After using `file_write`, you can immediately edit the file without reading it first
 
 4. **Logging System**:
    - Uses `clojure.tools.logging` with Logback backend
