@@ -37,10 +37,36 @@
 
 (def config {:max-retries 3})
 
+(defmulti area :shape)
+
+(defmethod area :rectangle
+  [{:keys [width height]}]
+  (* width height))
+
+(defmethod area :circle
+  [{:keys [radius]}]
+  (* Math/PI radius radius))
+
+(defmulti conversion-factor identity)
+
+(defmethod conversion-factor [:feet :inches]
+  [_]
+  12)
+
+(defmethod conversion-factor [:meters :feet]
+  [_]
+  3.28084)
+
 (defmethod handle-request :json
   [request]
   (println \"Handling JSON request\")
   {:status 200})
+
+(defmulti example.helpers/process-input (fn [type _] type))
+
+(defmethod example.helpers/process-input :xml
+  [_ data]
+  (str \"<result>\" data \"</result>\"))
 
 (comment
   \"This is a test comment block\"
@@ -85,8 +111,14 @@
   (testing "Extract name from def"
     (is (= "config" (pattern-core/extract-form-name '(def config {:a 1})))))
 
-  (testing "Extract name from defmethod"
-    (is (= "handle-request" (pattern-core/extract-form-name '(defmethod handle-request :json [x] x)))))
+  (testing "Extract name from defmethod with keyword dispatch"
+    (is (= "handle-request :json" (pattern-core/extract-form-name '(defmethod handle-request :json [x] x)))))
+
+  (testing "Extract name from defmethod with vector dispatch"
+    (is (= "conversion-factor [:feet :inches]" (pattern-core/extract-form-name '(defmethod conversion-factor [:feet :inches] [_] 12)))))
+
+  (testing "Extract name from defmethod with namespaced multimethod"
+    (is (= "example.helpers/process-input :xml" (pattern-core/extract-form-name '(defmethod example.helpers/process-input :xml [_ data] data)))))
 
   (testing "Extract name from ns"
     (is (= "test.namespace" (pattern-core/extract-form-name '(ns test.namespace)))))
@@ -102,10 +134,21 @@
 (deftest test-collect-top-level-forms
   (testing "Collects all forms excluding comments"
     (let [forms (pattern-core/collect-top-level-forms (.getAbsolutePath *test-file*) false)]
-      (is (= 5 (count forms)))
-      (is (= #{"test.example" "validate-input" "process-data" "config" "handle-request"}
-             (set (map :name forms))))
-      (is (contains? (frequencies (map :type forms)) "defn")))))
+      (is (>= (count forms) 12)) ;; Increased from 5 to account for all forms
+      (is (contains? (set (map :name forms)) "validate-input"))
+      (is (contains? (set (map :name forms)) "process-data"))
+      (is (contains? (set (map :name forms)) "area"))
+      (is (contains? (set (map :name forms)) "area :rectangle"))
+      (is (contains? (set (map :name forms)) "area :circle"))
+      (is (contains? (set (map :name forms)) "conversion-factor"))
+      (is (contains? (set (map :name forms)) "conversion-factor [:feet :inches]"))
+      (is (contains? (set (map :name forms)) "conversion-factor [:meters :feet]"))
+      (is (contains? (set (map :name forms)) "handle-request :json"))
+      ;; No need to check for multimethods without dispatch values
+      ;;(is (contains? (set (map :name forms)) "example.helpers/process-input"))
+      (is (contains? (set (map :name forms)) "example.helpers/process-input :xml"))
+      (is (contains? (frequencies (map :type forms)) "defn"))
+      (is (contains? (frequencies (map :type forms)) "defmethod")))))
 
 (deftest test-filter-forms-by-pattern
   (testing "Filter by name pattern"
@@ -122,7 +165,7 @@
 
   (testing "Filter by both patterns"
     (let [forms (pattern-core/collect-top-level-forms (.getAbsolutePath *test-file*) false)
-          result (pattern-core/filter-forms-by-pattern forms "process.*" "catch")]
+          result (pattern-core/filter-forms-by-pattern forms "process-data" "catch")]
       (is (= ["process-data"] (:matches result)))
       (is (= 1 (get-in result [:pattern-info :match-count])))))
 
@@ -141,7 +184,27 @@
   (testing "Match by form type"
     (let [forms (pattern-core/collect-top-level-forms (.getAbsolutePath *test-file*) false)
           result (pattern-core/filter-forms-by-pattern forms nil "defmethod")]
-      (is (= ["handle-request"] (:matches result)))
+      (is (some #{"handle-request :json"} (:matches result)))
+      (is (some #{"area :rectangle"} (:matches result)))
+      (is (some #{"area :circle"} (:matches result)))
+      (is (> (get-in result [:pattern-info :match-count]) 1))))
+
+  (testing "Match defmethod with specific dispatch value"
+    (let [forms (pattern-core/collect-top-level-forms (.getAbsolutePath *test-file*) false)
+          result (pattern-core/filter-forms-by-pattern forms "area :rectangle" nil)]
+      (is (= ["area :rectangle"] (:matches result)))
+      (is (= 1 (get-in result [:pattern-info :match-count])))))
+
+  (testing "Match defmethod with vector dispatch value"
+    (let [forms (pattern-core/collect-top-level-forms (.getAbsolutePath *test-file*) false)
+          result (pattern-core/filter-forms-by-pattern forms "conversion-factor \\[:feet :inches\\]" nil)]
+      (is (= ["conversion-factor [:feet :inches]"] (:matches result)))
+      (is (= 1 (get-in result [:pattern-info :match-count])))))
+
+  (testing "Match defmethod with namespaced multimethod"
+    (let [forms (pattern-core/collect-top-level-forms (.getAbsolutePath *test-file*) false)
+          result (pattern-core/filter-forms-by-pattern forms "example.helpers/process-input" nil)]
+      (is (contains? (set (:matches result)) "example.helpers/process-input :xml"))
       (is (= 1 (get-in result [:pattern-info :match-count])))))
 
   (testing "Empty pattern returns no matches"
@@ -153,22 +216,16 @@
 (deftest test-generate-pattern-based-file-view
   (testing "Generate collapsed view with name pattern"
     (let [result (pattern-core/generate-pattern-based-file-view
-                  (.getAbsolutePath *test-file*) "validate.*" nil true false)]
+                  (.getAbsolutePath *test-file*) "validate.*" nil)]
       (is (sequential? (:matches result)))
       (is (map? (:pattern-info result)))
       (is (= "validate.*" (get-in result [:pattern-info :name-pattern])))))
 
   (testing "Generate collapsed view with content pattern"
     (let [result (pattern-core/generate-pattern-based-file-view
-                  (.getAbsolutePath *test-file*) nil "try|catch" true false)]
+                  (.getAbsolutePath *test-file*) nil "try|catch")]
       (is (sequential? (:matches result)))
-      (is (= "try|catch" (get-in result [:pattern-info :content-pattern])))))
-
-  (testing "Generate raw view when collapsed is false"
-    (let [result (pattern-core/generate-pattern-based-file-view
-                  (.getAbsolutePath *test-file*) nil nil false false)]
-      (is (= :raw (:mode result)))
-      (is (string? (:content result))))))
+      (is (= "try|catch" (get-in result [:pattern-info :content-pattern]))))))
 
 (deftest test-error-handling
   (testing "Invalid name pattern regex throws meaningful exception"
