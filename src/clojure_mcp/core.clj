@@ -306,6 +306,15 @@
       (reset! nrepl-client-atom (assoc nrepl-client ::mcp-server mcp))
       (log/info "nREPL client connected successfully")
 
+      
+      ;; Register all defined resources
+      (log/info "Registering resources...")
+      (let [all-resources (resources/get-all-resources nrepl-client-atom)]
+        (log/info "Found" (count all-resources) "resources to register")
+        (doseq [resource all-resources]
+          (log/debug "Registering resource:" (:name resource))
+          (add-resource mcp resource)))
+      
       ;; Register all defined tools
       (log/info "Registering tools...")
       (let [tools (repl-tools/get-all-tools nrepl-client-atom)]
@@ -322,16 +331,9 @@
           (log/debug "Registering prompt:" (:name prompt))
           (add-prompt mcp prompt)))
 
-      ;; Register all defined resources
-      (log/info "Registering resources...")
-      (let [all-resources (resources/get-all-resources nrepl-client-atom)]
-        (log/info "Found" (count all-resources) "resources to register")
-        (doseq [resource all-resources]
-          (log/debug "Registering resource:" (:name resource))
-          (add-resource mcp resource)))
-
       (log/info "nREPL MCP server started successfully")
-      mcp)
+      mcp
+      nil)
     (catch Exception e
       (log/error e "Failed to start nREPL MCP server")
       (throw e))))

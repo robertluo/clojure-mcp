@@ -4,7 +4,9 @@
    [clojure-mcp.nrepl :as nrepl]
    [nrepl.server :as nrepl-server]
    [clojure-mcp.tool-system :as tool-system]
-   [clojure.test :refer [use-fixtures]]))
+   [clojure.test :refer [use-fixtures]]
+   [clojure.java.io :as io]
+   [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]))
 
 (defonce ^:dynamic *nrepl-server* nil)
 (defonce ^:dynamic *nrepl-client-atom* nil)
@@ -55,6 +57,44 @@
     formatted-result))
 
 ;; Apply fixtures in each test namespace
+(defn create-test-dir
+  "Creates a temporary test directory with a unique name"
+  []
+  (let [temp-dir (io/file (System/getProperty "java.io.tmpdir"))
+        test-dir (io/file temp-dir (str "clojure-mcp-test-" (System/currentTimeMillis)))]
+    (.mkdirs test-dir)
+    (.getAbsolutePath test-dir)))
+
+(defn create-and-register-test-file
+  "Creates a test file with the given content and registers it in the timestamp tracker"
+  [client-atom dir filename content]
+  (let [file-path (str dir "/" filename)]
+    (io/make-parents file-path)
+    (spit file-path content)
+    ;; Register the file as "read" in the timestamp tracker
+    (file-timestamps/update-file-timestamp-to-current-mtime! client-atom file-path)
+    ;; Small delay to ensure future modifications have different timestamps
+    (Thread/sleep 25)
+    file-path))
+
+(defn modify-test-file
+  "Modifies a test file and updates its timestamp in the tracker if update-timestamp? is true"
+  [client-atom file-path content & {:keys [update-timestamp?] :or {update-timestamp? false}}]
+  (spit file-path content)
+  (when update-timestamp?
+    (file-timestamps/update-file-timestamp-to-current-mtime! client-atom file-path)
+    ;; Small delay
+    (Thread/sleep 25))
+  file-path)
+
+(defn clean-test-dir
+  "Recursively deletes a test directory"
+  [dir-path]
+  (let [dir (io/file dir-path)]
+    (when (.exists dir)
+      (doseq [file (reverse (file-seq dir))]
+        (.delete file)))))
+
 (defn apply-fixtures [test-namespace]
   (use-fixtures :once test-nrepl-fixture)
   (use-fixtures :each cleanup-test-file))

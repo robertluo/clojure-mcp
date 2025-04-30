@@ -495,19 +495,22 @@
              ::config config}]
     (thread-ctx
      ctx
-     load-source ;; Load the file content
-     check-file-modified ;; NEW: Check if file modified since last read
-     enhance-defmethod-name ;; Handle defmethod dispatch values
-     lint-code ;; Lint the new code
-     parse-source ;; Parse the source into zipper
-     find-form ;; Find the specific form to edit
-     edit-form ;; Perform the edit
-     zloc->output-source ;; Convert zipper back to string
-     format-source ;; Format the source
-     determine-file-type ;; Mark as creation or update
-     generate-diff ;; Generate diff for display
-     save-file ;; Save the file
-     update-file-timestamp ;; NEW: Update the timestamp after save
+     lint-code
+     validate-form-type
+     load-source
+     check-file-modified
+     enhance-defmethod-name
+     parse-source
+     find-form
+     edit-form
+     capture-edit-offsets
+     zloc->output-source
+     format-source
+     determine-file-type
+     generate-diff
+     ; emacs-set-auto-revert
+     save-file
+     update-file-timestamp
      highlight-form)))
 
 (defn docstring-edit-pipeline
@@ -533,18 +536,21 @@
              ::config config}]
     (thread-ctx
      ctx
-     load-source ;; Load the file content
-     check-file-modified ;; NEW: Check if file modified since last read
-     enhance-defmethod-name ;; Handle defmethod dispatch values
-     parse-source ;; Parse the source into zipper
-     find-form ;; Find the specific form to edit
-     edit-docstring ;; Replace just the docstring
-     zloc->output-source ;; Convert zipper back to string
-     format-source ;; Format the source
-     determine-file-type ;; Mark as update
-     generate-diff ;; Generate diff for display
-     save-file ;; Save the file
-     update-file-timestamp ;; NEW: Update the timestamp after save
+     validate-form-type
+     load-source
+     check-file-modified
+     enhance-defmethod-name
+     parse-source
+     find-form
+     edit-docstring
+     capture-edit-offsets
+     zloc->output-source
+     format-source
+     determine-file-type
+     generate-diff
+     ; emacs-set-auto-revert
+     save-file
+     update-file-timestamp
      highlight-form)))
 
 (defn comment-block-edit-pipeline
@@ -567,13 +573,16 @@
              ::config config}]
     (thread-ctx
      ctx
-     load-source ;; Load the file content
-     check-file-modified ;; NEW: Check if file modified since last read
-     find-and-edit-comment ;; Find and edit the comment block
-     determine-file-type ;; Mark as update
-     generate-diff ;; Generate diff for display
-     save-file ;; Save the file
-     update-file-timestamp ;; NEW: Update the timestamp after save
+     load-source 
+     check-file-modified
+     find-and-edit-comment
+     capture-edit-offsets
+     zloc->output-source
+     determine-file-type
+     generate-diff
+     ; emacs-set-auto-revert
+     save-file
+     update-file-timestamp
      highlight-form)))
 
 (defn file-outline-pipeline
@@ -655,16 +664,18 @@
              ::config config}]
     (thread-ctx
      ctx
-     load-source ;; Load the file content
-     check-file-modified ;; NEW: Check if file modified since last read
-     parse-source ;; Parse the source into a zipper
-     replace-sexp ;; Replace the s-expressions
-     zloc->output-source ;; Convert zipper back to string
-     format-source ;; Format the source
-     determine-file-type ;; Mark as update
-     generate-diff ;; Generate diff for display
-     save-file ;; Save the file 
-     update-file-timestamp ;; NEW: Update the timestamp after save
+     load-source
+     check-file-modified
+     parse-source
+     replace-sexp
+     capture-edit-offsets
+     zloc->output-source
+     format-source
+     determine-file-type
+     generate-diff
+     ; emacs-set-auto-revert
+     save-file
+     update-file-timestamp
      highlight-form)))
 
 (comment

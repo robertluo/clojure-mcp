@@ -3,6 +3,7 @@
    [clojure.test :refer [deftest testing is use-fixtures]]
    [clojure-mcp.tools.form-edit.pipeline :as sut]
    [clojure-mcp.tools.form-edit.core :as core]
+   [clojure-mcp.tools.test-utils :as test-utils]
    [rewrite-clj.zip :as z]
    [clojure.java.io :as io]
    [clojure.string :as str]))
@@ -11,24 +12,29 @@
 (def ^:dynamic *test-dir* nil)
 (def ^:dynamic *test-file* nil)
 
+(def ^:dynamic *nrepl-client-atom* nil)
+
 (defn create-test-files-fixture [f]
-  (let [test-dir (io/file (System/getProperty "java.io.tmpdir")
-                          (str "test-dir-" (System/currentTimeMillis)))]
-    (.mkdirs test-dir)
-    (let [test-file (io/file test-dir "test.clj")]
-      (spit test-file (str "(ns test.core)\n\n"
-                           "(defn example-fn\n  \"Original docstring\"\n  [x y]\n  (+ x y))\n\n"
-                           "(def a 1)\n\n"
-                           "(comment\n  (example-fn 1 2))\n\n"
-                           ";; Test comment\n;; spans multiple lines"))
+  (binding [*nrepl-client-atom* test-utils/*nrepl-client-atom*]
+    (let [test-dir (clojure-mcp.tools.test-utils/create-test-dir)
+          test-file-content (str "(ns test.core)\n\n"
+                                 "(defn example-fn\n  \"Original docstring\"\n  [x y]\n  (+ x y))\n\n"
+                                 "(def a 1)\n\n"
+                                 "(comment\n  (example-fn 1 2))\n\n"
+                                 ";; Test comment\n;; spans multiple lines")
+          test-file-path (clojure-mcp.tools.test-utils/create-and-register-test-file
+                          *nrepl-client-atom*
+                          test-dir
+                          "test.clj"
+                          test-file-content)]
       (binding [*test-dir* test-dir
-                *test-file* test-file]
+                *test-file* (io/file test-file-path)]
         (try
           (f)
           (finally
-            (when (.exists test-file) (.delete test-file))
-            (when (.exists test-dir) (.delete test-dir))))))))
+            (clojure-mcp.tools.test-utils/clean-test-dir test-dir)))))))
 
+(use-fixtures :once test-utils/test-nrepl-fixture)
 (use-fixtures :each create-test-files-fixture)
 
 ;; Test helper functions
@@ -230,7 +236,8 @@
                            "example-fn"
                            "defn"
                            "(defn example-fn [x y]\n  (* x y))"
-                           :replace)
+                           :replace
+                           *nrepl-client-atom*)
           result (sut/format-result pipeline-result)
           file-content (slurp file-path)]
       (is (false? (:error result))
@@ -251,7 +258,8 @@
                            "test-comment"
                            "comment"
                            "(comment some test comment)"
-                           :replace)]
+                           :replace
+                           *nrepl-client-atom*)]
       (is (true? (::sut/error pipeline-result)))
       (is (string? (::sut/message pipeline-result)))
       (is (str/includes? (::sut/message pipeline-result) "not supported for definition editing"))
@@ -264,7 +272,8 @@
                            file-path
                            "example-fn"
                            "defn"
-                           "Updated docstring")
+                           "Updated docstring"
+                           *nrepl-client-atom*)
           result (sut/format-result pipeline-result)
           file-content (slurp file-path)]
       (is (false? (:error result))
@@ -282,7 +291,8 @@
                            file-path
                            "test-comment"
                            "comment"
-                           "Updated docstring")]
+                           "Updated docstring"
+                           *nrepl-client-atom*)]
       (is (true? (::sut/error pipeline-result)))
       (is (string? (::sut/message pipeline-result)))
       (is (str/includes? (::sut/message pipeline-result) "not supported for definition editing"))
@@ -296,7 +306,8 @@
           pipeline-result (sut/comment-block-edit-pipeline
                            file-path
                            "Test comment" ; Part of the exact line in the test file
-                           new-comment)
+                           new-comment
+                           *nrepl-client-atom*)
           result (sut/format-result pipeline-result)
           file-content-after (slurp file-path)]
       (is (false? (:error result))
@@ -333,7 +344,8 @@
           pipeline-result (sut/comment-block-edit-pipeline
                            file-path
                            "(example-fn 1 2)" ; This is inside the comment form
-                           new-comment-form)
+                           new-comment-form
+                           *nrepl-client-atom*)
           result (sut/format-result pipeline-result)
           file-content (slurp file-path)]
       (is (false? (:error result))
@@ -365,12 +377,15 @@
   (testing "comment-block-edit-pipeline correctly handles end-of-file comments"
     (let [file-path (get-file-path)
           ;; Add a comment at the end of file
-          _ (spit file-path (str (slurp file-path) "\n\n;; End of file comment") :append true)
+          _ (test-utils/modify-test-file *nrepl-client-atom* file-path
+                                         (str (slurp file-path) "\n\n;; End of file comment")
+                                         :update-timestamp? true)
           new-comment ";; Updated EOF comment"
           pipeline-result (sut/comment-block-edit-pipeline
                            file-path
                            "End of file comment"
-                           new-comment)
+                           new-comment
+                           *nrepl-client-atom*)
           result (sut/format-result pipeline-result)
           file-content (slurp file-path)]
       (is (false? (:error result))
