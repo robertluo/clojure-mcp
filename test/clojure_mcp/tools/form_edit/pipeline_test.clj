@@ -228,6 +228,44 @@
 
 ;; Integration tests for pipelines
 
+(deftest lint-repair-code-test
+  (testing "lint-repair-code repairs missing closing delimiter"
+    (let [ctx {::sut/new-source-code "(defn hello [name] (println name)"}
+          result (sut/lint-repair-code ctx)]
+      (is (not (::sut/error result)))
+      (is (true? (::sut/repaired result)))
+      (is (= "(defn hello [name] (println name)" (::sut/original-code result)))
+      (is (= "(defn hello [name] (println name))" (::sut/new-source-code result)))))
+
+  (testing "lint-repair-code repairs extra closing delimiter"
+    (let [ctx {::sut/new-source-code "(defn hello [name] (println name)))"}
+          result (sut/lint-repair-code ctx)]
+      (is (not (::sut/error result)))
+      (is (true? (::sut/repaired result)))
+      (is (= "(defn hello [name] (println name)))" (::sut/original-code result)))
+      (is (= "(defn hello [name] (println name))" (::sut/new-source-code result)))))
+
+  (testing "lint-repair-code handles non-repairable syntax errors"
+    (let [ctx {::sut/new-source-code "(defn hello [123] (println name))"}
+          result (sut/lint-repair-code ctx)]
+      (is (::sut/error result))
+      (is (= :lint-failure (::sut/error result)))
+      (is (str/includes? (::sut/message result) "Syntax errors detected"))))
+
+  (testing "lint-repair-code handles non-repairable delimiter errors"
+    (let [ctx {::sut/new-source-code "(defn hello [name] (println \"Hello)"}
+          result (sut/lint-repair-code ctx)]
+      (is (::sut/error result))
+      (is (= :lint-failure (::sut/error result)))
+      (is (str/includes? (::sut/message result) "Delimiter errors detected"))))
+
+  (testing "lint-repair-code handles well-formed code"
+    (let [ctx {::sut/new-source-code "(defn hello [name] (println name))"}
+          result (sut/lint-repair-code ctx)]
+      (is (not (::sut/error result)))
+      (is (nil? (::sut/repaired result)))
+      (is (= "(defn hello [name] (println name))" (::sut/new-source-code result))))))
+
 (deftest edit-form-pipeline-test
   (testing "edit-form-pipeline edits form in file"
     (let [file-path (get-file-path)

@@ -10,6 +10,7 @@
    [rewrite-clj.zip :as z]
    [rewrite-clj.parser :as p]
    [clojure-mcp.linting :as linting]
+   [clojure-mcp.sexp.paren-utils :as paren-utils]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
    [clojure.java.io :as io]))
@@ -109,6 +110,36 @@
         ::message (str "Syntax errors detected in Clojure code:\n"
                        (:report lint-result)
                        "\nPlease fix the syntax errors before saving.")}
+       (assoc ctx ::lint-result lint-result)))))
+
+(defn lint-repair-code
+  "Lints the new source code to be inserted, and attempts to fix delimiter errors.
+   If repair is successful, updates the source code in the context.
+   Adds ::lint-result and potentially ::repaired to the context."
+  ([ctx]
+   (lint-repair-code ctx ::new-source-code))
+  ([ctx ky]
+   (let [original-code (get ctx ky)
+         lint-result (linting/lint original-code)]
+     (if (and lint-result (:error? lint-result))
+       (if (paren-utils/has-delimiter-errors? lint-result)
+         (if-let [repaired-code (paren-utils/parinfer-repair original-code)]
+           (-> ctx
+               (assoc ky repaired-code)
+               (assoc ::repaired true)
+               (assoc ::original-code original-code)
+               (assoc ::lint-result nil))
+           {::error :lint-failure
+            ::lint-report (:report lint-result)
+            ::message (str "Delimiter errors detected in Clojure code and automatic repair failed:\n"
+                           (:report lint-result)
+                           "\nPlease fix the syntax errors before saving.")})
+         {::error :lint-failure
+          ::lint-report (:report lint-result)
+          ::message (str "Syntax errors detected in Clojure code:\n"
+                         (:report lint-result)
+                         "\nPlease fix the syntax errors before saving.")})
+       ;; No lint errors, just add the result to the context
        (assoc ctx ::lint-result lint-result)))))
 
 (defn enhance-defmethod-name
@@ -498,7 +529,7 @@
              ::config config}]
     (thread-ctx
      ctx
-     lint-code
+     lint-repair-code
      validate-form-type
      load-source
      check-file-modified
@@ -576,7 +607,7 @@
              ::config config}]
     (thread-ctx
      ctx
-     load-source 
+     load-source
      check-file-modified
      find-and-edit-comment
      capture-edit-offsets
@@ -626,25 +657,6 @@
       {::error true
        ::message (str "Error replacing form: " (.getMessage e))})))
 
-(defn capture-edit-offsets
-  "Captures the position offsets of the current zipper location.
-   This should be called immediately after editing operations while position information is valid.
-   
-   Requires ::zloc in the context.
-   Adds ::offsets to the context when successful."
-  [ctx]
-  (try
-    (let [zloc (::zloc ctx)
-          positions (z/position-span zloc)
-          output-source (or (::output-source ctx) (z/root-string zloc))
-          offsets (core/zloc-offsets output-source positions)]
-      (assoc ctx ::offsets offsets))
-    (catch Exception e
-      ;; Don't fail the pipeline if offsets can't be captured, just log it
-      ;; This allows non-Emacs workflows to continue
-      (println "Warning: Failed to capture edit offsets -" (.getMessage e))
-      ctx)))
-
 (defn sexp-replace-pipeline
   "Pipeline for replacing s-expressions in a file.
    
@@ -669,8 +681,8 @@
              ::config config}]
     (thread-ctx
      ctx
-     #(lint-code % ::match-form)
-     #(lint-code % ::new-form)     
+     #(lint-repair-code % ::match-form)
+     #(lint-repair-code % ::new-form)
      load-source
      check-file-modified
      parse-source
@@ -684,6 +696,8 @@
      save-file
      update-file-timestamp
      highlight-form)))
+
+
 
 (comment
   ;; Example usage of the pipelines
