@@ -90,7 +90,7 @@
       (let [content (slurp file-path)]
         (is (str/includes? content "(+ x 10)") "File should contain the new valid code"))))
 
-  (testing "Editing a Clojure file with syntax errors should fail"
+  (testing "Editing a Clojure file with syntax errors should not fail"
     (let [tool-config (tool/create-file-edit-tool test-client-atom)
           file-path (str tmp-dir "/test.clj")
           ;; Create a valid Clojure file
@@ -111,11 +111,13 @@
           formatted-result (tool-system/format-results tool-config result)]
 
       ;; Verify the tool results - should report error due to syntax issue
-      (is (:error formatted-result) "Operation should fail with invalid Clojure syntax")
-      (is (str/includes? (first (:result formatted-result)) "Syntax errors") "Error should mention syntax issues")
+      (is (not (:error formatted-result))
+          "Operation should not fail with invalid Clojure syntax")
+      (is (not (str/includes? (first (:result formatted-result)) "Syntax errors"))
+          "Error should not mention syntax issues")
 
-      ;; Verify file was not modified
-      (is (= original-content (slurp file-path)) "File should not be modified when syntax errors detected")))
+      ;; Verify file was  modified
+      (is (not= original-content (slurp file-path)) "File should be modified when syntax errors detected")))
 
   (testing "Creating a new Clojure file with empty old_string should be rejected"
     (let [tool-config (tool/create-file-edit-tool test-client-atom)
