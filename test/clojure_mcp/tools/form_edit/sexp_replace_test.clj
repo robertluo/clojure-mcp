@@ -5,6 +5,7 @@
    [clojure-mcp.tools.form-edit.pipeline :as pipeline]
    [clojure-mcp.tools.form-edit.core :as core]
    [clojure-mcp.tool-system :as tool-system]
+   [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [clojure.java.io :as io]
    [clojure.string :as str]))
 
@@ -17,41 +18,57 @@
   (let [test-dir (io/file (System/getProperty "java.io.tmpdir")
                           (str "test-dir-" (System/currentTimeMillis)))]
     (.mkdirs test-dir)
-    (let [test-file (io/file test-dir "test.clj")]
-      (spit test-file (str "(ns test.core)\n\n"
-                           "(defn example-fn [x y]\n"
-                           "  #_(println \"debug value:\" x)\n"
-                           "  (+ x y)\n"
-                           "  (+ x 1)\n"
-                           "  (- y 1))\n\n"
-                           "(defn another-fn [z]\n"
-                           "  (+ z 1)\n"
-                           "  (let [result (+ z 1)]\n"
-                           "    (* result 2)))\n\n"
-                           "(defn process-map [m]\n"
-                           "  (map #(* % 2) (vals m)))\n\n"
-                           "(def config {:key1 100 :key2 200})\n\n"
-                           "(comment\n"
-                           "  (example-fn 1 2)\n"
-                           "  (+ 1 2)\n"
-                           "  (println \"testing\"))\n\n"
-                           ";; Test comment\n;; spans multiple lines"))
-      (binding [*test-dir* test-dir
-                *test-file* test-file
-                ;; Use a mock nrepl client atom for isolated testing
-                *client-atom* (atom {:clojure-mcp.core/nrepl-user-dir (.getAbsolutePath test-dir)
-                                     :clojure-mcp.core/allowed-directories [(.getAbsolutePath test-dir)]})]
-        (try
-          (f)
-          (finally
-            (when (.exists test-file) (.delete test-file))
-            (when (.exists test-dir) (.delete test-dir))))))))
+    (let [test-file (io/file test-dir "test.clj")
+          test-content (str "(ns test.core)\n\n"
+                            "(defn example-fn [x y]\n"
+                            "  #_(println \"debug value:\" x)\n"
+                            "  (+ x y)\n"
+                            "  (+ x 1)\n"
+                            "  (- y 1))\n\n"
+                            "(defn another-fn [z]\n"
+                            "  (+ z 1)\n"
+                            "  (let [result (+ z 1)]\n"
+                            "    (* result 2)))\n\n"
+                            "(defn process-map [m]\n"
+                            "  (map #(* % 2) (vals m)))\n\n"
+                            "(def config {:key1 100 :key2 200})\n\n"
+                            "(comment\n"
+                            "  (example-fn 1 2)\n"
+                            "  (+ 1 2)\n"
+                            "  (println \"testing\"))\n\n"
+                            ";; Test comment\n;; spans multiple lines")]
+      (spit test-file test-content)
+
+      (let [canonical-path (.getCanonicalPath test-file)
+            client-atom (atom {:clojure-mcp.core/nrepl-user-dir canonical-path
+                               :clojure-mcp.core/allowed-directories [canonical-path]})]
+        ;; Register the file using its canonical path in the timestamp tracker
+        (file-timestamps/update-file-timestamp-to-current-mtime! client-atom canonical-path)
+        ;; Small delay to ensure future modifications have different timestamps
+        (Thread/sleep 25)
+
+        (binding [*test-dir* test-dir
+                  *test-file* test-file
+                  *client-atom* client-atom]
+          (try
+            (f)
+            (finally
+              (when (.exists test-file) (.delete test-file))
+              (when (.exists test-dir) (.delete test-dir)))))))))
 
 (use-fixtures :each create-test-files-fixture)
 
 ;; Test helper functions
 (defn get-file-path []
   (.getCanonicalPath *test-file*))
+
+(defn register-file-timestamp []
+  "Updates the timestamp for the test file to mark it as read."
+  (let [file-path (get-file-path)]
+    (file-timestamps/update-file-timestamp-to-current-mtime! *client-atom* file-path)
+    ;; Small delay to ensure timestamps differ if modified
+    (Thread/sleep 25)
+    file-path))
 
 (defn validate-mcp-result
   "Validates that a result conforms to the MCP result format."
@@ -88,6 +105,7 @@
 
     (testing "Basic S-Expression replacement"
       (let [file-path (get-file-path)
+            _ (register-file-timestamp) ;; Register file before editing
             inputs {:file_path file-path
                     :match_form "(+ x 1)"
                     :new_form "(+ x 10)"
@@ -113,6 +131,7 @@
 
     (testing "Anonymous function replacement"
       (let [file-path (get-file-path)
+            _ (register-file-timestamp) ;; Register file before editing
             inputs {:file_path file-path
                     :match_form "#(* % 2)"
                     :new_form "#(* % 5)"
@@ -140,6 +159,7 @@
             _ (spit file-path (str/replace (slurp file-path)
                                            "(+ x y)"
                                            "(+ x y)\n  (+    x    y)"))
+            _ (register-file-timestamp) ;; Register file after modification
             inputs {:file_path file-path
                     :match_form "(+    x    y)"
                     :new_form "(+ x 100)"
@@ -163,6 +183,7 @@
 
     (testing "Keyword replacement in data structures"
       (let [file-path (get-file-path)
+            _ (register-file-timestamp) ;; Register file before editing
             inputs {:file_path file-path
                     :match_form ":key1"
                     :new_form ":new-key"
@@ -186,6 +207,7 @@
 
     (testing "Form deletion with empty string"
       (let [file-path (get-file-path)
+            _ (register-file-timestamp) ;; Register file before editing
             inputs {:file_path file-path
                     :match_form "(println \"testing\")"
                     :new_form ""
@@ -207,6 +229,7 @@
 
     (testing "No matches found"
       (let [file-path (get-file-path)
+            _ (register-file-timestamp) ;; Register file before editing
             inputs {:file_path file-path
                     :match_form "(non-existent-form 123)"
                     :new_form "(replacement 456)"
@@ -252,6 +275,7 @@
 
     (testing "Using pipeline directly"
       (let [file-path (get-file-path)
+            _ (register-file-timestamp) ;; Register file before editing
             result (pipeline/sexp-replace-pipeline
                     file-path
                     "(- y 1)"
@@ -279,6 +303,7 @@
             _ (spit file-path (str/replace (slurp file-path)
                                            "(+ z 1)"
                                            "(+ z 1)\n  (+ z 1)\n  (+ z 1)\n  (+ z 1)\n  (+ z 1)"))
+            _ (register-file-timestamp) ;; Register file after modification
             inputs {:file_path file-path
                     :match_form "(+ z 1)"
                     :new_form "(+ z 999)"
@@ -313,11 +338,13 @@
     (let [client-atom *client-atom*
           reg-map (sut/sexp-replace-tool client-atom)
           tool-fn (:tool-fn reg-map)
-          prom (promise)]
+          prom (promise)
+          file-path (get-file-path)
+          _ (register-file-timestamp)] ;; Register file before editing
 
       ;; Call the tool function with a callback
       (tool-fn nil
-               {"file_path" (get-file-path)
+               {"file_path" file-path
                 "match_form" "(+ x y)"
                 "new_form" "(+ x y 100)"
                 "replace_all" true}
