@@ -1,7 +1,5 @@
 ## Looking forward
 
-Look into how thinking is used in clod
-
 Need to have an official scratch area for temp files.
  Maybe a tool can handle this for us return a scrath file
 
@@ -20,15 +18,11 @@ should the fs_read_file tool provide line numbers as in the clod
 should diffs have line numbers?
 
 # Most important
-* implement matching reccomendations for clojure_edits 
-* stop wrapping file contents, this is causing corruption
-  - maybe markdown block delimiters are the best separators
-* separate file_write from file_edit
-* think more about read file, make it summary and make it opt-in, and
-  use prompts to guide it's use.
 * clojure-edit needs matching feedback
 * emacs notfications going awry
   - switch to buffer
+
+more work on code critique
 
 * IMPLEMENT LOGGING
 * eval :critique flag

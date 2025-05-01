@@ -230,6 +230,12 @@ The implementation uses rewrite-clj to:
    - Parse Clojure code into zipper structure
    - Perform structure-aware transformations
    - Maintain proper formatting and whitespace
+   - Key advantages over generic text editing:
+     - Targets forms by name rather than requiring exact text matching
+     - Structure-aware matching ignores troublesome whitespace differences
+     - Provides early syntax validation for parenthesis balancing
+     - Gives specific error messages for easier troubleshooting
+     - Handles special forms like defmethod with dispatch values correctly
 
 4. **REPL-Driven Development**: All tools designed to support:
    - Incremental development
@@ -247,6 +253,9 @@ The implementation uses rewrite-clj to:
    - Prevents editing files that have been externally modified
    - Automatically updates timestamps after write operations
    - Enables multiple sequential edits after a single read
+   - Uses canonical paths consistently for reliable file identification:
+     - Handles path differences between `.getAbsolutePath()` and `.getCanonicalPath()` (on macOS `/var/...` vs `/private/var/...`)
+     - Ensures timestamp lookups work correctly regardless of how paths are specified
 
 ## Development Workflow Recommendations
 
@@ -285,8 +294,19 @@ The implementation uses rewrite-clj to:
 5. **Project Maintenance**:
    - Run tests with `clojure -X:test`
    - Update this project summary after significant changes
+   
+6. **Testing Best Practices**:
+   - Use the provided test utilities in `clojure-mcp.tools.test-utils`
+   - Always use canonical paths (`.getCanonicalPath()`) when working with file operations
+   - Register files with the timestamp tracker before attempting to modify them in tests
+   - The `create-and-register-test-file` and `read-and-register-test-file` helpers handle this automatically
+   - Include small delays between timestamp operations to ensure different timestamps
+   - Key test files for reference:
+     - `/test/clojure_mcp/tools/form_edit/tool_test.clj`: Main form editing tests with canonical path handling
+     - `/test/clojure_mcp/tools/form_edit/sexp_replace_test.clj`: S-expression replacement tests
+     - `/test/clojure_mcp/tools/test_utils.clj`: Shared test utilities
 
-6. **Pattern-Based Code Exploration**:
+7. **Pattern-Based Code Exploration**:
    - Use the enhanced `read_file` tool for efficient codebase navigation
    - Combine `name_pattern` and `content_pattern` to focus on relevant code
    - Find specific defmethod implementations using their dispatch values
