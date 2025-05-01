@@ -105,30 +105,41 @@
       (is (= "update" (:type result)))
       (is (not (str/includes? (slurp *test-clj-file*) "poorly-formatted-fn[x]")))
       (is (str/includes? (slurp *test-clj-file*) "poorly-formatted-fn [x]"))))
-  
-  (testing "Linting catches syntax errors in Clojure files"
+
+  (testing "Auto-repairs missing closing parenthesis"
     (let [path (.getPath *test-clj-file*)
-          ;; Missing closing parenthesis - syntax error
-          invalid-content "(ns test.namespace\n\n(defn broken-function [x]\n  (+ x 10)"
-          result (file-write-core/write-clojure-file path invalid-content)]
-      (is (:error result))
-      (is (str/includes? (:message result) "Syntax errors detected in Clojure code"))
-      (is (str/includes? (:message result) "opening ( with no matching"))
-      ;; File should not be modified when there are syntax errors
-      (is (not (= invalid-content (slurp *test-clj-file*))))))
-      
-  (testing "Linting catches unbalanced brackets"
+          content-with-missing-paren "(ns test.namespace)\n\n(defn repaired-function [x]\n  (+ x 10)"
+          result (file-write-core/write-clojure-file path content-with-missing-paren)]
+      (is (not (:error result)))
+      (is (= "update" (:type result)))
+      (let [saved-content (slurp *test-clj-file*)]
+        (is (not (= content-with-missing-paren saved-content)))
+        (is (str/includes? saved-content "repaired-function [x]"))
+        (is (str/includes? saved-content "(+ x 10))"))))) ; Note the extra closing paren
+
+  (testing "Auto-repairs unbalanced brackets"
     (let [path (.getPath *test-clj-file*)
-          ;; Mismatched brackets - syntax error
-          invalid-content "(ns test.namespace)\n\n(defn mismatched-fn [x]\n  (let [y (+ x 1)]\n    (println y]))"
-          result (file-write-core/write-clojure-file path invalid-content)]
-      (is (:error result))
-      (is (str/includes? (:message result) "Syntax errors detected in Clojure code"))
-      (is (or (str/includes? (:message result) "Mismatched bracket") 
-              (str/includes? (:message result) "bracket"))
-          "Error message should mention bracket issue")
-      ;; File should not be modified when there are syntax errors
-      (is (not (= invalid-content (slurp *test-clj-file*)))))))
+          content-with-mismatched-brackets "(ns test.namespace)\n\n(defn bracket-fn [x]\n  (let [y (+ x 1)]\n    (println y]))"
+          result (file-write-core/write-clojure-file path content-with-mismatched-brackets)]
+      (is (not (:error result)))
+      (is (= "update" (:type result)))
+      (let [saved-content (slurp *test-clj-file*)]
+        (is (not (= content-with-mismatched-brackets saved-content)))
+        (is (str/includes? saved-content "bracket-fn [x]"))
+        (is (not (str/includes? saved-content "println y]"))))))
+
+  (testing "Still fails with non-repairable syntax errors"
+    (let [path (.getPath *test-clj-file*)
+          content-with-syntax-error "(ns test.namespace)\n\n(defn broken-function a123 [x 11)\n  (+ x 10))"
+          original-content (slurp *test-clj-file*)
+          result (file-write-core/write-clojure-file path content-with-syntax-error)]
+      ;; The test should fail with a specific error
+      (is (:error result) "Should have error for non-repairable syntax error")
+      (when (:message result)
+        (is (or (str/includes? (:message result) "Syntax errors")
+                (str/includes? (:message result) "Delimiter errors"))))
+      ;; File should not be modified
+      (is (= original-content (slurp *test-clj-file*))))))
 
 (deftest write-file-test
   (testing "Write dispatcher for Clojure files"

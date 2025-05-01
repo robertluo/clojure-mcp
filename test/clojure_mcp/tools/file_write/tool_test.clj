@@ -149,40 +149,7 @@
 
         ;; Verify file exists and has correct content
         (is (.exists (io/file file-path)))
-        (is (str/includes? (slurp file-path) "callback-fn")))))
-
-  (testing "Tool-fn callback with invalid Clojure code"
-    (let [tool-config (file-write-tool/create-file-write-tool *test-client-atom*)
-          reg-map (tool-system/registration-map tool-config)
-          tool-fn (:tool-fn reg-map)
-          file-path (str (.getCanonicalPath *test-dir*) "/invalid-callback.clj")
-
-          ;; First create a file with valid content
-          _ (spit file-path "(ns test.original)\n\n(defn original-fn [] :ok)")
-          ;; Update timestamp to simulate file being read
-          _ (file-timestamps/update-file-timestamp-to-current-mtime! *test-client-atom* file-path)
-          original-content (slurp file-path)
-
-          ;; Invalid content with syntax error
-          invalid-content "(ns test.invalid-callback\n\n(defn syntax-error [] (+ 1 2)"
-
-          ;; Create promise for callback result
-          p (promise)
-          callback (fn [result error] (deliver p {:result result :error error}))]
-
-      ;; Execute tool function with callback
-      (tool-fn nil {:file_path file-path :content invalid-content} callback)
-
-      ;; Wait for result (with timeout)
-      (let [result (deref p 5000 {:error true :result ["Timeout waiting for callback"]})]
-        ;; Validate error result
-        (is (:error result))
-        (is (vector? (:result result)))
-        (is (str/includes? (first (:result result)) "Syntax errors"))
-
-        ;; Verify file still exists but was NOT modified
-        (is (.exists (io/file file-path)))
-        (is (= original-content (slurp file-path)))))))
+        (is (str/includes? (slurp file-path) "callback-fn"))))))
 
 (deftest integration-test
   (testing "End-to-end valid Clojure file write"
@@ -221,45 +188,49 @@
       (is (.exists (io/file file-path)))
       (is (= valid-content (slurp file-path)))))
 
-  (testing "End-to-end invalid Clojure file write (linting failure)"
+  (testing "End-to-end auto-repair for Clojure file with delimiter errors"
     (let [tool-config (file-write-tool/create-file-write-tool *test-client-atom*)
-          file-path (str (.getCanonicalPath *test-dir*) "/invalid.clj")
+          file-path (str (.getCanonicalPath *test-dir*) "/repairable.clj")
+          content-with-delimiter-error "(ns test.repairable)\n\n(defn missing-paren [x]\n  (+ x 5)"
 
-          ;; Create a file first so we can test that it doesn't get overwritten
-          _ (spit file-path "(ns test.valid)\n\n(defn original-fn [x] (* x 2))")
-          ;; Update timestamp to simulate file being read
+          ;; For testing purposes, if the file might exist, we should "mark" it as read first
           _ (file-timestamps/update-file-timestamp-to-current-mtime! *test-client-atom* file-path)
-          original-content (slurp file-path)
 
-          ;; Now try to overwrite with invalid content
-          invalid-content "(ns test.invalid\n\n(defn broken-function [x]\n  (let [y (inc x]\n    (println y)))"
-
-          ;; Execute the full pipeline from validation through execution to formatting results  
+          ;; Execute the full pipeline from validation through execution to formatting results
           validated-inputs (tool-system/validate-inputs tool-config
                                                         {:file_path file-path
-                                                         :content invalid-content})
+                                                         :content content-with-delimiter-error})
+
+          ;; The repair happens during execute-tool, not in validate-inputs
           execution-result (tool-system/execute-tool tool-config validated-inputs)
           formatted-result (tool-system/format-results tool-config execution-result)]
 
-      ;; Test that tool-system validated and created proper structured inputs
+      ;; Test that tool-system validated the inputs - no repair happens here yet
       (is (string? (:file-path validated-inputs)))
-      (is (= invalid-content (:content validated-inputs)))
+      (is (= content-with-delimiter-error (:content validated-inputs)))
 
-      ;; Test error reported in execution
-      (is (:error execution-result))
-      (is (string? (:message execution-result)))
-      (is (str/includes? (:message execution-result) "Syntax errors detected"))
+      ;; Test successful execution - the repair happens here via write-clojure-file
+      (is (not (:error execution-result)))
+      (is (contains? #{"create" "update"} (:type execution-result)))
+      (is (= file-path (:file-path execution-result)))
+      (is (string? (:diff execution-result)))
 
-      ;; Test formatted results reflect the error
+      ;; Test formatted results 
       (is (map? formatted-result))
-      (is (:error formatted-result))
+      (is (not (:error formatted-result)))
       (is (vector? (:result formatted-result)))
-      (is (str/includes? (first (:result formatted-result)) "Syntax errors"))
+      (is (or (str/includes? (first (:result formatted-result)) "Clojure file created")
+              (str/includes? (first (:result formatted-result)) "Clojure file updated")))
 
-      ;; Verify file still exists but was NOT modified with the invalid content
+      ;; Verify file exists and has repaired content
       (is (.exists (io/file file-path)))
-      (is (= original-content (slurp file-path)))
-      (is (not= invalid-content (slurp file-path))))))
+      (let [final-content (slurp file-path)]
+        (is (not= content-with-delimiter-error final-content))
+        ;; The repaired content should have an extra closing parenthesis
+        (is (re-find #"\(defn missing-paren \[x\]\s+\(\+ x 5\)\)"
+                     final-content))))))
+
+#_(re-find #"\(defn missing-paren \[x\]\s+\(\+ x 5\)\)" "(ns test.repairable)\n\n(defn missing-paren [x]\n  (+ x 5))")
 
 (deftest file-timestamp-check-test
   (testing "File modified since last read check"
