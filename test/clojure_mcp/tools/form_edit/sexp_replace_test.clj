@@ -51,7 +51,7 @@
 
 ;; Test helper functions
 (defn get-file-path []
-  (.getAbsolutePath *test-file*))
+  (.getCanonicalPath *test-file*))
 
 (defn validate-mcp-result
   "Validates that a result conforms to the MCP result format."
@@ -104,7 +104,7 @@
         (is (false? (:error formatted)) "Error flag should be false")
         (is (vector? (:result formatted)) "Result should be a vector")
         (is (not-empty (:result formatted)) "Result should not be empty")
-        
+
         ;; Check specific content changes
         (is (str/includes? file-content "(+ x 10)")
             "File should contain the replaced expression")
@@ -127,7 +127,7 @@
         (is (contains? formatted :result) "Response should contain :result key")
         (is (contains? formatted :error) "Response should contain :error key")
         (is (false? (:error formatted)) "Error flag should be false")
-        
+
         ;; Check specific content changes
         (is (str/includes? file-content "#(* % 5)")
             "File should contain the replaced anonymous function")
@@ -154,7 +154,7 @@
         (is (contains? formatted :result) "Response should contain :result key")
         (is (contains? formatted :error) "Response should contain :error key")
         (is (false? (:error formatted)) "Error flag should be false")
-        
+
         ;; Check specific content changes - should only replace the exact whitespace match
         (is (str/includes? file-content "(+ x 100)")
             "File should contain the replaced expression")
@@ -177,7 +177,7 @@
         (is (contains? formatted :result) "Response should contain :result key")
         (is (contains? formatted :error) "Response should contain :error key")
         (is (false? (:error formatted)) "Error flag should be false")
-        
+
         ;; Check specific content changes
         (is (str/includes? file-content ":new-key")
             "File should contain the replaced keyword")
@@ -223,7 +223,7 @@
         (is (vector? (:result formatted)) "Result should be a vector")
         (is (not-empty (:result formatted)) "Result should not be empty")
         (is (string? (first (:result formatted))) "Result item should be a string")
-        (is (str/includes? (first (:result formatted)) "Could not find form:") 
+        (is (str/includes? (first (:result formatted)) "Could not find form:")
             "Error message should indicate form was not found")))
 
     (testing "Invalid match form syntax"
@@ -266,7 +266,7 @@
         (is (contains? formatted :error) "Response should contain :error key")
         (is (false? (:error formatted)) "Error flag should be false")
         (is (contains? formatted :result) "Response should contain :result key")
-        
+
         ;; Check specific content changes
         (is (str/includes? file-content "(- y 100)")
             "File should contain the replaced expression")
@@ -303,7 +303,7 @@
         ;; Count occurrences to be more specific
         (is (= 1 (count (re-seq #"\(\+ z 999\)" file-content)))
             "There should be exactly one replacement")
-            
+
         ;; Don't check exact count as it might vary based on implementation
         (is (> (count (re-seq #"\(\+ z 1\)" file-content)) 0)
             "There should be original expressions remaining")))))
@@ -327,14 +327,14 @@
       ;; Wait for the promise and check the result
       (let [callback-result @prom]
         ;; The error should be nil or false (depending on implementation)
-        (is (or (nil? (:error callback-result)) 
+        (is (or (nil? (:error callback-result))
                 (false? (:error callback-result)))
             "Callback should not indicate an error")
-        
+
         ;; The result is a vector with strings in our implementation
         (is (sequential? (:result callback-result))
             "Callback should receive a sequential result")
-        
+
         ;; Check the file was actually modified regardless of result format
         (is (str/includes? (slurp (get-file-path)) "(+ x y 100)")
             "The file should contain the new expression")))))
