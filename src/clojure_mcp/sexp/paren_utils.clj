@@ -93,7 +93,8 @@
 
 (defn parinfer-repair [code-str]
   (let [res (Parinfer/indentMode code-str nil nil nil false)]
-    (when (.success res)
+    (when (and (.success res)
+               (not (:error? (linting/lint (.text res)))))
       (.text res))))
 
 #_(defn smart-repair [code-str]
@@ -112,6 +113,7 @@
     (repair-parens code-str)))
 
 
+
 (comment
   (def code1 "(defn hello [name] (str \"Hello\" name)))")
   (paren-repair code1)
@@ -126,7 +128,7 @@
   (tokenize-code code2)
   (fix-parens (tokenize-code code2))
   (repair-parens code2)
-  (par-rep code2)
+  (parinfer-repair code2)
   ;; => {:repaired? true, :form "(defn hello [name] (str \"Hello\" name))", :message "Added 1 missing closing parentheses"}
   
   ;; Test with complex case - both extra and missing parens
