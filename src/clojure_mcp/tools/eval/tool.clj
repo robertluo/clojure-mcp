@@ -60,15 +60,16 @@ Examples:
 
 (defmethod tool-system/execute-tool :clojure-eval [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [code]} inputs
-        ;; Delegate to core implementation
-        result (core/evaluate-code @nrepl-client-atom code)]
+        ;; Delegate to core implementation with repair
+        result (core/evaluate-with-repair @nrepl-client-atom code)]
     result))
 
-(defmethod tool-system/format-results :clojure-eval [_ {:keys [outputs error] :as eval-result}]
-  ;; The core implementation now returns a map with :outputs (raw outputs) and :error (boolean)
-  ;; We need to format the outputs and return a map with :result and :error
+(defmethod tool-system/format-results :clojure-eval [_ {:keys [outputs error repaired] :as eval-result}]
+  ;; The core implementation now returns a map with :outputs (raw outputs), :error (boolean), and :repaired (boolean)
+  ;; We need to format the outputs and return a map with :result, :error, and :repaired
   {:result (core/partition-and-format-outputs outputs)
-   :error error})
+   :error error
+   :repaired repaired})
 
 ;; Backward compatibility function that returns the registration map
 (defn eval-code [nrepl-client-atom]
@@ -110,6 +111,28 @@ Examples:
   (test-tool "(+ 1 2)")
   (test-tool "(println \"Hello\")\n(+ 3 4)")
   (test-tool "(/ 1 0)")
+
+  ;; Test with auto-repairable code
+  (test-tool "(defn hello [name] (println name)") ;; Missing closing paren
+  (test-tool "(defn hello [name] (println name)))") ;; Extra closing paren
+
+  ;; Test with syntax errors that cannot be repaired
+  (test-tool "(defn hello [123] (println name))") ;; Invalid argument name
+  (test-tool "(defn hello [name] (println \"Hello))") ;; Unclosed string
+
+  ;; Enhanced test function that captures repaired status
+  (defn test-tool-full [code]
+    (let [prom (promise)]
+      (tool-fn nil {"code" code}
+               (fn [result error repaired]
+                 (deliver prom {:result result
+                                :error error
+                                :repaired repaired})))
+      @prom))
+
+  ;; Test with the enhanced function to see repair status
+  (test-tool-full "(defn hello [name] (println name)") ;; Should show repaired: true
+  (test-tool-full "(+ 1 2)") ;; Should show repaired: false/nil
 
   ;; Clean up
   (clojure-mcp.nrepl/stop-polling @client-atom))
