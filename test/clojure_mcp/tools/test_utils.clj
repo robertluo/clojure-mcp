@@ -68,14 +68,17 @@
 (defn create-and-register-test-file
   "Creates a test file with the given content and registers it in the timestamp tracker"
   [client-atom dir filename content]
-  (let [file-path (str dir "/" filename)]
-    (io/make-parents file-path)
-    (spit file-path content)
-    ;; Register the file as "read" in the timestamp tracker
-    (file-timestamps/update-file-timestamp-to-current-mtime! client-atom file-path)
+  (let [file-path (str dir "/" filename)
+        _ (io/make-parents file-path)
+        _ (spit file-path content)
+        file-obj (io/file file-path)
+        canonical-path (.getCanonicalPath file-obj)]
+    ;; Register the file using its canonical path in the timestamp tracker
+    (file-timestamps/update-file-timestamp-to-current-mtime! client-atom canonical-path)
     ;; Small delay to ensure future modifications have different timestamps
     (Thread/sleep 25)
-    file-path))
+    ;; Return the canonical path for consistent usage
+    canonical-path))
 
 (defn modify-test-file
   "Modifies a test file and updates its timestamp in the tracker if update-timestamp? is true"
@@ -86,6 +89,16 @@
     ;; Small delay
     (Thread/sleep 25))
   file-path)
+
+(defn read-and-register-test-file
+  "Updates the timestamp for an existing file to mark it as read.
+   Normalizes the file path to ensure consistent lookup."
+  [client-atom file-path]
+  (let [normalized-path (.getCanonicalPath (io/file file-path))]
+    (file-timestamps/update-file-timestamp-to-current-mtime! client-atom normalized-path)
+    ;; Small delay to ensure timestamps differ if modified
+    (Thread/sleep 25)
+    normalized-path))
 
 (defn clean-test-dir
   "Recursively deletes a test directory"

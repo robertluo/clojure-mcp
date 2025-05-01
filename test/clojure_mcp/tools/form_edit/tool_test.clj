@@ -5,6 +5,7 @@
    [clojure-mcp.tools.form-edit.pipeline :as pipeline]
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
+   [clojure-mcp.tools.test-utils :as test-utils]
    [clojure.java.io :as io]
    [clojure.string :as str]
    [rewrite-clj.parser :as p]
@@ -14,33 +15,61 @@
 (def ^:dynamic *test-dir* nil)
 (def ^:dynamic *test-file* nil)
 (def ^:dynamic *client-atom* nil)
+(def client-atom-for-tests nil) ;; Will be set in the :once fixture
 
 (defn create-test-files-fixture [f]
-  (let [test-dir (io/file (System/getProperty "java.io.tmpdir")
-                          (str "test-dir-" (System/currentTimeMillis)))]
-    (.mkdirs test-dir)
-    (let [test-file (io/file test-dir "test.clj")]
-      (spit test-file (str "(ns test.core)\n\n"
-                           "(defn example-fn\n  \"Original docstring\"\n  [x y]\n  #_(println \"debug value:\" x)\n  (+ x y))\n\n"
-                           "(def a 1)\n\n"
-                           "#_(def unused-value 42)\n\n"
-                           "(comment\n  (example-fn 1 2))\n\n"
-                           ";; Test comment\n;; spans multiple lines"))
-      (binding [*test-dir* test-dir
-                *test-file* test-file
-                ;; Use a mock nrepl client atom for isolated testing
-                *client-atom* (atom {:clojure-mcp.core/nrepl-user-dir (.getAbsolutePath test-dir)
-                                     :clojure-mcp.core/allowed-directories [(.getAbsolutePath test-dir)]
-                                     ;; Initialize with the test file already marked as read
-                                     ::file-timestamps/file-timestamps {(.getAbsolutePath test-file) (.lastModified test-file)}})]
-        ;; Add a brief pause to ensure timestamps differ if files are modified
-        (Thread/sleep 50)
-        (try
-          (f)
-          (finally
-            (when (.exists test-file) (.delete test-file))
-            (when (.exists test-dir) (.delete test-dir))))))))
+  (println "Starting create-test-files-fixture")
+  (println "*nrepl-client-atom*:" test-utils/*nrepl-client-atom*)
 
+  ;; Make sure we have a valid client atom
+  (when (nil? test-utils/*nrepl-client-atom*)
+    (println "NREPL client atom is nil, starting nREPL server")
+    (test-utils/test-nrepl-fixture identity))
+
+  (let [test-dir (test-utils/create-test-dir)
+        client-atom test-utils/*nrepl-client-atom*
+        _ (println "test-dir:" test-dir)
+        _ (println "client-atom:" client-atom)
+        test-file-content (str "(ns test.core)\n\n"
+                               "(defn example-fn\n  \"Original docstring\"\n  [x y]\n  #_(println \"debug value:\" x)\n  (+ x y))\n\n"
+                               "(def a 1)\n\n"
+                               "#_(def unused-value 42)\n\n"
+                               "(comment\n  (example-fn 1 2))\n\n"
+                               ";; Test comment\n;; spans multiple lines")
+        ;; Make sure client atom has necessary configuration
+        _ (swap! client-atom assoc
+                 :clojure-mcp.core/nrepl-user-dir test-dir
+                 :clojure-mcp.core/allowed-directories [test-dir])
+        ;; Create and register the test file
+        test-file-path (test-utils/create-and-register-test-file
+                        client-atom
+                        test-dir
+                        "test.clj"
+                        test-file-content)
+        _ (println "Created test file:" test-file-path)
+        ;; Check if file is registered properly
+        timestamps (file-timestamps/get-file-timestamps client-atom)
+        _ (println "Timestamps after file creation:" timestamps)
+        _ (println "File registered?:" (contains? timestamps test-file-path))]
+    (binding [*test-dir* test-dir
+              *test-file* (io/file test-file-path)
+              *client-atom* client-atom]
+      (try
+        (println "Running test function")
+        (f)
+        (finally
+          (println "Cleaning up test directory")
+          (test-utils/clean-test-dir test-dir))))))
+
+(use-fixtures :once (fn [f]
+                      ;; Make sure we have a valid nREPL client atom for tests
+                      (test-utils/test-nrepl-fixture
+                       (fn []
+                          ;; Set up global client atom for tests
+                         (def client-atom-for-tests test-utils/*nrepl-client-atom*)
+                          ;; Run the actual test
+                         (binding [test-utils/*nrepl-client-atom* test-utils/*nrepl-client-atom*]
+                           (f))))))
 (use-fixtures :each create-test-files-fixture)
 
 ;; Test helper functions
@@ -325,15 +354,23 @@
 
     (testing "Replace form tool can modify files"
       (let [file-path (get-file-path)
-            ;; Update timestamp to simulate file being read
-            _ (file-timestamps/update-file-timestamp-to-current-mtime! client-atom file-path)
+            ;; Register file as read so we can modify it
+            _ (println "Replace tool test - registering file:" file-path)
+            _ (test-utils/read-and-register-test-file client-atom file-path)
+            timestamps-1 (file-timestamps/get-file-timestamps client-atom)
+            modified-1? (file-timestamps/file-modified-since-read? client-atom file-path)
+            _ (println "Replace tool test - after registering - timestamps:" timestamps-1)
+            _ (println "Replace tool test - after registering - modified?:" modified-1?)
             inputs {:file_path file-path
                     :form_identifier "example-fn"
                     :form_type "defn"
                     :content "(defn example-fn [x]\n  (* x 2))"}
             validated (tool-system/validate-inputs replace-tool inputs)
+            _ (println "Replace tool test - after validation - validated inputs:" validated)
             result (tool-system/execute-tool replace-tool validated)
+            _ (println "Replace tool test - after execute - result:" (update-in result [::pipeline/message] (fn [m] (if m (subs m 0 (min (count m) 50)) m))))
             formatted (tool-system/format-results replace-tool result)
+            _ (println "Replace tool test - formatted result:" (update-in formatted [:message] (fn [m] (if m (subs m 0 (min (count m) 50)) m))))
             file-content (slurp file-path)]
 
         ;; Validate MCP result format using the common function
@@ -350,15 +387,18 @@
         (is (not (str/includes? file-content "(+ x y)")) "Old function body should be removed")))
 
     (testing "Docstring tool can update docstrings"
-      (let [file-path (get-file-path)
-            ;; Write a file with proper docstring to fix test setup
-            _ (spit file-path (str "(ns test.core)\n\n"
+      (let [test-dir *test-dir*
+            ;; Create a file with proper docstring 
+            test-file-content (str "(ns test.core)\n\n"
                                    "(defn example-fn\n  \"Original docstring\"\n  [x y]\n  (+ x y))\n\n"
                                    "(def a 1)\n\n"
                                    "(comment\n  (example-fn 1 2))\n\n"
-                                   ";; Test comment\n;; spans multiple lines"))
-            ;; Update timestamp to simulate file being read
-            _ (file-timestamps/update-file-timestamp-to-current-mtime! client-atom file-path)
+                                   ";; Test comment\n;; spans multiple lines")
+            file-path (test-utils/create-and-register-test-file
+                       client-atom
+                       test-dir
+                       "docstring_test.clj"
+                       test-file-content)
             inputs {:file_path file-path
                     :form_identifier "example-fn"
                     :form_type "defn"
@@ -380,8 +420,8 @@
 
     (testing "Comment tool can update comment blocks"
       (let [file-path (get-file-path)
-            ;; Update timestamp to simulate file being read
-            _ (file-timestamps/update-file-timestamp-to-current-mtime! client-atom file-path)
+            ;; Register file as read so we can modify it
+            _ (test-utils/read-and-register-test-file client-atom file-path)
             inputs {:file_path file-path
                     :comment_substring "Test comment"
                     :new_content ";; Updated test comment\n;; with multiple lines"}
@@ -403,8 +443,8 @@
 
     (testing "File structure tool can generate outlines"
       (let [file-path (get-file-path)
-            ;; Update timestamp to simulate file being read
-            _ (file-timestamps/update-file-timestamp-to-current-mtime! client-atom file-path)
+            ;; Register file as read so we can read its structure
+            _ (test-utils/read-and-register-test-file client-atom file-path)
             inputs {:file_path file-path}
             validated (tool-system/validate-inputs structure-tool inputs)
             result (tool-system/execute-tool structure-tool validated)
@@ -433,27 +473,27 @@
         (is (not (str/includes? outline "unused-value")) "Top-level uneval form should be excluded")))
 
     (testing "File structure tool handles existing but invalid paths correctly"
-      (let [;; Using a file path that exists but is not a valid Clojure file
-            invalid-file-path (str (.getAbsolutePath *test-dir*) "/invalid_clojure.xyz")
-            _ (spit invalid-file-path "This is not a valid Clojure file { syntax error )")
-            ;; Update timestamp to simulate file being read
-            _ (file-timestamps/update-file-timestamp-to-current-mtime! client-atom invalid-file-path)
+      (let [test-dir *test-dir*
+            ;; Using a file path that exists but is not a valid Clojure file
+            invalid-file-content "This is not a valid Clojure file { syntax error )"
+            invalid-file-path (test-utils/create-and-register-test-file
+                               client-atom
+                               test-dir
+                               "invalid_clojure.xyz"
+                               invalid-file-content)
             inputs {:file_path invalid-file-path}
             validated (tool-system/validate-inputs structure-tool inputs)
             result (tool-system/execute-tool structure-tool validated)
             formatted (tool-system/format-results structure-tool result)]
 
         ;; Validate MCP result format - should return an error
-        (validate-mcp-result formatted true #(str/includes? % "Error"))
-
-        ;; Clean up test file
-        (io/delete-file invalid-file-path true)))
+        (validate-mcp-result formatted true #(str/includes? % "Error"))))
 
     (testing "File structure tool handles files that cause unsupported operations"
       ;; Create a file that will trigger an "unsupported operation" error when processed
-      (let [test-file-path (str (.getAbsolutePath *test-dir*) "/unsupported.clj")
+      (let [test-dir *test-dir*
             ;; This content is similar to core.clj which causes the unsupported operation error
-            content "(ns problematic.core
+            problem_file_content "(ns problematic.core
   (:import [java.util.concurrent Executors ThreadFactory]
            [java.util.function Function Consumer]
            [javax.swing JFrame JLabel ImageIcon]
@@ -477,9 +517,11 @@
          b 2
     (let [c (+ a b)]
       c))))"
-            _ (spit test-file-path content)
-            ;; Update timestamp to simulate file being read
-            _ (file-timestamps/update-file-timestamp-to-current-mtime! client-atom test-file-path)
+            test-file-path (test-utils/create-and-register-test-file
+                            client-atom
+                            test-dir
+                            "unsupported.clj"
+                            problem_file_content)
             inputs {:file_path test-file-path}
             validated (tool-system/validate-inputs structure-tool inputs)
             result (tool-system/execute-tool structure-tool validated)
@@ -487,33 +529,32 @@
 
         ;; Validate MCP result format - should be a properly formatted error
         (validate-mcp-result formatted true #(or (str/includes? % "unsupported operation")
-                                                 (str/includes? % "Error generating")))
-
-        ;; Clean up test file
-        (io/delete-file test-file-path true)))))
+                                                 (str/includes? % "Error generating")))))))
 
 (deftest defmethod-handling-test
   (testing "Tool correctly handles defmethod forms"
     (let [client-atom *client-atom*
           replace-tool (sut/create-edit-replace-form-tool client-atom)
-          file-path (get-file-path)
+          test-dir *test-dir*
 
-          ;; First create a file with defmulti and defmethod forms
-          _ (spit file-path (str "(ns test.multimethods)\n\n"
-                                 "(defmulti area :shape)\n\n"
-                                 "(defmethod area :rectangle [rect]\n  (* (:width rect) (:height rect)))\n\n"
-                                 "(defmethod area :circle [circle]\n  (* Math/PI (:radius circle) (:radius circle)))\n"))
-          file (io/file file-path)
-          ;; Directly update the timestamp in the atom
-          _ (swap! client-atom assoc-in [::file-timestamps/file-timestamps file-path] (.lastModified file))
-          ;; Add a brief pause to ensure timestamps differ if modified
-          _ (Thread/sleep 50)]
+          ;; Create a file with defmulti and defmethod forms
+          mm-file-content (str "(ns test.multimethods)\n\n"
+                               "(defmulti area :shape)\n\n"
+                               "(defmethod area :rectangle [rect]\n  (* (:width rect) (:height rect)))\n\n"
+                               "(defmethod area :circle [circle]\n  (* Math/PI (:radius circle) (:radius circle)))\n")
+          file-path (test-utils/create-and-register-test-file
+                     client-atom
+                     test-dir
+                     "multimethods.clj"
+                     mm-file-content)]
 
       (testing "Can update defmethod with just the multimethod name"
         (let [inputs {:file_path file-path
                       :form_identifier "area" ;; Just the multimethod name
                       :form_type "defmethod"
                       :content "(defmethod area :rectangle [rect]\n  ;; Updated implementation\n  (let [w (:width rect)\n        h (:height rect)]\n    (* w h)))"}
+              ;; Register file as read so we can modify it
+              _ (test-utils/read-and-register-test-file client-atom file-path)
               validated (tool-system/validate-inputs replace-tool inputs)
               result (tool-system/execute-tool replace-tool validated)
               formatted (tool-system/format-results replace-tool result)
@@ -532,6 +573,8 @@
                         :form_identifier "area :circle" ;; Compound name with dispatch value
                         :form_type "defmethod"
                         :content "(defmethod area :circle [circle]\n  ;; Updated circle implementation\n  (let [r (:radius circle)]\n    (* Math/PI r r)))"}
+                ;; Register file as read so we can modify it
+                _ (test-utils/read-and-register-test-file client-atom file-path)
                 validated (tool-system/validate-inputs replace-tool inputs)
                 result (tool-system/execute-tool replace-tool validated)
                 formatted (tool-system/format-results replace-tool result)
@@ -552,6 +595,8 @@
                           :form_type "defmethod"
                           :content "(defmethod area :triangle [triangle]\n  (* 0.5 (:base triangle) (:height triangle)))"}
                   before-tool (sut/create-edit-insert-after-form-tool client-atom)
+                  ;; Register file as read so we can modify it
+                  _ (test-utils/read-and-register-test-file client-atom file-path)
                   validated (tool-system/validate-inputs before-tool inputs)
                   result (tool-system/execute-tool before-tool validated)
                   formatted (tool-system/format-results before-tool result)
@@ -582,8 +627,8 @@
               [p3 cb3] (make-callback)]
 
           (testing "Replace form tool works via callback"
-            ;; Update timestamp to ensure we can modify the file
-            (file-timestamps/update-file-timestamp-to-current-mtime! client-atom (get-file-path))
+            ;; Register file as read so we can modify it
+            (test-utils/read-and-register-test-file client-atom (get-file-path))
             (replace-fn nil
                         {"file_path" (get-file-path)
                          "form_identifier" "example-fn"
@@ -598,8 +643,8 @@
                   "The file should contain the updated function implementation")))
 
           (testing "Comment tool works via callback"
-            ;; Update timestamp to ensure we can modify the file
-            (file-timestamps/update-file-timestamp-to-current-mtime! client-atom (get-file-path))
+            ;; Register file as read so we can modify it
+            (test-utils/read-and-register-test-file client-atom (get-file-path))
             (comment-fn nil
                         {"file_path" (get-file-path)
                          "comment_substring" "(example-fn"
@@ -613,8 +658,8 @@
                   "The file should contain the updated comment")))
 
           (testing "Structure tool works via callback"
-            ;; Update timestamp to ensure we can read the file
-            (file-timestamps/update-file-timestamp-to-current-mtime! client-atom (get-file-path))
+            ;; Register file as read so we can read its structure
+            (test-utils/read-and-register-test-file client-atom (get-file-path))
             (structure-fn nil
                           {"file_path" (get-file-path)}
                           cb3)

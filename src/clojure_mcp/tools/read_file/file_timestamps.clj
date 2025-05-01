@@ -12,55 +12,85 @@
 
 (defn update-file-timestamp!
   "Updates the timestamp for a file in the nrepl-client-atom.
+   Uses canonical paths to ensure consistent file identification.
    
    Parameters:
    - nrepl-client-atom: Atom containing the nREPL client
-   - file-path: Absolute path to the file
+   - file-path: Path to the file
    - timestamp: Timestamp to store (defaults to current time)"
   ([nrepl-client-atom file-path]
    (update-file-timestamp! nrepl-client-atom file-path (System/currentTimeMillis)))
   ([nrepl-client-atom file-path timestamp]
-   (swap! nrepl-client-atom update ::file-timestamps
-          (fn [timestamps] (assoc timestamps file-path timestamp)))))
+   (try
+     (let [canonical-path (.getCanonicalPath (io/file file-path))]
+       (swap! nrepl-client-atom update ::file-timestamps
+              (fn [timestamps] (assoc timestamps canonical-path timestamp))))
+     (catch java.io.IOException e
+       ;; If we can't get canonical path, fall back to the original path
+       (swap! nrepl-client-atom update ::file-timestamps
+              (fn [timestamps] (assoc timestamps file-path timestamp)))))))
 
 (defn update-file-timestamp-to-current-mtime!
   "Updates the timestamp for a file using its current modification time.
+   Uses canonical paths to ensure consistent file identification.
    This is useful after writing to a file to ensure the timestamp
    matches exactly what the filesystem reports.
    
    Parameters:
    - nrepl-client-atom: Atom containing the nREPL client
-   - file-path: Absolute path to the file
+   - file-path: Path to the file
    
    Returns true if successful, false if the file doesn't exist."
   [nrepl-client-atom file-path]
   (let [file (io/file file-path)]
     (if (.exists file)
-      (let [current-mtime (.lastModified file)]
-        (update-file-timestamp! nrepl-client-atom file-path current-mtime)
-        true)
+      (try
+        (let [canonical-path (.getCanonicalPath file)
+              current-mtime (.lastModified file)]
+          (update-file-timestamp! nrepl-client-atom canonical-path current-mtime)
+          true)
+        (catch java.io.IOException e
+          ;; If we can't get canonical path, fall back to the original path
+          (let [current-mtime (.lastModified file)]
+            (update-file-timestamp! nrepl-client-atom file-path current-mtime)
+            true)))
       false)))
 
 (defn file-modified-since-read?
   "Checks if a file has been modified since it was last read.
+   Uses canonical paths to ensure consistent file identification.
    
    Parameters:
    - nrepl-client-atom: Atom containing the nREPL client
-   - file-path: Absolute path to the file
+   - file-path: Path to the file
    
    Returns:
    - true if the file has been modified since last read or was never read
    - false if the file hasn't been modified since last read"
   [nrepl-client-atom file-path]
-  (let [timestamps (get-file-timestamps nrepl-client-atom)
-        last-read-time (get timestamps file-path 0)
-        file (io/file file-path)]
-    (if (.exists file)
-      (> (.lastModified file) last-read-time)
-      true))) ; Consider non-existent files as "modified"
+  (try
+    (let [file (io/file file-path)
+          canonical-path (when (.exists file) (.getCanonicalPath file))
+          timestamps (get-file-timestamps nrepl-client-atom)
+          ;; Check both the original path and canonical path
+          last-read-time (or (get timestamps canonical-path)
+                             (get timestamps file-path)
+                             0)]
+      (if (.exists file)
+        (> (.lastModified file) last-read-time)
+        true)) ; Consider non-existent files as "modified"
+    (catch java.io.IOException e
+      ;; If we can't get the canonical path, fall back to just checking the original path
+      (let [timestamps (get-file-timestamps nrepl-client-atom)
+            last-read-time (get timestamps file-path 0)
+            file (io/file file-path)]
+        (if (.exists file)
+          (> (.lastModified file) last-read-time)
+          true))))) ; Consider non-existent files as "modified"
 
 (defn read-file-with-timestamp
   "Reads a file and updates the timestamp in the nrepl-client-atom if provided.
+   Uses canonical paths to ensure consistent file identification.
    
    Parameters:
    - nrepl-client-atom: Atom containing the nREPL client (can be nil)
@@ -74,7 +104,7 @@
   (let [result (core/read-file path offset limit :max-line-length max-line-length)]
     ;; Only update timestamp if the read was successful and we have a client atom
     (when (and nrepl-client-atom (not (:error result)))
-      (update-file-timestamp! nrepl-client-atom path))
+      (update-file-timestamp-to-current-mtime! nrepl-client-atom path))
     result))
 
 (defn list-tracked-files
