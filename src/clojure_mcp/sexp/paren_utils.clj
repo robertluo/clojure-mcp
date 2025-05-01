@@ -82,7 +82,8 @@
   (let [{:keys [success result removed-closing-delims added-closing-delims]}
         (fix-parens (tokenize-code code-str))]
     (when success
-      {:repaired (string/join (map :value result))
+      {:repaired? true
+       :form (string/join (map :value result))
        :message
        (cond-> nil
          (> removed-closing-delims 0)
@@ -90,10 +91,26 @@
          (> added-closing-delims 0)
          (str (format "Added %s missing closing parentheses" added-closing-delims)))})))
 
-(defn paren-repair [code-str]
+(defn parinfer-repair [code-str]
   (let [res (Parinfer/indentMode code-str nil nil nil false)]
     (when (.success res)
       (.text res))))
+
+#_(defn smart-repair [code-str]
+  (if-let [parinfer-result (parinfer-repair code-str)]
+    (if-let [lint-result (linting/lint parinfer-result)]
+      {:repaired? true 
+       :form parinfer-result
+       :message "Parenthesis repaired using parinfer"}
+      ;; Parinfer produced code with semantic issues, try homegrown approach
+      (or (repair-parens code-str)
+          ;; If homegrown fails too, return parinfer result with a warning
+          {:repaired? true
+           :form parinfer-result
+           :message "Warning: Fixed syntax but may have changed semantics"}))
+    ;; Parinfer failed (unlikely), fall back to homegrown
+    (repair-parens code-str)))
+
 
 (comment
   (def code1 "(defn hello [name] (str \"Hello\" name)))")
