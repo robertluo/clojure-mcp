@@ -51,28 +51,6 @@
         edited-content (core/perform-file-edit file-path old-string new-string source)]
     (assoc ctx ::form-pipeline/output-source edited-content)))
 
-(defn lint-clojure-content
-  "Lints the output source if it's a Clojure file.
-   Catches syntax errors before attempting to save the file.
-   Requires ::form-pipeline/file-path and ::form-pipeline/output-source in the context."
-  [ctx]
-  (let [file-path (::form-pipeline/file-path ctx)
-        output-source (::form-pipeline/output-source ctx)]
-    ;; Only lint Clojure files
-    (if (and (file-write-core/is-clojure-file? file-path) output-source)
-      ;; Check for syntax errors
-      (let [lint-result (linting/lint output-source)]
-        (if (and lint-result (:error? lint-result))
-          ;; Report linting errors
-          {::form-pipeline/error true
-           ::form-pipeline/message (str "Syntax errors detected in Clojure code:\n"
-                                        (:report lint-result)
-                                        "\nPlease fix the syntax errors before saving.")}
-          ;; No linting errors, continue
-          ctx))
-      ;; Not a Clojure file or no content, skip linting
-      ctx)))
-
 (defn format-clojure-content
   "Formats the content if it's a Clojure file.
    
@@ -121,7 +99,12 @@
      form-pipeline/check-file-modified ;; Check if file modified since last read
      validate-edit ;; Validate the edit (uniqueness, etc.)
      perform-edit ;; Perform the actual edit
-     lint-clojure-content ;; Lint Clojure files to catch syntax errors
+     ;; Only lint/repair Clojure files
+     (fn [ctx]
+       (let [file-path (::form-pipeline/file-path ctx)]
+         (if (file-write-core/is-clojure-file? file-path)
+           (form-pipeline/lint-repair-code ctx ::form-pipeline/output-source)
+           ctx)))
      format-clojure-content ;; Format Clojure files automatically
      form-pipeline/determine-file-type ;; This will mark as "update"
      form-pipeline/generate-diff ;; Generate diff between old and new
@@ -137,14 +120,17 @@
    - ctx: The final context map from the pipeline
    
    Returns:
-   - A map with :error, :message, and :diff keys"
+   - A map with :error, :message, and :diff keys, and potentially :repaired"
   [ctx]
   (if (::form-pipeline/error ctx)
     {:error true
      :message (::form-pipeline/message ctx)}
-    {:error false
-     :diff (::form-pipeline/diff ctx)
-     :type (::form-pipeline/type ctx)}))
+    (cond-> {:error false
+             :diff (::form-pipeline/diff ctx)
+             :type (::form-pipeline/type ctx)}
+      ;; Include repaired flag if present
+      (::form-pipeline/repaired ctx)
+      (assoc :repaired true))))
 
 (comment
   ;; === Examples of using the file-edit pipeline directly ===

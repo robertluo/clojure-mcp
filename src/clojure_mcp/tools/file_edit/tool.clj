@@ -76,13 +76,15 @@ To make a file edit, provide the file_path, old_string (the text to replace), an
         result (pipeline/file-edit-pipeline file_path old_string new_string nrepl-client-atom)]
     (pipeline/format-result result)))
 
-(defmethod tool-system/format-results :file-edit [_ {:keys [error message diff type]}]
+(defmethod tool-system/format-results :file-edit [_ {:keys [error message diff type repaired]}]
   (if error
     {:error true
      :result [message]}
-    {:error false
-     :result [diff]
-     :type type}))
+    (cond-> {:error false
+             :result [diff]
+             :type type}
+      ;; Include repaired flag if present
+      repaired (assoc :repaired true))))
 
 ;; Backward compatibility function that returns the registration map
 (defn file-edit-tool [nrepl-client-atom]
