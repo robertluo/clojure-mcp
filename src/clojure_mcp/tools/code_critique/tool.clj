@@ -3,7 +3,8 @@
   (:require
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.code-critique.core :as core]
-   [clojure-mcp.linting :as linting]))
+   [clojure-mcp.linting :as linting]
+   [clojure-mcp.sexp.paren-utils :as paren-utils]))
 
 ;; Factory function to create the tool configuration
 (defn create-code-critique-tool
@@ -64,17 +65,30 @@
       (throw (ex-info "Missing required parameter: code"
                       {:inputs inputs})))
 
-    ;; Perform linting to check if code is valid Clojure
-    (let [lint-result (linting/lint code)]
-      ;; If there are critical errors in the code, reject it
-      (when (and lint-result (:error? lint-result))
-        (throw (ex-info (str "Syntax errors detected in Clojure code:\n"
-                             (:report lint-result)
-                             "\nPlease fix the syntax errors before saving.")
-                        {:inputs inputs
-                         :error-details (:report lint-result)}))))
-    ;; Return validated inputs
-    inputs))
+    ;; First, try to repair code with delimiter errors
+    (let [linted (linting/lint code)]
+      (if (and linted (:error? linted))
+        ;; Check if these are delimiter errors that might be repairable
+        (if (paren-utils/has-delimiter-errors? linted)
+          ;; Try to repair the code
+          (if-let [repaired-code (paren-utils/parinfer-repair code)]
+            ;; Use the repaired code
+            (assoc inputs :code repaired-code)
+            ;; Repair failed, check if original code still has errors
+            (let [lint-result linted]
+              (throw (ex-info (str "Syntax errors detected in Clojure code:\n"
+                                   (:report lint-result)
+                                   "\nPlease fix the syntax errors before critiquing.")
+                              {:inputs inputs
+                               :error-details (:report lint-result)}))))
+          ;; Not delimiter errors, report the syntax error
+          (throw (ex-info (str "Syntax errors detected in Clojure code:\n"
+                               (:report linted)
+                               "\nPlease fix the syntax errors before critiquing.")
+                          {:inputs inputs
+                           :error-details (:report linted)})))
+        ;; No lint errors, return inputs with original code
+        inputs))))
 
 (defmethod tool-system/execute-tool :code-critique [tool {:keys [code]}]
   (core/critique-code tool code))
