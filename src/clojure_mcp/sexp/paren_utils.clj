@@ -3,7 +3,10 @@
    [clojure-mcp.linting :as linting]
    [rewrite-clj.parser :as parser]
    [rewrite-clj.node :as node]
-   [clojure.string :as string]))
+   [clojure.string :as string])
+  (:import [com.oakmac.parinfer Parinfer]))
+
+
 
 ;; Tokenizer that breaks code into expressions and delimiter tokens
 (defn tokenize-code
@@ -87,8 +90,14 @@
          (> added-closing-delims 0)
          (str (format "Added %s missing closing parentheses" added-closing-delims)))})))
 
+(defn paren-repair [code-str]
+  (let [res (Parinfer/indentMode code-str nil nil nil false)]
+    (when (.success res)
+      (.text res))))
+
 (comment
   (def code1 "(defn hello [name] (str \"Hello\" name)))")
+  (paren-repair code1)
   (tokenize-code code1)
   (fix-parens (tokenize-code code1))
   (repair-parens code1)
@@ -96,17 +105,22 @@
   ;; => {:repaired? true, :form "(defn hello [name] (str \"Hello\" name))", :message "Removed 1 extra closing parentheses"}
   
   ;; Test with missing closing paren
-  (def code2 "(defn hello [name] ;asdf \n(str \"Hello\" name)")
+  (def code2 "(defn hello [name] (str \"Hello\" name)")
   (tokenize-code code2)
   (fix-parens (tokenize-code code2))
   (repair-parens code2)
+  (par-rep code2)
   ;; => {:repaired? true, :form "(defn hello [name] (str \"Hello\" name))", :message "Added 1 missing closing parentheses"}
   
   ;; Test with complex case - both extra and missing parens
-  (def code3 "(defn hello [name] (str \"Hello\" name))) (defn world [] (println \"World\")")
+  (def code3 "(defn hello [name]
+  (str \"Hello\" name))) 
+(defn world [] 
+  (println \"World\")")
   (tokenize-code code3)
   (fix-parens (tokenize-code code3))
   (repair-parens code3)
+  (par-rep code3)
   ;; => {:repaired? true, :form "(defn hello [name] (str \"Hello\" name)) (defn world [] (println \"World\"))", 
   ;;     :message "Removed 1 extra closing parentheses and added 1 missing closing parentheses"}
   
