@@ -99,14 +99,17 @@
 (defn lint-code
   "Lints the new source code to be inserted.
    Adds ::lint-result to the context."
-  [ctx]
-  (let [lint-result (linting/lint (::new-source-code ctx))]
-    (if (and lint-result (:error? lint-result))
-      {::error :lint-failure
-       ::message (str "Syntax errors detected in Clojure code:\n"
-                      (:report lint-result)
-                      "\nPlease fix the syntax errors before saving.")}
-      (assoc ctx ::lint-result lint-result))))
+  ([ctx]
+   (lint-code ctx ::new-source-code))
+  ([ctx ky]
+   (let [lint-result (linting/lint (get ctx ky))]
+     (if (and lint-result (:error? lint-result))
+       {::error :lint-failure
+        ::lint-report (:report lint-result)
+        ::message (str "Syntax errors detected in Clojure code:\n"
+                       (:report lint-result)
+                       "\nPlease fix the syntax errors before saving.")}
+       (assoc ctx ::lint-result lint-result)))))
 
 (defn enhance-defmethod-name
   "If this is a defmethod form without a dispatch value in its name,
@@ -580,7 +583,9 @@
      zloc->output-source
      determine-file-type
      generate-diff
-     ; emacs-set-auto-revert
+     ;; TODO this should probably be added
+     ;; #(lint-code % ::output-source)
+     ;; emacs-set-auto-revert
      save-file
      update-file-timestamp
      highlight-form)))
@@ -664,6 +669,8 @@
              ::config config}]
     (thread-ctx
      ctx
+     #(lint-code % ::match-form)
+     #(lint-code % ::new-form)     
      load-source
      check-file-modified
      parse-source
