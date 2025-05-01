@@ -44,9 +44,7 @@
         ;; Use thread-ctx to run the pipeline
         result (pipeline/thread-ctx
                 initial-ctx
-                ;; First check for syntax errors with linting for Clojure files
-                pipeline/lint-code
-                ;; Set output-source directly from new-source-code
+                pipeline/lint-repair-code
                 (fn [ctx]
                   (assoc ctx ::pipeline/output-source (::pipeline/new-source-code ctx)))
                 pipeline/format-source ;; Format the content
