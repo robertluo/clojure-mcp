@@ -235,7 +235,7 @@
                                         (.tools true)
                                         (.prompts true)
                                         (.resources true true) ;; resources method takes two boolean parameters
-                                        (.logging)
+                                        #_(.logging)
                                         (.build)))
                      (.build))]
 
