@@ -47,12 +47,12 @@
    - nrepl-client: The nREPL client to use for evaluation
    - opts: A map of options:
      - :code The Clojure code to evaluate as a string
-     - :namespace Optional namespace to evaluate in. If nil, uses current namespace.
+     - :ns Optional namespace to evaluate in. If nil, uses current namespace.
    
    Returns:
    - A map with :outputs (raw outputs), :error (boolean flag)"
   [nrepl-client opts]
-  (let [{:keys [code namespace]} opts
+  (let [{:keys [code ns]} opts
         outputs (atom [])
         error-occurred (atom false)
         form-str code
@@ -78,7 +78,7 @@
           (swap! state update :clojure-mcp.repl-tools/eval-history conj form-str))
 
         ;; Evaluate the code, using the namespace parameter if provided
-        (nrepl/eval-code-help nrepl-client form-str namespace
+        (nrepl/eval-code-help nrepl-client form-str ns
                               (->> identity
                                    (nrepl/out-err
                                     #(add-output! :out %)
@@ -107,7 +107,7 @@
    - nrepl-client: The nREPL client to use for evaluation
    - opts: A map of options:
      - :code The Clojure code to evaluate as a string
-     - :namespace Optional namespace to evaluate in. If nil, uses current namespace.
+     - :ns Optional namespace to evaluate in. If nil, uses current namespace.
    
    Returns:
    - A map with :outputs (raw outputs), :error (boolean flag), :repaired (boolean flag)"

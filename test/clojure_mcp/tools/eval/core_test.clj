@@ -145,8 +145,8 @@
       ;; Should not have evaluation output on linting error
       (is (not-any? #(= (first %) :value) (:outputs result)))))
 
-  (testing "Evaluating with namespace parameter"
-    (let [result (eval-core/evaluate-code *nrepl-client* {:code "(str *ns*)" :namespace "clojure.string"})]
+  (testing "Evaluating with ns parameter"
+    (let [result (eval-core/evaluate-code *nrepl-client* {:code "(str *ns*)" :ns "clojure.string"})]
       (is (false? (:error result)))
       (is (some #(= [:value "\"clojure.string\""] %) (:outputs result))))))
 
@@ -199,9 +199,9 @@
       (is (false? (:repaired result)))
       (is (some #(= [:value "3"] %) (:outputs result)))))
 
-  (testing "Evaluation with namespace parameter"
+  (testing "Evaluation with ns parameter"
     (let [result (eval-core/evaluate-with-repair *nrepl-client*
                                                  {:code "(join \", \" [\"a\" \"b\" \"c\"])"
-                                                  :namespace "clojure.string"})]
+                                                  :ns "clojure.string"})]
       (is (false? (:error result)))
       (is (some #(= [:value "\"a, b, c\""] %) (:outputs result))))))
