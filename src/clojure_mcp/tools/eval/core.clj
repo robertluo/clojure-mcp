@@ -51,56 +51,52 @@
    
    Returns:
    - A map with :outputs (raw outputs), :error (boolean flag)"
-  ([nrepl-client code-or-opts]
-   (if (string? code-or-opts)
-     ;; For backward compatibility - if just a string is passed, treat it as code
-     (evaluate-code nrepl-client {:code code-or-opts})
-     ;; Otherwise, treat it as an options map
-     (let [{:keys [code namespace]} code-or-opts
-           outputs (atom [])
-           error-occurred (atom false)
-           form-str code
-           linted (linting/lint form-str)
-           add-output! (fn [prefix value] (swap! outputs conj [prefix value]))
-           result-promise (promise)]
+  [nrepl-client opts]
+  (let [{:keys [code namespace]} opts
+        outputs (atom [])
+        error-occurred (atom false)
+        form-str code
+        linted (linting/lint form-str)
+        add-output! (fn [prefix value] (swap! outputs conj [prefix value]))
+        result-promise (promise)]
 
-       ;; Add linter output if present
-       (when linted
-         (add-output! :lint (:report linted))
-         (when (:error? linted)
-           (reset! error-occurred true)))
+    ;; Add linter output if present
+    (when linted
+      (add-output! :lint (:report linted))
+      (when (:error? linted)
+        (reset! error-occurred true)))
 
-       ;; If linter found critical errors, return early
-       (if @error-occurred
-         {:outputs @outputs
-          :error true}
+    ;; If linter found critical errors, return early
+    (if @error-occurred
+      {:outputs @outputs
+       :error true}
 
-         ;; Otherwise, evaluate the code
-         (do
-           ;; Push to eval history if available
-           (when-let [state (::nrepl/state nrepl-client)]
-             (swap! state update :clojure-mcp.repl-tools/eval-history conj form-str))
+      ;; Otherwise, evaluate the code
+      (do
+        ;; Push to eval history if available
+        (when-let [state (::nrepl/state nrepl-client)]
+          (swap! state update :clojure-mcp.repl-tools/eval-history conj form-str))
 
-           ;; Evaluate the code, using the namespace parameter if provided
-           (nrepl/eval-code-help nrepl-client form-str namespace
-                                 (->> identity
-                                      (nrepl/out-err
-                                       #(add-output! :out %)
-                                       #(add-output! :err %))
-                                      (nrepl/value #(add-output! :value %))
-                                      (nrepl/done (fn [_]
-                                                    (deliver result-promise
-                                                             {:outputs @outputs
-                                                              :error @error-occurred})))
-                                      (nrepl/error (fn [_]
-                                                     (reset! error-occurred true)
-                                                     (add-output! :err "Evaluation failed")
-                                                     (deliver result-promise
-                                                              {:outputs @outputs
-                                                               :error true})))))
+        ;; Evaluate the code, using the namespace parameter if provided
+        (nrepl/eval-code-help nrepl-client form-str namespace
+                              (->> identity
+                                   (nrepl/out-err
+                                    #(add-output! :out %)
+                                    #(add-output! :err %))
+                                   (nrepl/value #(add-output! :value %))
+                                   (nrepl/done (fn [_]
+                                                 (deliver result-promise
+                                                          {:outputs @outputs
+                                                           :error @error-occurred})))
+                                   (nrepl/error (fn [_]
+                                                  (reset! error-occurred true)
+                                                  (add-output! :err "Evaluation failed")
+                                                  (deliver result-promise
+                                                           {:outputs @outputs
+                                                            :error true})))))
 
-           ;; Wait for the result and return it
-           @result-promise))))))
+        ;; Wait for the result and return it
+        @result-promise))))
 
 (defn evaluate-with-repair
   "Evaluates Clojure code with automatic repair of delimiter errors.
@@ -115,17 +111,13 @@
    
    Returns:
    - A map with :outputs (raw outputs), :error (boolean flag), :repaired (boolean flag)"
-  [nrepl-client code-or-opts]
-  (if (string? code-or-opts)
-    ;; For backward compatibility - if just a string is passed, treat it as code
-    (evaluate-with-repair nrepl-client {:code code-or-opts})
-    ;; Otherwise treat it as an options map
-    (let [{:keys [code]} code-or-opts
-          repaired-code (repair-code code)
-          repaired? (not= repaired-code code)
-          opts (assoc code-or-opts :code repaired-code)]
-      (assoc (evaluate-code nrepl-client opts)
-             :repaired repaired?))))
+  [nrepl-client opts]
+  (let [{:keys [code]} opts
+        repaired-code (repair-code code)
+        repaired? (not= repaired-code code)
+        opts (assoc opts :code repaired-code)]
+    (assoc (evaluate-code nrepl-client opts)
+           :repaired repaired?)))
 
 (comment
   ;; === Examples of using the eval core functionality directly ===

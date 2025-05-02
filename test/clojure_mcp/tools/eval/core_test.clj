@@ -102,7 +102,7 @@
 
 (deftest evaluate-code-test
   (testing "Evaluating basic expression"
-    (let [result (eval-core/evaluate-code *nrepl-client* "(+ 1 2)")]
+    (let [result (eval-core/evaluate-code *nrepl-client* {:code "(+ 1 2)"})]
       (is (map? result))
       (is (contains? result :outputs))
       (is (contains? result :error))
@@ -110,20 +110,20 @@
       (is (some #(= [:value "3"] %) (:outputs result)))))
 
   (testing "Evaluating with console output"
-    (let [result (eval-core/evaluate-code *nrepl-client* "(println \"hello\")")]
+    (let [result (eval-core/evaluate-code *nrepl-client* {:code "(println \"hello\")"})]
       (is (false? (:error result)))
       (is (some #(= [:out "hello\n"] %) (:outputs result)))
       (is (some #(= [:value "nil"] %) (:outputs result)))))
 
   (testing "Evaluating with error"
-    (let [result (eval-core/evaluate-code *nrepl-client* "(/ 1 0)")]
+    (let [result (eval-core/evaluate-code *nrepl-client* {:code "(/ 1 0)"})]
       (is (true? (:error result)))
       (is (some #(and (= (first %) :err)
                       (str/includes? (second %) "Divide by zero"))
                 (:outputs result)))))
 
   (testing "Evaluating multiple expressions"
-    (let [result (eval-core/evaluate-code *nrepl-client* "(println \"first\") (+ 10 20)")]
+    (let [result (eval-core/evaluate-code *nrepl-client* {:code "(println \"first\") (+ 10 20)"})]
       (is (false? (:error result)))
       (is (some #(= [:out "first\n"] %) (:outputs result)))
       (is (some #(= [:value "30"] %) (:outputs result)))))
@@ -131,19 +131,24 @@
   (testing "Linting with warnings"
     ;; Note: This test is hard to make reliable because different Clojure versions 
     ;; and linter configurations may handle unused bindings differently
-    (let [result (eval-core/evaluate-code *nrepl-client* "(let [unused 1] (+ 2 3))")]
+    (let [result (eval-core/evaluate-code *nrepl-client* {:code "(let [unused 1] (+ 2 3))"})]
       (is (false? (:error result)))
       ;; Removed the problematic assertion about unused binding warning
       (is (some #(= [:value "5"] %) (:outputs result)))))
 
   (testing "Linting with errors"
-    (let [result (eval-core/evaluate-code *nrepl-client* "(def ^:dynamic 1)")]
+    (let [result (eval-core/evaluate-code *nrepl-client* {:code "(def ^:dynamic 1)"})]
       (is (true? (:error result)))
       (is (some #(and (= (first %) :lint)
                       (str/includes? (second %) "Can't parse"))
                 (:outputs result)))
       ;; Should not have evaluation output on linting error
-      (is (not-any? #(= (first %) :value) (:outputs result))))))
+      (is (not-any? #(= (first %) :value) (:outputs result)))))
+
+  (testing "Evaluating with namespace parameter"
+    (let [result (eval-core/evaluate-code *nrepl-client* {:code "(str *ns*)" :namespace "clojure.string"})]
+      (is (false? (:error result)))
+      (is (some #(= [:value "\"clojure.string\""] %) (:outputs result))))))
 
 (deftest repair-code-test
   (testing "Repair of missing closing paren"
@@ -170,23 +175,33 @@
 
 (deftest evaluate-with-repair-test
   (testing "Auto-repair of missing closing paren"
-    (let [result (eval-core/evaluate-with-repair *nrepl-client* "(defn hello [name] (println name)")]
+    (let [result (eval-core/evaluate-with-repair *nrepl-client* {:code "(defn hello [name] (println name)"})]
       (is (false? (:error result)))
+      (is (true? (:repaired result)))
       ;; Verify it was evaluated successfully
       (is (some #(= (first %) :value) (:outputs result)))))
 
   (testing "Auto-repair of extra closing paren"
-    (let [result (eval-core/evaluate-with-repair *nrepl-client* "(defn hello [name] (println name)))")]
+    (let [result (eval-core/evaluate-with-repair *nrepl-client* {:code "(defn hello [name] (println name)))"})]
       (is (false? (:error result)))
+      (is (true? (:repaired result)))
       ;; Verify it was evaluated successfully
       (is (some #(= (first %) :value) (:outputs result)))))
 
   (testing "Non-repairable syntax error"
-    (let [result (eval-core/evaluate-with-repair *nrepl-client* "(defn hello [123] (println name))")]
+    (let [result (eval-core/evaluate-with-repair *nrepl-client* {:code "(defn hello [123] (println name))"})]
       (is (true? (:error result)))
       (is (some #(= (first %) :lint) (:outputs result)))))
 
   (testing "Well-formed code evaluation"
-    (let [result (eval-core/evaluate-with-repair *nrepl-client* "(+ 1 2)")]
+    (let [result (eval-core/evaluate-with-repair *nrepl-client* {:code "(+ 1 2)"})]
       (is (false? (:error result)))
-      (is (some #(= [:value "3"] %) (:outputs result))))))
+      (is (false? (:repaired result)))
+      (is (some #(= [:value "3"] %) (:outputs result)))))
+
+  (testing "Evaluation with namespace parameter"
+    (let [result (eval-core/evaluate-with-repair *nrepl-client*
+                                                 {:code "(join \", \" [\"a\" \"b\" \"c\"])"
+                                                  :namespace "clojure.string"})]
+      (is (false? (:error result)))
+      (is (some #(= [:value "\"a, b, c\""] %) (:outputs result))))))
