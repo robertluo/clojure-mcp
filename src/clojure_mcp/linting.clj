@@ -9,7 +9,8 @@
   [form-str]
   (let [res (with-in-str form-str
               (kondo/run! {:lint "-" 
-                           :config {:ignore [:unresolved-symbol
+                           :config {:ignore [:invalid-arity
+                                             :unresolved-symbol
                                              :clj-kondo-config
                                              :deprecated-var
                                              :deprecated-namespace

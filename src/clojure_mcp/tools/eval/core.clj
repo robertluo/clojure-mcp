@@ -45,55 +45,62 @@
    
    Parameters:
    - nrepl-client: The nREPL client to use for evaluation
-   - code: The Clojure code to evaluate as a string
+   - opts: A map of options:
+     - :code The Clojure code to evaluate as a string
+     - :namespace Optional namespace to evaluate in. If nil, uses current namespace.
    
    Returns:
    - A map with :outputs (raw outputs), :error (boolean flag)"
-  [nrepl-client code]
-  (let [outputs (atom []) ;; Atom to store prefixed output strings
-        error-occurred (atom false) ;; Atom to track if any error happened
-        form-str code
-        linted (linting/lint form-str)
-        add-output! (fn [prefix value] (swap! outputs conj [prefix value]))
-        result-promise (promise)]
+  ([nrepl-client code-or-opts]
+   (if (string? code-or-opts)
+     ;; For backward compatibility - if just a string is passed, treat it as code
+     (evaluate-code nrepl-client {:code code-or-opts})
+     ;; Otherwise, treat it as an options map
+     (let [{:keys [code namespace]} code-or-opts
+           outputs (atom [])
+           error-occurred (atom false)
+           form-str code
+           linted (linting/lint form-str)
+           add-output! (fn [prefix value] (swap! outputs conj [prefix value]))
+           result-promise (promise)]
 
-    ;; Add linter output if present
-    (when linted
-      (add-output! :lint (:report linted))
-      (when (:error? linted)
-        (reset! error-occurred true)))
+       ;; Add linter output if present
+       (when linted
+         (add-output! :lint (:report linted))
+         (when (:error? linted)
+           (reset! error-occurred true)))
 
-    ;; If linter found critical errors, return early
-    (if @error-occurred
-      {:outputs @outputs
-       :error true}
+       ;; If linter found critical errors, return early
+       (if @error-occurred
+         {:outputs @outputs
+          :error true}
 
-      ;; Otherwise, evaluate the code
-      (do
-        ;; Push to eval history if available
-        (when-let [state (::nrepl/state nrepl-client)]
-          (swap! state update :clojure-mcp.repl-tools/eval-history conj form-str))
+         ;; Otherwise, evaluate the code
+         (do
+           ;; Push to eval history if available
+           (when-let [state (::nrepl/state nrepl-client)]
+             (swap! state update :clojure-mcp.repl-tools/eval-history conj form-str))
 
-        ;; Evaluate the code
-        (nrepl/eval-code-help nrepl-client form-str
-                              (->> identity
-                                   (nrepl/out-err
-                                    #(add-output! :out %)
-                                    #(add-output! :err %))
-                                   (nrepl/value #(add-output! :value %))
-                                   (nrepl/done (fn [_]
-                                                 (deliver result-promise
-                                                          {:outputs @outputs
-                                                           :error @error-occurred})))
-                                   (nrepl/error (fn [_]
-                                                  (reset! error-occurred true)
-                                                  (add-output! :err "Evaluation failed")
-                                                  (deliver result-promise
-                                                           {:outputs @outputs
-                                                            :error true})))))
+           ;; Evaluate the code, using the namespace parameter if provided
+           (nrepl/eval-code-help nrepl-client form-str namespace
+                                 (->> identity
+                                      (nrepl/out-err
+                                       #(add-output! :out %)
+                                       #(add-output! :err %))
+                                      (nrepl/value #(add-output! :value %))
+                                      (nrepl/done (fn [_]
+                                                    (deliver result-promise
+                                                             {:outputs @outputs
+                                                              :error @error-occurred})))
+                                      (nrepl/error (fn [_]
+                                                     (reset! error-occurred true)
+                                                     (add-output! :err "Evaluation failed")
+                                                     (deliver result-promise
+                                                              {:outputs @outputs
+                                                               :error true})))))
 
-        ;; Wait for the result and return it
-        @result-promise))))
+           ;; Wait for the result and return it
+           @result-promise))))))
 
 (defn evaluate-with-repair
   "Evaluates Clojure code with automatic repair of delimiter errors.
@@ -102,12 +109,23 @@
    
    Parameters:
    - nrepl-client: The nREPL client to use for evaluation
-   - code: The Clojure code to evaluate as a string
+   - opts: A map of options:
+     - :code The Clojure code to evaluate as a string
+     - :namespace Optional namespace to evaluate in. If nil, uses current namespace.
    
    Returns:
-   - A map with :outputs (raw outputs), :error (boolean flag)"
-  [nrepl-client code]
-  (evaluate-code nrepl-client (repair-code code)))
+   - A map with :outputs (raw outputs), :error (boolean flag), :repaired (boolean flag)"
+  [nrepl-client code-or-opts]
+  (if (string? code-or-opts)
+    ;; For backward compatibility - if just a string is passed, treat it as code
+    (evaluate-with-repair nrepl-client {:code code-or-opts})
+    ;; Otherwise treat it as an options map
+    (let [{:keys [code]} code-or-opts
+          repaired-code (repair-code code)
+          repaired? (not= repaired-code code)
+          opts (assoc code-or-opts :code repaired-code)]
+      (assoc (evaluate-code nrepl-client opts)
+             :repaired repaired?))))
 
 (comment
   ;; === Examples of using the eval core functionality directly ===
@@ -116,17 +134,23 @@
   (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
   (clojure-mcp.nrepl/start-polling @client-atom)
 
-  ;; Test simple expression evaluation with original function
-  (evaluate-code @client-atom "(+ 1 2)")
+  ;; Test simple expression evaluation with options map
+  (evaluate-code @client-atom {:code "(+ 1 2)"})
 
-  ;; Test multi-expression evaluation with original function
-  (evaluate-code @client-atom "(println \"Hello World\")\n(+ 3 4)")
+  ;; Test with namespace option
+  (evaluate-code @client-atom {:code "(str *ns*)" :namespace "clojure.string"})
 
-  ;; Test evaluation with error with original function
-  (evaluate-code @client-atom "(/ 1 0)")
+  ;; Test multi-expression evaluation with options map
+  (evaluate-code @client-atom {:code "(println \"Hello World\")\n(+ 3 4)"})
 
-  ;; Test evaluation with linter warning with original function
-  (evaluate-code @client-atom "(let [unused 1] (+ 2 3))")
+  ;; Test evaluation with error with options map
+  (evaluate-code @client-atom {:code "(/ 1 0)"})
+
+  ;; Test evaluation with linter warning with options map
+  (evaluate-code @client-atom {:code "(let [unused 1] (+ 2 3))"})
+
+  ;; Test backward compatibility with string parameter
+  (evaluate-code @client-atom "(+ 1 2)") ;; Will be converted to {:code "(+ 1 2)"}
 
   ;; Test the repair-code function directly
   (repair-code "(defn hello [name] (println name)") ;; Missing closing paren
@@ -134,16 +158,23 @@
   (repair-code "(defn hello [123] (println name))") ;; Non-repairable syntax error
   (repair-code "(defn hello [name] (println \"Hello))") ;; Non-repairable string error
 
-  ;; Test the evaluate-with-repair function
-  (evaluate-with-repair @client-atom "(+ 1 2)") ;; Well-formed code
+  ;; Test the evaluate-with-repair function with options map
+  (evaluate-with-repair @client-atom {:code "(+ 1 2)"}) ;; Well-formed code
 
   ;; Should auto-repair and evaluate successfully
-  (evaluate-with-repair @client-atom "(defn hello [name] (println name)")
-  (evaluate-with-repair @client-atom "(defn hello [name] (println name)))")
+  (evaluate-with-repair @client-atom {:code "(defn hello [name] (println name)"})
+  (evaluate-with-repair @client-atom {:code "(defn hello [name] (println name)))"})
+
+  ;; Test with namespace
+  (evaluate-with-repair @client-atom {:code "(str *ns*)" :namespace "clojure.string"})
+  (evaluate-with-repair @client-atom {:code "(join \", \" [\"a\" \"b\" \"c\"])" :namespace "clojure.string"})
+
+  ;; Test backward compatibility with string parameter
+  (evaluate-with-repair @client-atom "(+ 1 2)") ;; Will be converted to {:code "(+ 1 2)"}
 
   ;; Should detect non-repairable errors
-  (evaluate-with-repair @client-atom "(defn hello [123] (println name))")
-  (evaluate-with-repair @client-atom "(defn hello [name] (println \"Hello))")
+  (evaluate-with-repair @client-atom {:code "(defn hello [123] (println name))"})
+  (evaluate-with-repair @client-atom {:code "(defn hello [name] (println \"Hello))"})
 
   ;; Cleanup
   (clojure-mcp.nrepl/stop-polling @client-atom))

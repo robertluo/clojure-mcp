@@ -19,6 +19,7 @@ This tool is intended to execute Clojure code. This is very helpful for verifyin
 If you send multiple expressions they will all be evaluated individually and their output will be clearly partitioned.
 If the returned value is too long it will be truncated.
 
+You can optionally specify a namespace to evaluate the code in by providing the namespace parameter.
 Eval: (str *ns*) to see the current namespace
 
 REPL helper functions are automatically loaded in the 'clj-mcp.repl-tools' namespace, providing convenient namespace and symbol exploration:
@@ -47,7 +48,9 @@ Examples:
 (defmethod tool-system/tool-schema :clojure-eval [_]
   {:type :object
    :properties {:code {:type :string
-                       :description "The Clojure code to evaluate."}}
+                       :description "The Clojure code to evaluate."}
+                :namespace {:type :string
+                            :description "Optional namespace to evaluate the code in. If not provided, uses the current namespace."}}
    :required [:code]})
 
 (defmethod tool-system/validate-inputs :clojure-eval [_ inputs]
@@ -59,10 +62,8 @@ Examples:
     inputs))
 
 (defmethod tool-system/execute-tool :clojure-eval [{:keys [nrepl-client-atom]} inputs]
-  (let [{:keys [code]} inputs
-        ;; Delegate to core implementation with repair
-        result (core/evaluate-with-repair @nrepl-client-atom code)]
-    result))
+  ;; Delegate to core implementation with repair
+  (core/evaluate-with-repair @nrepl-client-atom inputs))
 
 (defmethod tool-system/format-results :clojure-eval [_ {:keys [outputs error repaired] :as eval-result}]
   ;; The core implementation now returns a map with :outputs (raw outputs), :error (boolean), and :repaired (boolean)
@@ -85,11 +86,17 @@ Examples:
   ;; Create a tool instance
   (def eval-tool (create-eval-tool client-atom))
 
-  ;; Test the individual multimethod steps
+  ;; Test the individual multimethod steps with options map
   (def inputs {:code "(+ 1 2)"})
   (def validated (tool-system/validate-inputs eval-tool inputs))
   (def result (tool-system/execute-tool eval-tool validated))
   (def formatted (tool-system/format-results eval-tool result))
+
+  ;; Test with namespace in options map
+  (def inputs-with-ns {:code "(+ 1 2)" :namespace "clojure.string"})
+  (def validated-with-ns (tool-system/validate-inputs eval-tool inputs-with-ns))
+  (def result-with-ns (tool-system/execute-tool eval-tool validated-with-ns))
+  (def formatted-with-ns (tool-system/format-results eval-tool result-with-ns))
 
   ;; Generate the full registration map
   (def reg-map (tool-system/registration-map eval-tool))
@@ -97,12 +104,15 @@ Examples:
   ;; Test running the tool-fn directly
   (def tool-fn (:tool-fn reg-map))
   (tool-fn nil {"code" "(+ 1 2)"} (fn [result error] (println "Result:" result "Error:" error)))
-  (tool-fn nil {"code" "(+ 1 2"} (fn [result error] (println "Result:" result "Error:" error)))
+  (tool-fn nil {"code" "(+ 1 2", "namespace" "clojure.string"}
+           (fn [result error] (println "Result:" result "Error:" error)))
 
   ;; Make a simpler test function that works like tool-fn
-  (defn test-tool [code]
-    (let [prom (promise)]
-      (tool-fn nil {"code" code}
+  (defn test-tool [code & [namespace]]
+    (let [prom (promise)
+          params (cond-> {"code" code}
+                   namespace (assoc "namespace" namespace))]
+      (tool-fn nil params
                (fn [result error]
                  (deliver prom (if error {:error error} {:result result}))))
       @prom))
@@ -111,6 +121,12 @@ Examples:
   (test-tool "(+ 1 2)")
   (test-tool "(println \"Hello\")\n(+ 3 4)")
   (test-tool "(/ 1 0)")
+
+  ;; Test with namespace parameter
+  (test-tool "(str *ns*)")
+  (test-tool "(str *ns*)" "clojure.string")
+  (test-tool "join" "clojure.string") ;; Fails because 'join' isn't a complete expression
+  (test-tool "(join" "clojure.string") ;; Auto-repairs to (join)
 
   ;; Test with auto-repairable code
   (test-tool "(defn hello [name] (println name)") ;; Missing closing paren
@@ -121,9 +137,11 @@ Examples:
   (test-tool "(defn hello [name] (println \"Hello))") ;; Unclosed string
 
   ;; Enhanced test function that captures repaired status
-  (defn test-tool-full [code]
-    (let [prom (promise)]
-      (tool-fn nil {"code" code}
+  (defn test-tool-full [code & [namespace]]
+    (let [prom (promise)
+          params (cond-> {"code" code}
+                   namespace (assoc "namespace" namespace))]
+      (tool-fn nil params
                (fn [result error repaired]
                  (deliver prom {:result result
                                 :error error
@@ -133,6 +151,7 @@ Examples:
   ;; Test with the enhanced function to see repair status
   (test-tool-full "(defn hello [name] (println name)") ;; Should show repaired: true
   (test-tool-full "(+ 1 2)") ;; Should show repaired: false/nil
+  (test-tool-full "(str *ns*)" "clojure.string") ;; With namespace parameter
 
   ;; Clean up
   (clojure-mcp.nrepl/stop-polling @client-atom))

@@ -84,6 +84,14 @@
 (defn tool-session [{:keys [::state]}]
   (get @state :tool-session))
 
+;; session state management in general is getting a little messy
+;; parallel evals seem possible
+(defn ns-session
+  "returns session for when the use wants to temporarily change to a ns
+  All requests to this session are intended to have the ns declared."
+  [{:keys [::state]}]
+  (get @state :ns-session))
+
 (defn new-message [{:keys [::state] :as service} msg]
   (merge
    {:session (eval-session service)
@@ -99,25 +107,32 @@
 
 (def truncation-length 5000)
 
-(defn eval-code-help [{:keys [::state] :as service} code-str k]
-  (let [{:keys [id] :as message}
-        (new-message service {:op "eval"
-                              :code code-str
-                              :nrepl.middleware.print/print "nrepl.util.print/pprint"
-                              ;; need to be able to set this magic number
-                              :nrepl.middleware.print/quota truncation-length})
-        prom (promise)
-        finish (fn [_]
-                 (deliver prom ::done)
-                 (remove-current-eval-id! service))]
-    (set-current-eval-id! service id)
-    (send-msg! service
-               message
-               (->> k
-                    (on-key :ns #(swap! state assoc :current-ns %))
-                    (done finish)
-                    (error finish)))
-    prom))
+(defn eval-code-help
+  ([service code-str k]
+   (eval-code-help service code-str nil k))
+  ([{:keys [::state] :as service} code-str ns k]
+   (let [msg {:op "eval"
+              :code code-str
+              :nrepl.middleware.print/print "nrepl.util.print/pprint"
+              ;; need to be able to set this magic number
+              :nrepl.middleware.print/quota truncation-length}
+         {:keys [id] :as message}
+         (new-message service (cond-> msg
+                                ns (assoc :ns ns
+                                          :session (ns-session service))))
+         prom (promise)
+         finish (fn [_]
+                  (deliver prom ::done)
+                  (remove-current-eval-id! service))]
+     (set-current-eval-id! service id)
+     (send-msg! service
+                message
+                (cond->> k
+                  (not ns) (on-key :ns #(swap! state assoc :current-ns %))
+                  true (done finish)
+                  true (error finish)))
+     prom)))
+
 
 (defn eval-code [service code-str k]
   @(eval-code-help service code-str k))
@@ -222,13 +237,16 @@
                (select-keys config [:port :host :tls-keys-file]))
          client (nrepl/client conn Long/MAX_VALUE)
          session (nrepl/new-session client)
-         tool-session (nrepl/new-session client)]
+         tool-session (nrepl/new-session client)
+         ;; ns-session always has an ns declared in evals
+         ns-session (nrepl/new-session client)]
      (assoc config
             :repl/error (atom nil)
             ::state (atom {:conn conn
                            :current-ns "user"
                            :client client
                            :session session
+                           :ns-session ns-session
                            :tool-session tool-session})))))
 
 
