@@ -8,11 +8,13 @@
    [clojure-mcp.tools.form-edit.core :as form-edit-core]
    [clojure-mcp.tools.file-write.core :as file-write-core]
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
+   [clojure-mcp.utils.emacs-integration :as emacs]
    [clojure-mcp.repl-tools.utils :as utils]
    [clojure-mcp.linting :as linting]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io]
+   [clojure.tools.logging :as log]))
 
 ;; We'll reuse many definitions from form-edit pipeline and add our own specific ones
 
@@ -70,6 +72,31 @@
           ctx))
       ctx)))
 
+(defn capture-file-edit-offsets
+  "Captures the position offsets of the edited region in a file.
+   This function calculates character offsets for the edited region for highlighting.
+   
+   Requires ::form-pipeline/source and ::old-string in the context.
+   Adds ::form-pipeline/offsets to the context when successful."
+  [ctx]
+  (try
+    (let [source (::form-pipeline/source ctx)
+          old-string (::old-string ctx)]
+      (if (and source old-string (not-empty old-string))
+        (let [start-offset (str/index-of source old-string)
+              end-offset (when start-offset (+ start-offset (count old-string)))]
+          (if (and start-offset end-offset)
+            (assoc ctx ::form-pipeline/offsets [start-offset end-offset])
+            ctx))
+        ctx))
+    (catch Exception e
+      ;; Don't fail the pipeline if offsets can't be captured, just log it
+      ;; This allows non-Emacs workflows to continue
+      (println "Warning: Failed to capture edit offsets -" (.getMessage e))
+      ctx)))
+
+;; This function is no longer needed - we'll use form-pipeline/highlight-form instead
+
 ;; Using update-file-timestamp from form-edit/pipeline instead
 
 ;; Define our file edit pipeline function that composes steps from form-edit pipeline and our own
@@ -86,7 +113,7 @@
    
    Returns:
    - A context map with the result of the operation"
-  [file-path old-string new-string & [nrepl-client-atom config]]
+  [file-path old-string new-string {:keys [nrepl-client-atom] :as config}]
   (let [initial-ctx {::form-pipeline/file-path file-path
                      ::old-string old-string
                      ::new-string new-string
@@ -98,6 +125,7 @@
      form-pipeline/load-source ;; Load existing file
      form-pipeline/check-file-modified ;; Check if file modified since last read
      validate-edit ;; Validate the edit (uniqueness, etc.)
+     capture-file-edit-offsets ;; Capture offsets for highlight
      perform-edit ;; Perform the actual edit
      ;; Only lint/repair Clojure files
      (fn [ctx]
@@ -109,7 +137,8 @@
      form-pipeline/determine-file-type ;; This will mark as "update"
      form-pipeline/generate-diff ;; Generate diff between old and new
      form-pipeline/save-file ;; Save the file
-     form-pipeline/update-file-timestamp))) ;; Update the timestamp after save
+     form-pipeline/update-file-timestamp ;; Update the timestamp after save
+     form-pipeline/highlight-form))) ;; Update the timestamp after save
 
 ;; Format result for tool consumption
 (defn format-result
@@ -141,8 +170,9 @@
   ;; Create a test file
   (spit test-file "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n")
 
-  ;; Test the pipeline with simple edit
-  (def result (file-edit-pipeline test-file "Line 3" "Line 3 - EDITED"))
+  ;; Test the pipeline with simple edit and Emacs highlighting enabled
+  (def config {:enable-emacs-notifications true})
+  (def result (file-edit-pipeline test-file "Line 3" "Line 3 - EDITED" nil config))
   (format-result result)
 
   ;; Test the pipeline with error (non-unique match)
@@ -155,3 +185,5 @@
 
   ;; Clean up
   (.delete (io/file test-file)))
+
+

@@ -71,9 +71,9 @@ To make a file edit, provide the file_path, old_string (the text to replace), an
              :old_string old_string
              :new_string new_string))))
 
-(defmethod tool-system/execute-tool :file-edit [{:keys [nrepl-client-atom]} inputs]
+(defmethod tool-system/execute-tool :file-edit [{:keys [nrepl-client-atom] :as tool} inputs]
   (let [{:keys [file_path old_string new_string]} inputs
-        result (pipeline/file-edit-pipeline file_path old_string new_string nrepl-client-atom)]
+        result (pipeline/file-edit-pipeline file_path old_string new_string tool)]
     (pipeline/format-result result)))
 
 (defmethod tool-system/format-results :file-edit [_ {:keys [error message diff type repaired]}]
