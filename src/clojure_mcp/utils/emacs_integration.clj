@@ -83,11 +83,12 @@
   (format "(goto-char %d)" position))
 
 (defn gen-highlight-code [start end duration]
-  (format "(let ((overlay (make-overlay %d %d)))
+  (format "(with-silent-modifications 
+            (let ((overlay (make-overlay %d %d)))
             (overlay-put overlay 'face 'highlight)
             (overlay-put overlay 'priority 100)
             (run-with-timer %s nil 
-              (lambda () (delete-overlay overlay))))"
+              (lambda () (with-silent-modifications (delete-overlay overlay))))))"
           start end (float duration)))
 
 ;; ===== Main Emacs Integration Functions =====

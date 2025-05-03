@@ -108,7 +108,6 @@
      format-clojure-content ;; Format Clojure files automatically
      form-pipeline/determine-file-type ;; This will mark as "update"
      form-pipeline/generate-diff ;; Generate diff between old and new
-     form-pipeline/emacs-set-auto-revert
      form-pipeline/save-file ;; Save the file
      form-pipeline/update-file-timestamp))) ;; Update the timestamp after save
 

@@ -427,7 +427,7 @@
                    (str "Changes made, but diff generation failed: " (.getMessage e)))))]
     (assoc ctx ::diff diff)))
 
-(defn emacs-set-auto-revert
+#_(defn emacs-set-auto-revert
   "Ensures that the file is open in Emacs with auto-revert-mode enabled if notifications are enabled.
    Requires ::file-path and ::config in the context."
   [ctx]
@@ -554,7 +554,6 @@
      format-source
      determine-file-type
      generate-diff
-     emacs-set-auto-revert
      save-file
      update-file-timestamp
      highlight-form)))
@@ -594,7 +593,6 @@
      format-source
      determine-file-type
      generate-diff
-     ; emacs-set-auto-revert
      save-file
      update-file-timestamp
      highlight-form)))
@@ -628,7 +626,7 @@
      generate-diff
      ;; TODO this should probably be added
      ;; #(lint-code % ::output-source)
-     ;; emacs-set-auto-revert
+
      save-file
      update-file-timestamp
      highlight-form)))
@@ -704,7 +702,6 @@
      format-source
      determine-file-type
      generate-diff
-     ; emacs-set-auto-revert
      save-file
      update-file-timestamp
      highlight-form)))
