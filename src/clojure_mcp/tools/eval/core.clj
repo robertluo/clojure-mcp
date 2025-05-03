@@ -96,7 +96,14 @@
                                                             :error true})))))
 
         ;; Wait for the result and return it
-        @result-promise))))
+        (let [timeout-ms 5000
+              tmb (Object.)
+              ;; timeout should be configurable
+              res (deref result-promise timeout-ms tmb)]
+          (if-not (= tmb res)
+            res
+            {:outputs [(str "Eval timed out after " timeout-ms "ms")]
+             :error true}))))))
 
 (defn evaluate-with-repair
   "Evaluates Clojure code with automatic repair of delimiter errors.
