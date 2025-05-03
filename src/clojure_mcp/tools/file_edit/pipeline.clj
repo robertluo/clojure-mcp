@@ -123,6 +123,7 @@
     ;; Pipeline for existing file edit
     (form-pipeline/thread-ctx
      initial-ctx
+     form-pipeline/emacs-buffer-modified-check
      form-pipeline/load-source ;; Load existing file
      form-pipeline/check-file-modified ;; Check if file modified since last read
      validate-edit ;; Validate the edit (uniqueness, etc.)

@@ -93,6 +93,33 @@
 
 ;; ===== Main Emacs Integration Functions =====
 
+(defn save-emacs-buffer-if-modified
+  "Checks if the Emacs buffer visiting file-path is modified, saves it if so.
+   Returns true if the buffer was saved, false otherwise (including errors or not found)."
+  [file-path]
+  (log/info "Checking if buffer needs saving for file-path:" (pr-str file-path))
+  (let [escaped-path (str/replace file-path #"\\" "\\\\") ; Escape backslashes for Elisp path
+        elisp-code (format
+                    "(let ((buffer (find-buffer-visiting \"%s\")))
+                       (if (and buffer (buffer-modified-p buffer))
+                           (progn
+                             (with-current-buffer buffer
+                               (save-buffer)) ; Save the buffer
+                             t) ; Return t indicating save occurred
+                         nil))"
+                    escaped-path)
+        result (emacs-eval elisp-code)]
+    (log/debug "Save check result from Emacs:" (pr-str result))
+    (if (and (string? result) (= result "t"))
+      (do
+        (log/info "Buffer for" (pr-str file-path) "was modified and saved.")
+        true)
+      (do
+        (when (map? result)
+          (log/error "Error checking/saving buffer for" (pr-str file-path) ":" (:message result)))
+        (log/info "Buffer for" (pr-str file-path) "was not modified, not found, or error occurred.")
+        false))))
+
 (defn highlight-region
   "Asynchronously highlights a region in a file in Emacs.
    This function is non-blocking and returns immediately.
@@ -208,6 +235,8 @@
   (highlight-region file-path 12 53)
   (highlight-region file-path 12 53 5.0)
 
+  (def file-path2 "tmp/test-file.clj")
+  (save-emacs-buffer-if-modified file-path2)
   ;; Use ensure-auto-revert (now always async)
   (ensure-auto-revert file-path)
 )

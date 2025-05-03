@@ -94,6 +94,23 @@
           (assoc ::source (:content result))
           (assoc ::old-content (:content result))))))
 
+(defn emacs-buffer-modified-check
+  "Check if the emacs buffer is modified and saves it. When used before
+  check-file-modifed, it will trigger the modification error.
+  
+  A modified buffer is another level to check for file modifications.  
+
+  Marking it as modified. This in turn will trigger the check last modified 
+  to error out requiring the LLM to read the file before editing."
+  [ctx]
+  (let [file-path (::file-path ctx)
+        config (::config ctx)]
+    (if (and (emacs/config-enables-emacs-notifications? config)
+             (emacs/save-emacs-buffer-if-modified file-path))
+      ;; prevent race condition of write and then relying on read
+      (assoc ctx ::file-modifed true)
+      ctx)))
+
 (defn check-file-modified
   "Checks if the file has been modified since last read.
    Returns error if modified without being read again.
@@ -102,8 +119,9 @@
   [ctx]
   (let [file-path (::file-path ctx)
         nrepl-client-atom (::nrepl-client-atom ctx)]
-    (if (and nrepl-client-atom
-             (file-timestamps/file-modified-since-read? nrepl-client-atom file-path))
+    (if (or (::file-modifed ctx)
+            (and nrepl-client-atom
+                 (file-timestamps/file-modified-since-read? nrepl-client-atom file-path)))
       {::error true
        ::message (str "File has been modified since last read: " file-path
                       "\nPlease read the WHOLE file again with `collapse: false` before editing.")}
@@ -543,6 +561,7 @@
      ctx
      lint-repair-code
      validate-form-type
+     emacs-buffer-modified-check
      load-source
      check-file-modified
      enhance-defmethod-name
@@ -582,6 +601,7 @@
     (thread-ctx
      ctx
      validate-form-type
+     emacs-buffer-modified-check
      load-source
      check-file-modified
      enhance-defmethod-name
@@ -617,6 +637,7 @@
              ::config config}]
     (thread-ctx
      ctx
+     emacs-buffer-modified-check
      load-source
      check-file-modified
      find-and-edit-comment
@@ -693,6 +714,7 @@
      ctx
      #(lint-repair-code % ::match-form)
      #(lint-repair-code % ::new-form)
+     emacs-buffer-modified-check
      load-source
      check-file-modified
      parse-source
