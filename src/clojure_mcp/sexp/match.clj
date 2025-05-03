@@ -10,7 +10,6 @@
      - `*` consumes zero or more forms, but if there are more pattern elements
        after it, it will try to align them with the tail of `data`."
   [pattern data]
-  (prn :HERE pattern data)
   (cond
     ;; both are sequences ⇒ walk with possible '*' backtracking
     (and (sequential? pattern) (sequential? data))
@@ -48,7 +47,7 @@
                      (recur (rest ps) (rest ds)))))]
       (match-seq pattern data))
     (= pattern '?) true
-    (= pattern '*) true 
+    (= pattern '*) true
     ;; atoms ⇒ direct equality
     :else
     (= pattern data)))
@@ -57,13 +56,11 @@
   [pattern-sexpr zloc]
   (loop [loc zloc]
     (when-not (z/end? loc)
-      (prn :NOT_END )
       (let [form (try (z/sexpr loc)
                       (catch Exception e
                         ::continue))]
         (if (= ::continue form)
-          (do (prn :BAD_FORM form)
-              (recur (z/next loc)))
+          (recur (z/next loc))
           (if (match-sexpr pattern-sexpr form)
             loc
             (recur (z/next loc))))))))

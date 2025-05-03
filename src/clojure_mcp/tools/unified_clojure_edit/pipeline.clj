@@ -19,8 +19,6 @@
 ;; Additional custom spec for the pattern string
 (s/def ::pattern string?)
 
-;; Define the core replacement functions for pattern-based editing
-
 (defn find-form
   "Finds a form using pattern matching.
    Requires ::zloc and ::pattern in the context.
@@ -63,14 +61,14 @@
    - config: Optional tool configuration map
    
    Returns a context map with the result of the operation"
-  [file-path pattern content-str edit-type & [nrepl-client-atom config]]
+  [file-path pattern content-str edit-type {:keys [nrepl-client-atom] :as config}]
   (let [ctx {::form-edit-pipeline/file-path file-path
              ::pattern pattern
              ::form-edit-pipeline/new-source-code content-str
              ::form-edit-pipeline/edit-type edit-type
              ::form-edit-pipeline/nrepl-client-atom nrepl-client-atom
              ::form-edit-pipeline/config config}]
-    (thread-ctx
+    (form-edit-pipeline/thread-ctx
      ctx
      form-edit-pipeline/lint-repair-code
      form-edit-pipeline/load-source

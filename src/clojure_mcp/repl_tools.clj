@@ -17,7 +17,7 @@
    [clojure-mcp.tools.create-directory.tool :as new-create-directory-tool]
    [clojure-mcp.tools.file-edit.tool :as new-file-edit-tool]
    [clojure-mcp.tools.unified-read-file.tool :as new-unified-read-file-tool]
-   ;; [clojure-mcp.tools.unified-clojure-edit.tool :as new-unified-clojure-edit-tool]
+   [clojure-mcp.tools.unified-clojure-edit.tool :as new-unified-clojure-edit-tool]
    [clojure-mcp.tools.think.tool :as new-think-tool]
    [clojure-mcp.tools.code-critique.tool :as new-code-critique-tool]
    [clojure-mcp.tools.dispatch-agent.tool :as agent-tool]
@@ -34,7 +34,7 @@
 
    #_(new-unified-file-edit-tool/unified-file-edit-tool nrepl-client-atom)
 
-   #_(new-unified-clojure-edit-tool/clojure-pattern-edit-tool nrepl-client-atom)
+   (new-unified-clojure-edit-tool/clojure-edit-tool nrepl-client-atom)
 
    (new-eval-tool/eval-code nrepl-client-atom)
 

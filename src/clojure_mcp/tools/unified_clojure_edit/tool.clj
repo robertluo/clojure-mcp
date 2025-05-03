@@ -2,7 +2,8 @@
   "MCP tool implementation for the unified Clojure edit operation.
    Provides a pattern-based approach to finding and editing Clojure code."
   (:require [clojure-mcp.tool-system :as tool-system]
-            [clojure-mcp.tools.unified-clojure-edit.pipeline :as pipeline]
+            [clojure-mcp.tools.unified-clojure-edit.pipeline :as clj-edit-pipeline]
+            [clojure-mcp.tools.form-edit.pipeline :as pipeline]
             [clojure-mcp.repl-tools.utils :as utils]
             [clojure.tools.logging :as log]
             [clojure.string :as str]))
@@ -45,23 +46,22 @@
 
 ;; Tool schema
 (defmethod tool-system/tool-schema :clojure-pattern-edit [_]
-  {:type "object"
+  {:type :object
    :properties
    {:file_path
-    {:type "string"
+    {:type :string
      :description "Path to the file to edit"}
 
     :pattern
-    {:type "string"
+    {:type :string
      :description "Pattern to match using ? (single form) and * (multiple forms) wildcards"}
 
     :content
-    {:type "string"
+    {:type :string
      :description "New content to replace or insert"}
 
     :operation
-    {:type "string"
-     :enum ["replace" "insert-before" "insert-after"]
+    {:enum ["replace" "insert-before" "insert-after"]
      :description "Edit operation to perform"}}
 
    :required ["file_path" "pattern" "content" "operation"]})
@@ -96,38 +96,37 @@
     {:file_path file-path
      :pattern pattern
      :content content
-     :operation operation}))
+     :operation (keyword operation)}))
 
 ;; Execute the tool
-(defmethod tool-system/execute-tool :clojure-pattern-edit [{:keys [nrepl-client-atom]} inputs]
-  (let [{:keys [file_path pattern content operation]} inputs
-        operation-kw (keyword operation)
-        config (:config inputs)]
+(defmethod tool-system/execute-tool :clojure-pattern-edit [{:keys [nrepl-client-atom] :as tool} inputs]
+  (let [{:keys [file_path pattern content operation]} inputs]
 
     (log/info "Executing clojure_pattern_edit"
               {:file file_path
                :pattern pattern
                :operation operation})
+        ;formatted-result (cljpipeline/format-result result)
+    (pipeline/format-result
+     (clj-edit-pipeline/pattern-edit-pipeline
+      file_path
+      pattern
+      content
+      operation
+      tool))))
 
-    (pipeline/pattern-edit-pipeline
-     file_path
-     pattern
-     content
-     operation-kw
-     nrepl-client-atom
-     config)))
 
 ;; Format the results for output
 (defmethod tool-system/format-results :clojure-pattern-edit [_ {:keys [error message diff]}]
   (if error
-    (str "❌ " message)
-    (str "✅ Successfully edited form.\n\n"
-         (when diff
-           (str "Changes:\n```diff\n" diff "\n```")))))
+    {:result [message]
+     :error true}
+    {:result [diff]
+     :error false}))
 
 ;; Tool factory function for registration
  ;; Helper function to provide examples of pattern matching
-(defn pattern-examples
+#_(defn pattern-examples
   "Returns examples of pattern usage for the given scenario."
   [scenario]
   (case scenario
@@ -167,3 +166,19 @@
     {:tool-type :clojure-pattern-edit
      :nrepl-client-atom nrepl-client-atom
      :enable-emacs-notifications emacs-notify}))
+
+;; Function to register the tool
+(defn clojure-edit-tool [nrepl-client-atom]
+  (tool-system/registration-map (clojure-pattern-edit-tool nrepl-client-atom)))
+
+
+
+(comment
+  (def client-atom (atom (assoc
+                          { } ;; (clojure-mcp.nrepl/create {:port 7888})
+                          :clojure-mcp.core/nrepl-user-dir (System/getProperty "user.dir"))))
+  (def tool (clojure-pattern-edit-tool client-atom))
+
+  
+
+  )

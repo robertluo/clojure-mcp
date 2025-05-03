@@ -55,14 +55,16 @@
 
                         :insert-before
                         (-> match-loc
+                            (z/insert-left (p/parse-string-all "\n\n"))
+                            z/left
                             (z/insert-left (z/node content-node))
-                            z/up
-                            z/down)
+                            z/left) ; Move to the newly inserted node
 
                         :insert-after
                         (-> match-loc
+                            (z/insert-right (p/parse-string-all "\n\n"))
+                            z/right
                             (z/insert-right (z/node content-node))
-                            z/up
-                            z/down))]
+                            z/right))] ; Move to the newly inserted node
       {:zloc updated-loc})
     nil))
