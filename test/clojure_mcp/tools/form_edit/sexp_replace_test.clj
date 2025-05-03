@@ -281,7 +281,8 @@
                     "(- y 1)"
                     "(- y 100)"
                     true
-                    false)
+                    false
+                    {})
             formatted (pipeline/format-result result)
             file-content (slurp file-path)]
 

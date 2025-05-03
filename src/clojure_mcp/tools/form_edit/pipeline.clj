@@ -13,7 +13,8 @@
    [clojure-mcp.sexp.paren-utils :as paren-utils]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io]
+   [clojure.tools.logging :as log]))
 
 ;; Context map specs
 
@@ -67,6 +68,17 @@
               (f c)))
           ctx
           fns))
+
+(defn log-pipeline-ctx
+  ([message ctx]
+   (log-pipeline-ctx message ctx :debug))
+  ([message ctx level]
+   (case level
+     :info (log/info (str "PIPELINE " message ": ") (pr-str ctx))
+     :warn (log/warn (str "PIPELINE " message ": ") (pr-str ctx))
+     :error (log/error (str "PIPELINE " message ": ") (pr-str ctx))
+     (log/debug (str "PIPELINE " message ": ") (pr-str ctx)))
+   ctx))
 
 ;; Common pipeline steps
 
@@ -519,7 +531,7 @@
    - config: Optional tool configuration map
    
    Returns a context map with the result of the operation"
-  [file-path form-name form-type content-str edit-type & [nrepl-client-atom config]]
+  [file-path form-name form-type content-str edit-type {:keys [nrepl-client-atom] :as config}]
   (let [ctx {::file-path file-path
              ::top-level-def-name form-name
              ::top-level-def-type form-type
@@ -542,7 +554,7 @@
      format-source
      determine-file-type
      generate-diff
-     ; emacs-set-auto-revert
+     emacs-set-auto-revert
      save-file
      update-file-timestamp
      highlight-form)))
@@ -560,7 +572,7 @@
    
    Returns:
    - A context map with the result of the operation"
-  [file-path form-name form-type new-docstring & [nrepl-client-atom config]]
+  [file-path form-name form-type new-docstring {:keys [nrepl-client-atom] :as config}]
   (let [ctx {::file-path file-path
              ::top-level-def-name form-name
              ::top-level-def-type form-type
@@ -599,7 +611,7 @@
    
    Returns:
    - A context map with the result of the operation"
-  [file-path comment-substring new-content & [nrepl-client-atom config]]
+  [file-path comment-substring new-content {:keys [nrepl-client-atom] :as config}]
   (let [ctx {::file-path file-path
              ::comment-substring comment-substring
              ::new-content new-content
@@ -671,7 +683,7 @@
    
    Returns:
    - A context map with the result of the operation"
-  [file-path match-form new-form replace-all whitespace-sensitive & [nrepl-client-atom config]]
+  [file-path match-form new-form replace-all whitespace-sensitive {:keys [nrepl-client-atom] :as config}]
   (let [ctx {::file-path file-path
              ::match-form match-form
              ::new-form new-form
@@ -697,8 +709,6 @@
      update-file-timestamp
      highlight-form)))
 
-
-
 (comment
   ;; Example usage of the pipelines
   (sexp-replace-pipeline "test-sexp.clj"
@@ -708,11 +718,12 @@
                          false)
 
   (def replace-result
-    (edit-form-pipeline "/path/to/file.clj"
-                        "example-fn"
+    (edit-form-pipeline "tmp/edit_file_created.clj"
+                        "simple-fn"
                         "defn"
                         "(defn example-fn [x y]\n  (* x y))"
-                        :replace))
+                        :after
+                        {:enable-emacs-notifications true}))
 
   (def docstring-result
     (docstring-edit-pipeline "/path/to/file.clj"
