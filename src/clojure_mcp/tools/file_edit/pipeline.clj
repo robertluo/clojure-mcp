@@ -83,7 +83,8 @@
     (let [source (::form-pipeline/source ctx)
           old-string (::old-string ctx)]
       (if (and source old-string (not-empty old-string))
-        (let [start-offset (str/index-of source old-string)
+        (let [start-offset (when-let [so (str/index-of source old-string)]
+                             (inc so))
               end-offset (when start-offset (+ start-offset (count old-string)))]
           (if (and start-offset end-offset)
             (assoc ctx ::form-pipeline/offsets [start-offset end-offset])
@@ -172,7 +173,7 @@
 
   ;; Test the pipeline with simple edit and Emacs highlighting enabled
   (def config {:enable-emacs-notifications true})
-  (def result (file-edit-pipeline test-file "Line 3" "Line 3 - EDITED" nil config))
+  (def result (file-edit-pipeline test-file "Line 3" "Line 3 - EDITED" config))
   (format-result result)
 
   ;; Test the pipeline with error (non-unique match)
