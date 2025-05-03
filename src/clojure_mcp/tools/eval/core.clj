@@ -102,8 +102,11 @@
               res (deref result-promise timeout-ms tmb)]
           (if-not (= tmb res)
             res
-            {:outputs [(str "Eval timed out after " timeout-ms "ms")]
-             :error true}))))))
+            (do
+              (nrepl/interrupt nrepl-client)
+              {:outputs [(str "Eval timed out after " timeout-ms "ms.")
+                         "Perhaps, you had an infinite loop or an eval that ran too long."]
+               :error true})))))))
 
 (defn evaluate-with-repair
   "Evaluates Clojure code with automatic repair of delimiter errors.
