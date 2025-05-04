@@ -48,23 +48,22 @@
   [zloc pattern-str content-str edit-type]
   (if-let [match-result (find-pattern-match zloc pattern-str)]
     (let [match-loc (:zloc match-result)
-          content-node (z/of-string content-str)
+          content-node (p/parse-string-all content-str)
           updated-loc (case edit-type
                         :replace
-                        (z/replace match-loc (z/node content-node))
-
+                        (z/replace match-loc content-node)
                         :insert-before
                         (-> match-loc
                             (z/insert-left (p/parse-string-all "\n\n"))
                             z/left
-                            (z/insert-left (z/node content-node))
+                            (z/insert-left content-node)
                             z/left) ; Move to the newly inserted node
 
                         :insert-after
                         (-> match-loc
                             (z/insert-right (p/parse-string-all "\n\n"))
                             z/right
-                            (z/insert-right (z/node content-node))
+                            (z/insert-right content-node)
                             z/right))] ; Move to the newly inserted node
       {:zloc updated-loc})
     nil))
