@@ -17,19 +17,19 @@
 
 This tool provides a powerful efficient approach to edit Clojure code using pattern matching instead of having to specify exact textual matches. The pattern syntax supports two wildcards:
    
-   - ? matches exactly one form
-   - * matches zero or more forms
+   - `_?` matches exactly one form
+   - `_*` matches zero or more forms
    
 The pattern matches the sexpr of the code ignoring whitespace.
 
 These are example matches
  
-  - `(defn hello ? *)` would match \"(defn   hello   ?\n\n *)\"
+  - `(defn hello _? _*)` would match \"(defn   hello   [a b]\n\n (str a b))\"
 
   - `(list 1 2 3 4)` would match \"(list 1\n2\n3\n4)\"
-  - `(list * 3 4)` would match \"(list 1\n2\n3\n4)\"
-  - `(list 1 2 ? 4)` would match \"(list 1\n2\n3\n4)\"
-  - `(? 1 2 3 4)` would match \"(list 1\n2\n3\n4)\"
+  - `(list _* 3 4)` would match \"(list 1\n2\n3\n4)\"
+  - `(list 1 2 _? 4)` would match \"(list 1\n2\n3\n4)\"
+  - `(_? 1 2 3 4)` would match \"(list 1\n2\n3\n4)\"
 
 The match is the anchor point for the operation.
 
@@ -40,7 +40,7 @@ This tool has three operations
 
 PREFER this tool for editing Clojure files (`.clj` `.cljs` `.cljc` `.bb`)
 
-These tools MAKE it EASIER to match a definition that exists in the file AS you only have to match the shape of a definition `(defn hello *)`. This prevents the repeated mismatch errors that occur when trying match an entire `old_string` to replace it.
+These tools MAKE it EASIER to match a definition that exists in the file AS you only have to match the shape of a definition `(defn hello _*)`. This prevents the repeated mismatch errors that occur when trying match an entire `old_string` to replace it.
 
 These tools validates the structure of the structure of the Clojure code that is being inserted into the file and will provide linting feedback for things such as parenthetical errors.
 
@@ -48,11 +48,11 @@ This tool reduces the number of tokens that need to be generated and that makes 
  
 WARNING: you will receive errors if the syntax is wrong, the most common error is an extra or missing parenthesis at the end of the replacement function in `content`, so be careful with parenthesis.
 
-This tool will mostly be used to operation on top level forms (defn, def, deftest, s/def, ns, defmethod etc.) with new content. The top level form is easily matched with a simple pattern that includes the identifiers for the form like `(defmethod shape/area :rectangle *)` where the `*` matches the rest of the forms in the definition.   
+This tool will mostly be used to operation on top level forms (defn, def, deftest, s/def, ns, defmethod etc.) with new content. The top level form is easily matched with a simple pattern that includes the identifiers for the form like `(defmethod shape/area :rectangle _*)` where the `_*` matches the rest of the forms in the definition.   
    
    Example: Replace the implementation of a `defn` named `example-fn`:
    - file_path: \"/path/to/file.clj\"
-   - pattern: \"(defn example-fn *)\"
+   - pattern: \"(defn example-fn _*)\"
    - content: \"(defn example-fn [x] (+ x 2))\"
    - operation: \"replace\"
    
@@ -60,25 +60,25 @@ Note: For `defmethod` forms, be sure to include the dispatch value (`area :recta
 
    Example: Replace a namespace:
    - file_path: \"/path/to/file.clj\"
-   - pattern: \"(ns my-cool-proj.core *)\"
+   - pattern: \"(ns my-cool-proj.core _*)\"
    - content: \"(ns my-cool-proj.core\n (:requires [clojure.string :as string]))\"
    - operation: \"replace\"
 
    Example: Replace the implementation of a `defmethod` named `shape/area :square`:
    - file_path: \"/path/to/file.clj\"
-   - pattern: \"(defmethod shape/area :square *)\"
+   - pattern: \"(defmethod shape/area :square _*)\"
    - content: \"(defmethod shape/area :square [{:keys [w h]}] (* w h))\"
    - operation: \"replace\"
 
    Example: Replace the implementation of a `defmethod` with a namespaced multimethod:
    - file_path: \"/path/to/file.clj\"
-   - pattern: \"(defmethod tool-system/validate-inputs :clojure-eval *)\"
+   - pattern: \"(defmethod tool-system/validate-inputs :clojure-eval _*)\"
    - content: \"(defmethod tool-system/validate-inputs :clojure-eval [_ inputs] ...)\"
    - operation: \"replace\"
 
    Example: Insert a new defmethod after the implementation of a `defmethod` named `convert-length [:meters :inches]`:
    - file_path: \"/path/to/file.clj\"
-   - match: \"(defmethod convert-length [:feet :inches] *)\"
+   - match: \"(defmethod convert-length [:feet :inches] _*)\"
    - content: \"(defmethod convert-length [:feet :yard] [_ n] (/ n 3))\"
    - operation: \"insert-after\"
 
@@ -86,13 +86,13 @@ You can also edit sublevel forms
 
    Example: Edit a namespace changing an alias:
    - file_path: \"/path/to/file.clj\"
-   - pattern: \"[clojure.string :as ?]\"
+   - pattern: \"[clojure.string :as _?]\"
    - content: \"[clojure.string :as str]\"
    - operation: \"replace\"
 
    Example: Edit a namespace adding a library:
    - file_path: \"/path/to/file.clj\"
-   - pattern: \"[clojure.string :as ?]\"
+   - pattern: \"[clojure.string :as _?]\"
    - content: \"[clojure.java.io :as io]\n  [clojure.set :as set]  \n\"
    - operation: \"insert-after\"
 
@@ -110,7 +110,7 @@ THis tool can also target explicit sexps when used without the pattern symbols.
 
     :pattern
     {:type :string
-     :description "Pattern to match using ? (single form) and * (multiple forms) wildcards"}
+     :description "Pattern to match using _? (single form) and _* (multiple forms) wildcards"}
 
     :content
     {:type :string
@@ -179,34 +179,6 @@ THis tool can also target explicit sexps when used without the pattern symbols.
      :error true}
     {:result [diff]
      :error false}))
-
-;; Tool factory function for registration
- ;; Helper function to provide examples of pattern matching
-#_(defn pattern-examples
-  "Returns examples of pattern usage for the given scenario."
-  [scenario]
-  (case scenario
-    :function
-    {:match-any-fn "(defn ? [*] *)"
-     :match-specific-fn "(defn my-function [*] *)"
-     :match-with-args "(defn ? [arg1 arg2] *)"
-     :match-with-docstring "(defn ? ? [*] *)"}
-
-    :defmethod
-    {:match-any-method "(defmethod ? ? [*] *)"
-     :match-specific-dispatch "(defmethod handle-request :get [*] *)"
-     :match-vector-dispatch "(defmethod convert-units [:meters :feet] [*] *)"
-     :match-with-ns "(defmethod ns/multimethod ? [*] *)"}
-
-    :threading
-    {:match-thread-first "(-> ? ? ?)"
-     :match-thread-last "(->> ? ? ?)"
-     :match-specific-thread "(-> request auth-middleware ? ?)"}
-
-    ;; Default examples
-    {:basic-wildcards "(? ? ?)"
-     :single-form "(defn hello [?] ?)"
-     :multi-forms "(* hello *)"}))
 
 (defn clojure-pattern-edit-tool
   "Factory function that creates a tool for pattern-based Clojure editing.
