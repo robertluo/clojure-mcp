@@ -113,7 +113,7 @@
    (unbalanced parentheses, brackets, braces, or string quotes).
    Returns false otherwise."
   [code-str]
-  (let [lint-result (linting/lint code-str)]
+  (let [lint-result (linting/lint-delims code-str)]
     (has-delimiter-errors? lint-result)))
 
 #_(defn smart-repair [code-str]

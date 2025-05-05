@@ -56,7 +56,7 @@
    - file-path: Path to the file to edit
    - pattern: Pattern string to match (with ? and * wildcards)
    - content-str: New content to insert
-   - edit-type: Type of edit (:replace, :insert-before, :insert-after)
+   - edit-type: Type of edit (:replace, :insert_before, :insert_after)
    - nrepl-client-atom: Atom containing the nREPL client (optional)
    - config: Optional tool configuration map
    

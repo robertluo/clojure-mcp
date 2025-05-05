@@ -1,7 +1,9 @@
 (ns clojure-mcp.linting
   (:require
    [clj-kondo.core :as kondo]
-   [clojure.string :as string]))
+   [clj-kondo.impl.parser :as parser]
+   [clojure.string :as string]
+   ))
 
 (defn lint 
   "Lints Clojure code string using clj-kondo.
@@ -48,6 +50,22 @@
                  (kondo/print! res))
        :error? (some-> res :summary :error (> 0))})))
 
+(defn lint-delims [str]
+  (try
+    (parser/parse-string str)
+    ;; linting passes
+    false
+    (catch clojure.lang.ExceptionInfo e
+      (if-let [findings (:findings (ex-data e))]
+        {:report
+         (some->> findings
+                  not-empty
+                  (map (fn [{:keys [row col message]}]
+                         (format "<input>:%d:%d: Error: %s" row col message)))
+                  (string/join "\n"))
+         :error? true}
+        (throw e)))))
+
 (defn format-lint-warnings
   "Formats lint warnings into a more readable string.
    Takes the result from the lint function and returns a formatted string."
@@ -58,3 +76,7 @@
           is-error (:error? lint-result)
           severity (if is-error "errors" "warnings")]
       (str "Code has linting " severity ":\n\n" report))))
+
+(defn count-forms [code-str]
+  (count (:children (parser/parse-string code-str))))
+

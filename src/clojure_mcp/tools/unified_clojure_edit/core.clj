@@ -52,14 +52,14 @@
           updated-loc (case edit-type
                         :replace
                         (z/replace match-loc content-node)
-                        :insert-before
+                        :insert_before
                         (-> match-loc
                             (z/insert-left (p/parse-string-all "\n\n"))
                             z/left
                             (z/insert-left content-node)
                             z/left) ; Move to the newly inserted node
 
-                        :insert-after
+                        :insert_after
                         (-> match-loc
                             (z/insert-right (p/parse-string-all "\n\n"))
                             z/right

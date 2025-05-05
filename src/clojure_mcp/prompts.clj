@@ -36,7 +36,19 @@
    :arguments [] ;; No arguments needed for this prompt
    :prompt-fn (simple-content-prompt-fn
                "System Prompt: Clojure REPL"
-               (load-prompt-from-resource "prompts/system/clojure_repl.md"))})
+               (str
+                (load-prompt-from-resource "prompts/system/clojure_repl.md")
+                (load-prompt-from-resource "prompts/system/clojure_clojure_edit_tool_inst.md")))})
+
+(def clojure-system-repl-new
+  {:name "clojure_repl_system_prompt"
+   :description "Provides instructions and guidelines for Clojure development, including style and best practices."
+   :arguments [] ;; No arguments needed for this prompt
+   :prompt-fn (simple-content-prompt-fn
+               "System Prompt: Clojure REPL"
+               (str
+                (load-prompt-from-resource "prompts/system/clojure_repl_pattern_edit.md")
+                (load-prompt-from-resource "prompts/system/clojure_pattern_edit.md")))})
 
 #_(def clojure-dev-prompt
     {:name "clojure_dev"
@@ -151,11 +163,12 @@ If the file get's *edited* outside and must be read to see the changes, you shou
    Takes an nrepl-client-atom for consistency with other similar functions,
    though current prompts don't use it."
   [nrepl-client-atom]
-  [clojure-system-repl
-   clojure-system-repl-flex
+  [;; clojure-system-repl
+   clojure-system-repl-new
+   ;; clojure-system-repl-flex
    clojure-edit-guide
    incremental-file-creation
-   clj-sync-namespace
+   ;; clj-sync-namespace
    (create-project-summary (:clojure-mcp.core/nrepl-user-dir @nrepl-client-atom))
    ;; Commented out prompts can be uncommented if needed
    #_clojure-dev-prompt

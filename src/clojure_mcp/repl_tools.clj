@@ -46,14 +46,14 @@
 
    (new-symbol-tool/symbol-search-tool nrepl-client-atom)
 
-   (new-form-edit-tool/top-level-form-edit-tool nrepl-client-atom)
-   (new-form-edit-tool/top-level-form-insert-before-tool nrepl-client-atom)
-   (new-form-edit-tool/top-level-form-insert-after-tool nrepl-client-atom)
-   (new-form-edit-tool/sexp-replace-tool nrepl-client-atom)
-   (new-form-edit-tool/docstring-edit-tool nrepl-client-atom)
-   (new-form-edit-tool/comment-block-edit-tool nrepl-client-atom)
+   ;; (new-form-edit-tool/top-level-form-edit-tool nrepl-client-atom)
+   ;; (new-form-edit-tool/top-level-form-insert-before-tool nrepl-client-atom)
+   ;; (new-form-edit-tool/top-level-form-insert-after-tool nrepl-client-atom)
+   ;; (new-form-edit-tool/sexp-replace-tool nrepl-client-atom)
+   ;; (new-form-edit-tool/docstring-edit-tool nrepl-client-atom)
+   ;; (new-form-edit-tool/comment-block-edit-tool nrepl-client-atom)
 
-   (new-project-tool/inspect-project-tool nrepl-client-atom)
+   ;; (new-project-tool/inspect-project-tool nrepl-client-atom)
 
    (new-move-file-tool/move-file-tool nrepl-client-atom)
    (new-create-directory-tool/create-directory-tool-registration nrepl-client-atom)
