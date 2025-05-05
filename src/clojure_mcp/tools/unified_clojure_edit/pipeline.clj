@@ -33,6 +33,28 @@
        ::form-edit-pipeline/message (str "Could not find pattern match for: " pattern
                                          " in file " (::form-edit-pipeline/file-path ctx))})))
 
+(defn check-for-duplicate-matches
+  "Checks if there are multiple matches for the pattern.
+   Requires ::zloc and ::pattern in the context.
+   Returns an error context if multiple matches are found."
+  [ctx]
+  (let [zloc (::form-edit-pipeline/zloc ctx)
+        pattern (::pattern ctx)
+        ;; Start from the next position after the current match
+        next-zloc (z/next zloc)
+        ;; Use the same function that was used for the first match
+        second-match (core/find-pattern-match next-zloc pattern)]
+    (if (:zloc second-match)
+      ;; Found a second match - this is an error
+      {::form-edit-pipeline/error true
+       ::form-edit-pipeline/message
+       (str "Multiple matches found for pattern: " pattern
+            "\nFirst match: " (z/string zloc)
+            "\nSecond match: " (z/string (:zloc second-match))
+            "\nPlease use a more specific pattern to ensure a unique match.")}
+      ;; No second match found - this is good
+      ctx)))
+
 (defn edit-form
   "Edits the form according to the specified edit type.
    Requires ::zloc, ::pattern, ::new-source-code, and ::edit-type in the context.
@@ -75,6 +97,7 @@
      form-edit-pipeline/check-file-modified
      form-edit-pipeline/parse-source
      find-form
+     check-for-duplicate-matches
      edit-form
      form-edit-pipeline/capture-edit-offsets
      form-edit-pipeline/zloc->output-source
