@@ -3,16 +3,14 @@
    This namespace centralizes access to all the REPL tool functions."
   (:require
    [clojure-mcp.tools.eval.tool :as new-eval-tool]
-   [clojure-mcp.tools.read-file.tool :as new-read-file-tool]
+   #_[clojure-mcp.tools.read-file.tool :as new-read-file-tool]
    [clojure-mcp.tools.directory-tree.tool :as new-directory-tree-tool]
    [clojure-mcp.tools.grep.tool :as new-grep-tool]
    [clojure-mcp.tools.glob-files.tool :as new-glob-files-tool]
    [clojure-mcp.tools.file-write.tool :as new-file-write-tool]
    [clojure-mcp.tools.list-directory.tool :as new-list-directory-tool]
-   [clojure-mcp.tools.namespace.tool :as new-namespace-tool]
    [clojure-mcp.tools.symbol.tool :as new-symbol-tool]
-   [clojure-mcp.tools.form-edit.tool :as new-form-edit-tool]
-   [clojure-mcp.tools.project.tool :as new-project-tool]
+   #_[clojure-mcp.tools.project.tool :as new-project-tool]
    [clojure-mcp.tools.move-file.tool :as new-move-file-tool]
    [clojure-mcp.tools.create-directory.tool :as new-create-directory-tool]
    [clojure-mcp.tools.file-edit.tool :as new-file-edit-tool]
@@ -20,8 +18,7 @@
    [clojure-mcp.tools.unified-clojure-edit.tool :as new-unified-clojure-edit-tool]
    [clojure-mcp.tools.think.tool :as new-think-tool]
    [clojure-mcp.tools.code-critique.tool :as new-code-critique-tool]
-   [clojure-mcp.tools.dispatch-agent.tool :as agent-tool]
-   [clojure-mcp.tools.dispatch-agent.tool :as new-dispatch-agent-tool]))
+   [clojure-mcp.tools.dispatch-agent.tool :as agent-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
@@ -42,7 +39,6 @@
 
    (new-code-critique-tool/code-critique-tool nrepl-client-atom)
    (agent-tool/dispatch-agent-tool nrepl-client-atom)
-   #_(new-dispatch-agent-tool/dispatch-agent-tool nrepl-client-atom)
 
    (new-symbol-tool/symbol-search-tool nrepl-client-atom)
 

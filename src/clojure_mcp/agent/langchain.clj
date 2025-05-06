@@ -2,14 +2,15 @@
   (:require
    [clojure.data.json :as json]
    [clojure-mcp.agent.langchain.schema :as schema]
-   [clojure.tools.logging :as log])
+   [clojure.tools.logging :as log]
+   [clojure.string :as string])
   (:import
    ;; LangChain4j Core and Service classes
    [dev.langchain4j.service AiServices MemoryId]
    [dev.langchain4j.agent.tool ToolSpecification #_ToolParameter]
    [dev.langchain4j.service.tool ToolExecutor ToolExecution]
    [dev.langchain4j.service TokenStream]
-   [dev.langchain4j.data.message SystemMessage UserMessage TextContent TextFileContent]
+   [dev.langchain4j.data.message SystemMessage UserMessage TextContent ]
    [dev.langchain4j.agent.tool ToolExecutionRequest]
    [dev.langchain4j.model.chat.request.json JsonObjectSchema]
    [dev.langchain4j.memory ChatMemory]
@@ -67,21 +68,15 @@
                        (fn [result error]
                          (deliver callback-result
                                   (if error
-                                    (throw
-                                     (ex-info (str "Tool error: " (first result))
-                                              {:tool-error true, :result result}))
+                                    (str "Tool Error: " (string/join "\n" result))
                                     (if (sequential? result)
-                                      (clojure.string/join "\n\n" result)
+                                      (string/join "\n\n" result)
                                       (str result))))))
               @callback-result)
             (catch Exception e
-              (throw (ex-info
-                      (str "Error executing tool '" tool-name "': " (.getMessage e)
-                           (with-out-str (clojure.pprint/pprint (Throwable->map e))))
-                      {} e))))
-          (throw (ex-info
-                  (str "ERROR: Arguments provided to the tool call were malformed.\n=====\n" arg-str "\n=====\n")
-                  {})))))))
+              (str "Error executing tool '" tool-name "': " (.getMessage e)
+                   (with-out-str (clojure.pprint/pprint (Throwable->map e))))))
+          (str "ERROR: Arguments provided to the tool call were malformed.\n=====\n" arg-str "\n=====\n"))))))
 
 (defn registration-map->tool-specification [{:keys [name description schema]}]
   {:pre [(string? schema) (string? name) (string? description)]}
