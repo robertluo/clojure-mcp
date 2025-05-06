@@ -164,25 +164,28 @@ THis tool can also target explicit sexps when used without the pattern symbols.
                   {:sexp_pattern sexp_pattern}))))
     
     ;; check that its not a comment
-    (when (str/starts-with? (str/trim sexp_pattern) ";")
-      (throw
-       (ex-info (str "Must be a valid Sexpr: sexp_pattern.n"
-                     "sexpr_pattern can not match line comments.\n"
-                     "to edit line comments use `file_edit`")
-                {:sexp_pattern sexp_pattern})))
+    (let [form-count (linting/count-forms sexp_pattern)]
+      (when (and (str/starts-with? (str/trim sexp_pattern) ";")
+                 (zero? form-count))
+        (throw
+         (ex-info (str "Must be a valid Sexpr: sexp_pattern.n"
+                       "sexpr_pattern can not match line comments.\n"
+                       "to edit line comments use `file_edit`")
+                  {:sexp_pattern sexp_pattern})))
 
+      (when-not (= 1 form-count)
+        (throw
+         (ex-info (str "Must be a single Sexpr: sexp_pattern.n\n "
+                       "The pattern provided contains mutliple expressions.")
+                  {:sexp_pattern sexp_pattern}))))
+    
     (when (#{"_*" "_?"} (str/trim sexp_pattern))
       (throw
        (ex-info (str "Match pattern to general to be useful: sexp_pattern.n"
                      "try a more specifc pattern.\n")
                 {:sexp_pattern sexp_pattern})))
 
-    ;; check that has only one value
-    (when-not (= 1 (linting/count-forms sexp_pattern))
-      (throw
-       (ex-info (str "Must be a single Sexpr: sexp_pattern.n\n "
-                     "The pattern provided contains mutliple expressions.")
-                {:sexp_pattern sexp_pattern})))    
+    
     
     (when-not raw_content
       (throw (ex-info "Missing required parameter: raw_content"
