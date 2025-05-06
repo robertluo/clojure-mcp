@@ -25,8 +25,8 @@
         dir-file (io/file dir)]
     (if (and (.exists dir-file) (.isDirectory dir-file))
       (try
-        ;; Special case for "**/*.ext" pattern to also include root files
-        (let [should-check-root? (re-matches #"^\*\*/\*\.\w+$" pattern)
+        ;; Special case for patterns starting with "**/" to also include root files
+        (let [should-check-root? (re-matches #"^\*\*/.*$" pattern)
               root-pattern (when should-check-root?
                              (subs pattern 3)) ; Remove the "**/" prefix
 
