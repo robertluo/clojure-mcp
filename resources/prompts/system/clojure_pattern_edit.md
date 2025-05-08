@@ -46,6 +46,10 @@ This incremental approach dramatically reduces parenthesis errors and makes trou
 **Bottom line**:
 Long functions and deep complex expressions make it harder to create, edit and reason about code. Much better to make top-level definitions smaller and more focused.
 
+**IMPORTANT**: When using the `clojure_edit` tool use the smallest UNIQUE patterh to to the matching.
+
+The following are examples of the MOST common patterns that you will use.
+
 ## Pattern Matching Examples
 
 For matching top-level forms:

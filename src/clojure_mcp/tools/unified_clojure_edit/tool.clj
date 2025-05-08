@@ -23,17 +23,6 @@ This tool provides a powerful efficient approach to edit Clojure code using patt
    
 The pattern matches the sexpr of the code ignoring whitespace.
 
-These are example matches
- 
-  - `(defn hello _? _*)` would match \"(defn   hello   [a b]\n\n (str a b))\"
-
-  - `(list 1 2 3 4)` would match \"(list 1\n2\n3\n4)\"
-  - `(list _* 3 4)` would match \"(list 1\n2\n3\n4)\"
-  - `(list 1 2 _? 4)` would match \"(list 1\n2\n3\n4)\"
-  - `(_? 1 2 3 4)` would match \"(list 1\n2\n3\n4)\"
-
-The match is the anchor point for the operation.
-
 This tool has three operations
   - \"replace\" replaces the matched sexpr with the new content  
   - \"insert_after\" inserts the new content after the matched sexpr
@@ -54,14 +43,13 @@ IMPORTANT: Pattern matching ignores comments and metadata
 - However, any comments or metadata in your replacement CONTENT will be preserved
 - For editing focused specifically on comments or metadata, consider using `file_edit` instead
 
-So `(list 1 2)` will match `(list ;; hey\n 1\n 2)` and
-`(list ;; how\n 1 2)` will match `(list ;; hey\n 1\n 2)`
-
-And `(def *config* {:timeout 30})` will match `(def ^:dynamic *config* {:timeout 30})`
- 
 WARNING: you will receive errors if the syntax is wrong, the most common error is an extra or missing parenthesis at the end of the replacement function in `content`, so be careful with parenthesis.
 
-This tool will mostly be used to operation on top level forms (defn, def, deftest, s/def, ns, defmethod etc.) with new content. The top level form is easily matched with a simple pattern that includes the identifiers for the form like `(defmethod shape/area :rectangle _*)` where the `_*` matches the rest of the forms in the definition.   
+IMPORTANT: use the SMALLEST expression that UNIQUELY matches the code you want to match.
+
+The following are the MOST common patterns you will use:
+
+This tool will mostly be used to operation on top level forms (defn, def, deftest, s/def, ns, defmethod etc.) with new content. The top level form is easily matched with a simple pattern that includes the identifiers for the form like `(defmethod shape/area :rectangle _*)` where the `_*` matches the rest of the forms in the definition. 
    
    Example: Replace the implementation of a `defn` named `example-fn`:
    - file_path: \"/path/to/file.clj\"
