@@ -163,8 +163,9 @@ If the file get's *edited* outside and must be read to see the changes, you shou
    Takes an nrepl-client-atom for consistency with other similar functions,
    though current prompts don't use it."
   [nrepl-client-atom]
-  [;; clojure-system-repl
-   clojure-system-repl-new
+  [clojure-system-repl
+
+   ;; clojure-system-repl-new
    ;; clojure-system-repl-flex
    clojure-edit-guide
    incremental-file-creation

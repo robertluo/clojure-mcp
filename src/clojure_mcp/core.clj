@@ -278,7 +278,9 @@
 
         (cond-> nrepl-client
           user-dir (assoc ::nrepl-user-dir user-dir
-                          ::allowed-directories [user-dir]
+                          ::allowed-directories [user-dir
+                                                 ;; XXX temporary
+                                                 "/Users/bruce/workspace/llempty/clojure-mcp"]
                           ::emacs-notify true))))
     (catch Exception e
       (log/error e "Failed to create nREPL connection")

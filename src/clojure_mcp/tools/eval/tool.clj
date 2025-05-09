@@ -49,7 +49,7 @@ Examples:
   {:type :object
    :properties {:code {:type :string
                        :description "The Clojure code to evaluate."}
-                :ns {:type :string
+                #_:ns #_{:type :string
                      :description "Optional namespace to evaluate the code in. If not provided, uses the current namespace."}}
    :required [:code]})
 

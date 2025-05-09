@@ -59,7 +59,7 @@ The project allows AI assistants to:
 ### Core Dependencies
 
 - `org.clojure/clojure` (1.11.1): The Clojure language
-- `io.modelcontextprotocol.sdk/mcp` (0.8.1): Model Context Protocol SDK
+- `io.modelcontextprotocol.sdk/mcp` (0.9.0): Model Context Protocol SDK
 - `nrepl/nrepl` (1.3.1): Network REPL server for Clojure
 - `rewrite-clj/rewrite-clj` (1.1.47): Library for parsing and transforming Clojure code
 - `dev.weavejester/cljfmt` (0.13.1): Clojure code formatting
@@ -101,26 +101,37 @@ edit_file:
 
 ### Clojure-Specific Editing
 
+The project has transitioned to using a unified `clojure_edit` tool which provides more powerful pattern-based editing capabilities while simplifying the interface. The older form-specific tools are still available for compatibility with other LLMs.
+
 ```clojure
-clojure_edit_replace_definition:
-  Input: {:file_path "/path/to/file.clj", :form_type "defn", :form_identifier "my-func", :content "(defn my-func [x] (* x 2))"}
+clojure_edit:
+  Input: {:file_path "/path/to/file.clj", 
+          :sexp_pattern "(defn my-func _*)", 
+          :raw_content "(defn my-func [x] (* x 2))", 
+          :operation "replace"}
   Output: Diff showing syntax-aware function replacement
   
-clojure_edit_insert_before_definition:
-  Input: {:file_path "/path/to/file.clj", :form_type "defn", :form_identifier "my-func", :content "(def magic-multiplier 2)"}
-  Output: Diff showing insertion before the specified function
+clojure_edit:
+  Input: {:file_path "/path/to/file.clj", 
+          :sexp_pattern "(defn my-func _*)", 
+          :raw_content "(def magic-multiplier 2)", 
+          :operation "insert_before"}
+  Output: Diff showing insertion before the matched pattern
   
-clojure_edit_insert_after_definition:
-  Input: {:file_path "/path/to/file.clj", :form_type "defn", :form_identifier "my-func", :content "(deftest my-func-test (is (= 4 (my-func 2))))"}
-  Output: Diff showing insertion after the specified function
+clojure_edit:
+  Input: {:file_path "/path/to/file.clj", 
+          :sexp_pattern "(defn my-func _*)", 
+          :raw_content "(deftest my-func-test (is (= 4 (my-func 2))))", 
+          :operation "insert_after"}
+  Output: Diff showing insertion after the matched pattern
 
 # Examples with namespace-qualified forms and defmethod
 
-clojure_edit_replace_definition:
+clojure_edit:
   Input: {:file_path "/path/to/file.clj", 
-          :form_type "defmethod", 
-          :form_identifier "tool-system/validate-inputs :clojure-eval", 
-          :content "(defmethod tool-system/validate-inputs :clojure-eval [_ inputs]\n  (validate-clojure-eval-inputs inputs))"}
+          :sexp_pattern "(defmethod tool-system/validate-inputs :clojure-eval _*)", 
+          :raw_content "(defmethod tool-system/validate-inputs :clojure-eval [_ inputs]\n  (validate-clojure-eval-inputs inputs))", 
+          :operation "replace"}
   Output: Diff showing replacement of a specific multimethod implementation
 ```
 
@@ -231,9 +242,11 @@ The implementation uses rewrite-clj to:
    - Perform structure-aware transformations
    - Maintain proper formatting and whitespace
    - Key advantages over generic text editing:
-     - Targets forms by name rather than requiring exact text matching
+     - Pattern-based matching with wildcard symbols (`_?` for single form, `_*` for multiple forms)
+     - Targets forms by pattern rather than requiring exact text matching
      - Structure-aware matching ignores troublesome whitespace differences
      - Provides early syntax validation for parenthesis balancing
+     - Validates that patterns match exactly one form to prevent ambiguous edits
      - Gives specific error messages for easier troubleshooting
      - Handles special forms like defmethod with dispatch values correctly
 
@@ -318,6 +331,58 @@ The implementation uses rewrite-clj to:
      - Find defmethod with vector dispatch: `{:name_pattern "dispatch-with-vector \\[:feet :inches\\]"}`
    - Markdown-formatted output includes useful tips and pattern match information
 
+## Pattern-Based Code Editing
+
+The unified `clojure_edit` tool uses a pattern-matching approach for finding and editing Clojure code:
+
+### Key Features
+
+1. **Wildcard Patterns**: 
+   - `_?` matches exactly one form (e.g., a symbol, list, vector)
+   - `_*` matches zero or more forms
+
+2. **Pattern Validation**:
+   - Ensures patterns are valid S-expressions
+   - Blocks comment matching (use `file_edit` for comments)
+   - Prevents overly general patterns like lone wildcards
+   - Validates that patterns match exactly one form in the file
+
+3. **Error Handling**:
+   - Provides detailed error messages with context
+   - For duplicate matches, shows both matches to help refine patterns
+
+### Usage Examples
+
+```clojure
+;; Match a specific function definition
+(clojure_edit
+  {:file_path "/path/to/file.clj",
+   :sexp_pattern "(defn specific-function _*)",
+   :raw_content "(defn specific-function [x] (println x) x)",
+   :operation "replace"})
+
+;; Match functions with a specific argument pattern
+(clojure_edit
+  {:file_path "/path/to/file.clj",
+   :sexp_pattern "(defn _? [x y] _*)",
+   :raw_content "(defn helper-function [x y] (+ x y))",
+   :operation "insert_after"})
+
+;; Match a specific multimethod implementation
+(clojure_edit
+  {:file_path "/path/to/file.clj",
+   :sexp_pattern "(defmethod area :rectangle _*)",
+   :raw_content "(defmethod area :rectangle [{:keys [width height]}] (* width height))",
+   :operation "replace"})
+
+;; Match a vector dispatch multimethod
+(clojure_edit
+  {:file_path "/path/to/file.clj",
+   :sexp_pattern "(defmethod convert-units [:feet :inches] _*)",
+   :raw_content "(defmethod convert-units [:feet :inches] [_ value] (* value 12))",
+   :operation "replace"})
+```
+
 ## Extension Points
 
 1. **Adding New Tools**:
@@ -325,20 +390,27 @@ The implementation uses rewrite-clj to:
    - Implement the required multimethods from `tool-system`
    - Register the tool in `repl_tools.clj`
 
-2. **Enhancing Prompt System**:
+2. **Enhancing Existing Tools**:
+   - Most tools follow a pipeline architecture that can be modified by adding new steps
+   - Example: We added a `check_for_duplicate_matches` step to the `unified_clojure_edit` pipeline
+     to validate that patterns match exactly one form, preventing ambiguous edits
+   - Pipeline steps follow a thread-first pattern with error short-circuiting
+
+3. **Enhancing Prompt System**:
    - Add new prompts in `/resources/prompts/`
    - Register them in `prompts.clj`
 
-3. **Improving Code Editing**:
+4. **Improving Code Editing**:
    - Extend form editing capabilities in `tools/form_edit/core.clj`
    - Add specialized tools for common editing patterns
+   - Extend pattern matching in `sexp/match.clj`
 
-4. **Language Model Integration**:
+5. **Language Model Integration**:
    - Explore langchain4j integration for more advanced AI capabilities
    - Implement feedback mechanisms for model improvements
 
-5. **IDE Integration**:
+6. **IDE Integration**:
    - Extend `/src/clojure_mcp/utils/emacs_integration.clj` for better editor support
    - Add support for VS Code or other editors
 
-This project summary is designed to provide AI assistants with a quick understanding of the Clojure MCP project structure and capabilities, enabling more effective assistance with minimal additional context.
+This project summary is designed to provide AI assistants with a quick understanding of the Clojure MCP project structure and capabilities, enabling more effective assistance with minimal additional context. The project continues to evolve with improvements such as the unified clojure_edit tool with pattern-based matching and validation to ensure safer, more precise code editing operations while maintaining compatibility with a wide range of LLMs.
