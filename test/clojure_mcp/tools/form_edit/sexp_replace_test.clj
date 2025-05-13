@@ -5,6 +5,7 @@
    [clojure-mcp.tools.form-edit.pipeline :as pipeline]
    [clojure-mcp.tools.form-edit.core :as core]
    [clojure-mcp.tool-system :as tool-system]
+   [clojure-mcp.config :as config] ; Added config require
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [clojure.java.io :as io]
    [clojure.string :as str]))
@@ -40,8 +41,12 @@
       (spit test-file test-content)
 
       (let [canonical-path (.getCanonicalPath test-file)
-            client-atom (atom {:clojure-mcp.core/nrepl-user-dir canonical-path
-                               :clojure-mcp.core/allowed-directories [canonical-path]})]
+            client-atom (atom {})] ; Initialize empty atom
+        ;; Set config using helpers
+        (config/set-config! client-atom :nrepl-user-dir canonical-path)
+        (config/set-config! client-atom :allowed-directories [canonical-path])
+        (config/set-config! client-atom ::file-timestamps/file-timestamps {})
+
         ;; Register the file using its canonical path in the timestamp tracker
         (file-timestamps/update-file-timestamp-to-current-mtime! client-atom canonical-path)
         ;; Small delay to ensure future modifications have different timestamps

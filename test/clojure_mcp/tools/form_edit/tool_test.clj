@@ -6,6 +6,7 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [clojure-mcp.tools.test-utils :as test-utils]
+   [clojure-mcp.config :as config] ; Added config require
    [clojure.java.io :as io]
    [clojure.string :as str]
    [rewrite-clj.parser :as p]
@@ -31,9 +32,9 @@
                                "(comment\n  (example-fn 1 2))\n\n"
                                ";; Test comment\n;; spans multiple lines")
         ;; Make sure client atom has necessary configuration
-        _ (swap! client-atom assoc
-                 :clojure-mcp.core/nrepl-user-dir test-dir
-                 :clojure-mcp.core/allowed-directories [test-dir])
+        _ (config/set-config! client-atom :nrepl-user-dir test-dir)
+        _ (config/set-config! client-atom :allowed-directories [test-dir])
+        _ (swap! client-atom assoc ::file-timestamps/file-timestamps {}) ; Keep this direct for now
         ;; Create and register the test file
         test-file-path (test-utils/create-and-register-test-file
                         client-atom

@@ -4,6 +4,7 @@
    [clojure-mcp.tools.file-write.tool :as file-write-tool]
    [clojure-mcp.tools.file-write.core :as file-write-core]
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
+   [clojure-mcp.config :as config] ; Added config require
    [clojure-mcp.tool-system :as tool-system]
    [clojure.java.io :as io]
    [clojure.string :as str]))
@@ -17,11 +18,12 @@
     ;; Create test directory
     (.mkdirs test-dir)
 
-    ;; Create mock client atom with allowed directories for validation
-    (let [client-atom (atom {:clojure-mcp.core/nrepl-user-dir (.getCanonicalPath test-dir)
-                             :clojure-mcp.core/allowed-directories [(.getCanonicalPath test-dir)]
-                             ;; Initialize empty file timestamps map
-                             ::file-timestamps/file-timestamps {}})]
+    ;; Initialize client atom using config/set-config!
+    (let [client-atom (atom {})]
+      (config/set-config! client-atom :nrepl-user-dir (.getCanonicalPath test-dir))
+      (config/set-config! client-atom :allowed-directories [(.getCanonicalPath test-dir)])
+      (config/set-config! client-atom ::file-timestamps/file-timestamps {})
+
       ;; Bind dynamic vars for test
       (binding [*test-dir* test-dir
                 *test-client-atom* client-atom]
