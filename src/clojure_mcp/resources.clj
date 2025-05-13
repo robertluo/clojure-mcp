@@ -59,7 +59,7 @@
   [nrepl-client-atom]
   (let [nrepl-client-map @nrepl-client-atom ; Dereference atom
         working-dir (config/get-nrepl-user-dir nrepl-client-map)] ; Use accessor
-
+    (assert working-dir)
     ;; List of all resources
     [(create-file-resource
       "custom://project-summary"

@@ -5,17 +5,30 @@
    [clojure.edn :as edn]
    [clojure.tools.logging :as log]))
 
+(defn- relative-to [dir path]
+  (try 
+    (let [f (io/file path)]
+      (if (.isAbsolute f)
+        (.getCanonicalPath f)
+        (.getCanonicalPath (io/file dir path))))
+    (catch Exception e
+      (log/warn "Bad file paths " (pr-str [dir path]))
+      nil)))
+
 (defn process-remote-config [{:keys [allowed-directories emacs-notify] :as config} user-dir]
-  (cond-> config
-    (seq allowed-directories)
-    (assoc :allowed-directories
-           (->> allowed-directories
-                (keep #(try (.getCanonicalPath (io/file user-dir %))
-                            (catch Exception e nil)))
-                distinct
-                vec))
-    (some? (:emacs-notify config))
-    (assoc :emacs-notify (boolean (:emacs-notify config)))))
+  (let [ud (io/file user-dir)]
+    (assert (and (.isAbsolute ud)
+                 (.isDirectory ud)))
+    (cond-> config
+      user-dir (assoc :nrepl-user-dir (.getCanonicalPath ud))
+      (seq allowed-directories)
+      (assoc :allowed-directories
+             (->> (cons user-dir allowed-directories)
+                  (keep #(relative-to user-dir %))
+                  distinct
+                  vec))
+      (some? (:emacs-notify config))
+      (assoc :emacs-notify (boolean (:emacs-notify config))))))
 
 (defn load-remote-config [nrepl-client user-dir]
   (let [remote-cfg-str

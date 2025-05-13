@@ -3,7 +3,8 @@
    [clojure.string :as string]
    [clojure.main]
    [nrepl.core :as nrepl]
-   [nrepl.misc :as nrepl.misc])
+   [nrepl.misc :as nrepl.misc]
+   [clojure.tools.logging :as log])
   (:import
    [java.util.concurrent LinkedBlockingQueue TimeUnit]))
 
@@ -196,31 +197,42 @@
 (defn polling? [{:keys [::state]}]
   (:response-poller @state))
 
+(declare create)
+
 (defn poll-for-responses [{:keys [::state] :as options} conn]
-  (loop []
-    (when (polling? options)
-      (let [continue
-            (try
-              (when-let [{:keys [id out err value ns session] :as resp}
-                         (nrepl.transport/recv conn 100)]
-                #_(tap> resp)
-                (dispatch-response! options resp))
-              :success
-              (catch java.io.IOException e
-                ;; TODO we need logging here
-                #_(println (class e))
-                #_(println (ex-message e))
-                ;; this will stop the loop here and the
-                ;; main repl loop which queries polling?
-                (stop-polling options))
-              (catch Throwable e
-                ;; TODO we need logging here
-                #_(println "Internal REPL Error: this shouldn't happen. :repl/*e for stacktrace")
-                (some-> options :repl/error (reset! e))
-                #_(clojure.main/repl-caught e)
-                :success))]
-        (when (= :success continue)
-          (recur))))))
+  (let [retries (atom 60)]
+    (loop []
+      (when (polling? options)
+        (let [continue
+              (try
+                (when-let [{:keys [id out err value ns session] :as resp}
+                           (nrepl.transport/recv (:conn @state) 100)]
+                  (reset! retries 60)
+                  #_(tap> resp)
+                  (dispatch-response! options resp))
+                :success
+                (catch java.io.IOException e
+                  (log/error e "nREPL connection failure 1")
+                  :retry)
+                (catch Throwable e
+                  (log/error e "nREPL connection failure 2")
+                  (some-> options :repl/error (reset! e))
+                  :retry))]
+          (cond
+            (= :retry continue)
+            (if (< 0 @retries)
+              (do (Thread/sleep 1000)
+                  (log/info (str "nRPEL Trying to reconnect to " (:port options)))
+                  (try
+                    (create options)
+                    (catch Exception e
+                      (log/error e "Reconnect failed")
+                      ))
+                  (swap! retries dec)
+                  (recur))
+              (stop-polling options))
+            (= :success continue)
+            (recur)))))))
 
 (defn start-polling [{:keys [::state] :as service}]
   (let [response-poller (Thread. ^Runnable (bound-fn [] (poll-for-responses service (:conn @state))))]
@@ -240,15 +252,17 @@
          tool-session (nrepl/new-session client)
          ;; ns-session always has an ns declared in evals
          ns-session (nrepl/new-session client)]
-     (assoc config
-            :repl/error (atom nil)
-            ::state (atom {:conn conn
-                           :current-ns "user"
-                           :client client
-                           :session session
-                           :ns-session ns-session
-                           :tool-session tool-session})))))
-
+     (let [state (::state config (atom {}))]
+       (swap! state assoc
+              :conn conn
+              :client client
+              :session session
+              :ns-session ns-session
+              :tool-session tool-session)
+       (swap! state update :current-ns (fnil identity "user"))
+       (assoc config
+              :repl/error (atom nil)
+              ::state state)))))
 
 (comment
 

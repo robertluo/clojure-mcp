@@ -247,7 +247,43 @@
       (throw e))))
 
 (defn create-and-start-nrepl-connection [initial-config]
-  (log/info "Creating nREPL connection with config:" initial-config))
+  (log/info "Creating nREPL connection with config:" initial-config)
+  (try
+    (let [nrepl-client-map (nrepl/create initial-config)] ;; nrepl-client is a map
+      (log/info "nREPL client map created")
+      (nrepl/start-polling nrepl-client-map)
+      (log/info "Started polling nREPL")
+
+      (log/debug "Loading necessary namespaces and helpers")
+      (nrepl/eval-code nrepl-client-map
+                       (str
+                        "(require 'clojure.repl)"
+                        "(require 'nrepl.util.print)")
+                       identity)
+      (nrepl/tool-eval-code nrepl-client-map (slurp (io/resource "repl_helpers.clj")))
+      (nrepl/tool-eval-code nrepl-client-map "(in-ns 'user)")
+      (log/debug "Required namespaces loaded")
+
+      (let [user-dir (try
+                       (edn/read-string
+                        (nrepl/tool-eval-code
+                         nrepl-client-map
+                         "(System/getProperty \"user.dir\")"))
+                       (catch Exception e
+                         (log/warn e "Failed to get user.dir")
+                         nil))]
+        (if user-dir
+          (log/info "Working directory set to:" user-dir)
+          (do
+            (log/warn "Could not determine working directory")
+            (throw (ex-info "No user directory!!" {}))))
+        (assoc nrepl-client-map
+               ::config/config
+               (config/load-remote-config nrepl-client-map user-dir))))
+
+    (catch Exception e
+      (log/error e "Failed to create nREPL connection")
+      (throw e))))
 
 (defn close-servers [mcp]
   (log/info "Shutting down servers")
