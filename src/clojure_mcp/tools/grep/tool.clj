@@ -4,6 +4,7 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.grep.core :as core]
    [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.config :as config] ; Added config require
    [clojure.data.json :as json]))
 
 ;; Factory function to create the tool configuration
@@ -43,21 +44,18 @@
 
 (defmethod tool-system/validate-inputs :grep [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [path pattern include max_results]} inputs
-        nrepl-client @nrepl-client-atom
-        effective-path (or path
-                           (get @nrepl-client-atom :clojure-mcp.core/nrepl-user-dir))]
+        nrepl-client-map @nrepl-client-atom ; Dereference atom
+        effective-path (or path (config/get-nrepl-user-dir nrepl-client-map))]
     (when-not effective-path
       (throw (ex-info "Missing required parameter: path" {:inputs inputs})))
 
     (when-not pattern
       (throw (ex-info "Missing required parameter: pattern" {:inputs inputs})))
 
-    ;; Use the existing validate-path-with-client function
-    (let [validated-path (utils/validate-path-with-client effective-path nrepl-client)]
-      ;; Return validated inputs with normalized path
+    ;; Pass the dereferenced map to validate-path-with-client
+    (let [validated-path (utils/validate-path-with-client effective-path nrepl-client-map)]
       (cond-> {:path validated-path
                :pattern pattern}
-        ;; Only include optional parameters if provided
         include (assoc :include include)
         max_results (assoc :max-results max_results)))))
 

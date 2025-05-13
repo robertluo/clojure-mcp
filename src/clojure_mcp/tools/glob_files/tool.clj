@@ -4,6 +4,7 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.glob-files.core :as core]
    [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.config :as config] ; Added config require
    [clojure.data.json :as json]
    [clojure.string :as string]))
 
@@ -40,8 +41,8 @@
 
 (defmethod tool-system/validate-inputs :glob-files [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [path pattern max_results]} inputs
-        effective-path (or path
-                           (get @nrepl-client-atom :clojure-mcp.core/nrepl-user-dir))]
+        nrepl-client-map @nrepl-client-atom ; Dereference atom
+        effective-path (or path (config/get-nrepl-user-dir nrepl-client-map))]
 
     (when-not effective-path
       (throw (ex-info "No path provided and no nrepl-user-dir available" {:inputs inputs})))
@@ -49,12 +50,10 @@
     (when-not pattern
       (throw (ex-info "Missing required parameter: pattern" {:inputs inputs})))
 
-    ;; Use the existing validate-path-with-client function
-    (let [validated-path (utils/validate-path-with-client effective-path @nrepl-client-atom)]
-      ;; Return validated inputs with normalized path
+    ;; Pass the dereferenced map to validate-path-with-client
+    (let [validated-path (utils/validate-path-with-client effective-path nrepl-client-map)]
       (cond-> {:path validated-path
                :pattern pattern}
-        ;; Only include max_results if provided
         max_results (assoc :max-results max_results)))))
 
 (defmethod tool-system/execute-tool :glob-files [_ inputs]
