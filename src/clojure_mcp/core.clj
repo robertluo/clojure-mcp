@@ -246,45 +246,43 @@
       (log/error e "Failed to initialize MCP server")
       (throw e))))
 
-(defn create-and-start-nrepl-connection [config]
-  (log/info "Creating nREPL connection with config:" config)
+(defn create-and-start-nrepl-connection [initial-config]
+  (log/info "Creating nREPL connection with config:" initial-config)
   (try
-    (let [nrepl-client (nrepl/create config)]
-      (log/info "nREPL client created")
-      (nrepl/start-polling nrepl-client)
+    (let [nrepl-client-map (nrepl/create initial-config)] ;; nrepl-client is a map
+      (log/info "nREPL client map created")
+      (nrepl/start-polling nrepl-client-map)
       (log/info "Started polling nREPL")
 
-      ;; Ensure clojure.repl is loaded for apropos/source-fn used in tools
       (log/debug "Loading necessary namespaces and helpers")
-      (nrepl/eval-code nrepl-client
+      (nrepl/eval-code nrepl-client-map
                        (str
                         "(require 'clojure.repl)"
                         "(require 'nrepl.util.print)")
                        identity)
-      (nrepl/tool-eval-code nrepl-client (slurp (io/resource "repl_helpers.clj")))
-      (nrepl/tool-eval-code nrepl-client "(in-ns 'user)")
+      (nrepl/tool-eval-code nrepl-client-map (slurp (io/resource "repl_helpers.clj")))
+      (nrepl/tool-eval-code nrepl-client-map "(in-ns 'user)")
       (log/debug "Required namespaces loaded")
 
       (let [user-dir (try
                        (edn/read-string
                         (nrepl/tool-eval-code
-                         nrepl-client
+                         nrepl-client-map
                          "(System/getProperty \"user.dir\")"))
                        (catch Exception e
                          (log/warn e "Failed to get user.dir")
                          nil))
-            remote-config (config/load-remote-config nrepl-client user-dir)]
+            ;; load-remote-config takes the nrepl-client map, not an atom
+            loaded-config (config/load-remote-config nrepl-client-map user-dir)]
         (if user-dir
           (log/info "Working directory set to:" user-dir)
           (log/warn "Could not determine working directory"))
-        (cond-> nrepl-client
-          user-dir
-          (assoc ::nrepl-user-dir user-dir
-                 ::allowed-directories
-                 (distinct
-                  (cons user-dir
-                        (::allowed-directories remote-config)))
-                 ::emacs-notify (::emacs-notify remote-config false)))))
+        ;; Construct the final map to be put in nrepl-client-atom
+        (assoc nrepl-client-map
+               ::nrepl-user-dir user-dir
+               ::config loaded-config
+               ::allowed-directories (get loaded-config :clojure-mcp.core/allowed-directories)
+               ::emacs-notify (get loaded-config :clojure-mcp.core/emacs-notify false))))
 
     (catch Exception e
       (log/error e "Failed to create nREPL connection")
@@ -311,7 +309,6 @@
           mcp (mcp-server)] ;; Get only mcp server
       (reset! nrepl-client-atom (assoc nrepl-client ::mcp-server mcp))
       (log/info "nREPL client connected successfully")
-      
 
 ;; Register all defined resources
       (log/info "Registering resources...")

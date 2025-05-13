@@ -1,7 +1,8 @@
 (ns clojure-mcp.repl-tools.utils
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [clojure.java.shell :as shell]))
+            [clojure.java.shell :as shell]
+            [clojure-mcp.config :as config])) ; Added :refer [nrepl-client-atom]
 
 (defn validate-path
   "Validates that a path is within allowed directories.
@@ -56,25 +57,25 @@
                          :allowed-dirs allowed-directories}))))))
 
 (defn validate-path-with-client
-  "Validates a path using settings from the nrepl-client-atom.
+  "Validates a path using settings from the nrepl-client.
    
    Parameters:
    - path: The path to validate (can be relative or absolute)
-   - nrepl-client: The nREPL client map containing ::nrepl-user-dir and ::allowed-directories keys
+   - nrepl-client-map: The nREPL client map (dereferenced atom)
    
    Returns:
    - The normalized absolute path if valid
    - Throws an exception if the path is invalid or if required settings are missing"
   [path nrepl-client]
-  (let [current-dir (:clojure-mcp.core/nrepl-user-dir nrepl-client)
-        allowed-dirs (:clojure-mcp.core/allowed-directories nrepl-client)]
+  (let [current-dir (config/get-nrepl-user-dir nrepl-client)
+        allowed-dirs (config/get-allowed-directories nrepl-client)]
 
     (when-not current-dir
-      (throw (ex-info "Missing ::nrepl-user-dir in nREPL client"
+      (throw (ex-info "Missing nrepl-user-dir in config"
                       {:client-keys (keys nrepl-client)})))
 
     (when-not allowed-dirs
-      (throw (ex-info "Missing ::allowed-directories in nREPL client"
+      (throw (ex-info "Missing allowed-directories in config"
                       {:client-keys (keys nrepl-client)})))
 
     (validate-path path current-dir allowed-dirs)))
