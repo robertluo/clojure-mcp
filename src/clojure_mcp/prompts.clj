@@ -2,7 +2,8 @@
   "Prompt definitions for the MCP server"
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [pogonos.core :as pg]))
+            [pogonos.core :as pg]
+            [clojure-mcp.config :as config])) ; Added config require
 
 (defn simple-content-prompt-fn
   "Returns a prompt-fn that ignores request arguments and returns
@@ -160,22 +161,13 @@ If the file get's *edited* outside and must be read to see the changes, you shou
 
 (defn get-all-prompts
   "Returns a list of all defined prompts for registration with the MCP server.
-   Takes an nrepl-client-atom for consistency with other similar functions,
-   though current prompts don't use it."
+   Takes an nrepl-client-atom to allow prompts to access nREPL if needed."
   [nrepl-client-atom]
-  [clojure-system-repl
-
-   ;; clojure-system-repl-new
-   ;; clojure-system-repl-flex
-   clojure-edit-guide
-   incremental-file-creation
-   ;; clj-sync-namespace
-   (create-project-summary (:clojure-mcp.core/nrepl-user-dir @nrepl-client-atom))
-   ;; Commented out prompts can be uncommented if needed
-   #_clojure-dev-prompt
-   #_clojure-repl-driven-prompt
-   #_clojure-spec-driven-modifier
-   #_clojure-test-driven-modifier
-   #_clojure-project-context-modifier])
+  (let [nrepl-client-map @nrepl-client-atom
+        nrepl-user-dir (config/get-nrepl-user-dir nrepl-client-map)]
+    [clojure-system-repl
+     clojure-edit-guide
+     incremental-file-creation
+     (create-project-summary nrepl-user-dir)]))
 
 

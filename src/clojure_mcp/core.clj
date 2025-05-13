@@ -305,12 +305,11 @@
 (defn nrepl-mcp-server [args]
   (log/info "Starting nREPL MCP server with args:" args)
   (try
-    (let [nrepl-client (create-and-start-nrepl-connection args)
-          mcp (mcp-server)] ;; Get only mcp server
-      (reset! nrepl-client-atom (assoc nrepl-client ::mcp-server mcp))
+    (let [nrepl-client-map (create-and-start-nrepl-connection args)
+          mcp (mcp-server)]
+      (reset! nrepl-client-atom (assoc nrepl-client-map ::mcp-server mcp))
       (log/info "nREPL client connected successfully")
 
-;; Register all defined resources
       (log/info "Registering resources...")
       (let [all-resources (resources/get-all-resources nrepl-client-atom)]
         (log/info "Found" (count all-resources) "resources to register")
@@ -318,7 +317,6 @@
           (log/debug "Registering resource:" (:name resource))
           (add-resource mcp resource)))
 
-      ;; Register all defined tools
       (log/info "Registering tools...")
       (let [tools (repl-tools/get-all-tools nrepl-client-atom)]
         (log/info "Found" (count tools) "tools to register")
@@ -326,7 +324,6 @@
           (log/debug "Registering tool:" (:name tool))
           (add-tool mcp tool)))
 
-      ;; Register all defined prompts
       (log/info "Registering prompts...")
       (let [all-prompts (prompts/get-all-prompts nrepl-client-atom)]
         (log/info "Found" (count all-prompts) "prompts to register")
