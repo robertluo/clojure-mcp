@@ -44,5 +44,5 @@
   (get-config nrepl-client-map :clojure-mcp.core/nrepl-user-dir))
 
 (defn set-config! [nrepl-client-atom k v]
-  (swap! nrepl-client-atom assoc k v))
+  (swap! nrepl-client-atom assoc (keyword "clojure-mcp.core" (name k)) v))
 

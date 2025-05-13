@@ -4,6 +4,7 @@
             [clojure.data.json :as json]
             [clojure.edn :as edn]
             [clojure-mcp.nrepl :as mcp-nrepl]
+            [clojure-mcp.config :as config] ; Added config require
             [clojure-mcp.tools.project.core :as project])
   (:import [io.modelcontextprotocol.spec McpSchema$Resource McpSchema$ReadResourceResult]))
 
@@ -56,8 +57,8 @@
   "Returns a list of all defined resources for registration with the MCP server.
    Now gets the working directory once and uses it for all file resources."
   [nrepl-client-atom]
-  (let [nrepl-client @nrepl-client-atom
-        working-dir (:clojure-mcp.core/nrepl-user-dir nrepl-client)]
+  (let [nrepl-client-map @nrepl-client-atom ; Dereference atom
+        working-dir (config/get-nrepl-user-dir nrepl-client-map)] ; Use accessor
 
     ;; List of all resources
     [(create-file-resource
@@ -90,8 +91,8 @@
 
      ;; Add dynamic project info resource that uses the inspect-project-code function
      (let [project-code (str (project/inspect-project-code))
-           project-data (mcp-nrepl/tool-eval-code nrepl-client project-code)
-           ;; Also need to parse this data with edn/read-string
+           ;; Pass nrepl-client-map to tool-eval-code
+           project-data (mcp-nrepl/tool-eval-code nrepl-client-map project-code)
            project-markdown (project/format-project-info project-data)]
        (create-string-resource
         "custom://project-info"

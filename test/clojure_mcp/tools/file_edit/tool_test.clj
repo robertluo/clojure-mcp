@@ -3,19 +3,27 @@
             [clojure-mcp.tools.file-edit.tool :as tool]
             [clojure-mcp.tool-system :as tool-system]
             [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
+            [clojure-mcp.config :as config] ; Added config require
             [clojure.java.io :as io]
             [clojure.string :as str]))
 
 ;; Create a real nREPL client atom with paths set to the project directory
 (def project-dir (System/getProperty "user.dir"))
 (def tmp-dir (str project-dir "/tmp/file-edit-test"))
-(def test-client-atom
-  (atom {:clojure-mcp.core/nrepl-user-dir project-dir
-         :clojure-mcp.core/allowed-directories [project-dir]
-         ::file-timestamps/file-timestamps {}}))
+(def test-client-atom (atom {})) ; Initialize with an empty map
+
+;; Helper to set up the atom for tests
+(defn initialize-test-client-atom! []
+  (reset! test-client-atom {}) ; Clear previous state
+  (config/set-config! test-client-atom :nrepl-user-dir project-dir)
+  (config/set-config! test-client-atom :allowed-directories [project-dir])
+  ;; TODO filestamps should have its own accessors
+  ;; when it matures
+  (config/set-config! test-client-atom ::file-timestamps/file-timestamps {}))
 
 ;; Test fixtures
 (defn setup-tmp-dir [f]
+  (initialize-test-client-atom!) ; Initialize atom at the start of each test
   ;; Clean up any previous directories
   (let [dir (io/file tmp-dir)]
     (when (.exists dir)
