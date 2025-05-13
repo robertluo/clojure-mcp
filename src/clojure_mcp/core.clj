@@ -4,6 +4,7 @@
             [clojure-mcp.repl-tools :as repl-tools]
             [clojure-mcp.prompts :as prompts]
             [clojure-mcp.resources :as resources]
+            [clojure-mcp.config :as config]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.tools.logging :as log])
@@ -245,29 +246,6 @@
       (log/error e "Failed to initialize MCP server")
       (throw e))))
 
-(defn process-remote-config [{:keys [allowed-dirs emacs-notify] :as config} user-dir]
-  (cond-> config
-    (seq allowed-dirs)
-    (assoc ::allowed-directories
-           (vec (keep #(try (.getCanonicalPath (io/file user-dir %))
-                            (catch Exception e nil))
-                      allowed-dirs)))
-    (some? (:emacs-notify config))
-    (assoc ::emacs-notify (boolean (:emacs-notify config)))))
-
-(defn load-remote-config [nrepl-client user-dir]
-  (let [remote-cfg-str
-        (nrepl/tool-eval-code
-         nrepl-client
-         (pr-str
-          '(do
-             (require '[clojure.java.io :as io])
-             (if-let [f (clojure.java.io/file "." ".clojure-mcp" "config.edn")]
-               (when (.exists f) (clojure.edn/read-string (slurp f)))))))
-        remote-config (try (edn/read-string remote-cfg-str) (catch Exception _ {}))]
-    (log/info "Loaded remote-config:" remote-config)
-    (process-remote-config remote-config user-dir)))
-
 (defn create-and-start-nrepl-connection [config]
   (log/info "Creating nREPL connection with config:" config)
   (try
@@ -295,7 +273,7 @@
                        (catch Exception e
                          (log/warn e "Failed to get user.dir")
                          nil))
-            remote-config (load-remote-config nrepl-client user-dir)]
+            remote-config (config/load-remote-config nrepl-client user-dir)]
         (if user-dir
           (log/info "Working directory set to:" user-dir)
           (log/warn "Could not determine working directory"))
