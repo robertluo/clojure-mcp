@@ -245,6 +245,29 @@
       (log/error e "Failed to initialize MCP server")
       (throw e))))
 
+(defn process-remote-config [{:keys [allowed-dirs emacs-notify] :as config} user-dir]
+  (cond-> config
+    (seq allowed-dirs)
+    (assoc ::allowed-directories
+           (vec (keep #(try (.getCanonicalPath (io/file user-dir %))
+                            (catch Exception e nil))
+                      allowed-dirs)))
+    (some? (:emacs-notify config))
+    (assoc ::emacs-notify (boolean (:emacs-notify config)))))
+
+(defn load-remote-config [nrepl-client user-dir]
+  (let [remote-cfg-str
+        (nrepl/tool-eval-code
+         nrepl-client
+         (pr-str
+          '(do
+             (require '[clojure.java.io :as io])
+             (if-let [f (clojure.java.io/file "." ".clojure-mcp" "config.edn")]
+               (when (.exists f) (clojure.edn/read-string (slurp f)))))))
+        remote-config (try (edn/read-string remote-cfg-str) (catch Exception _ {}))]
+    (log/info "Loaded remote-config:" remote-config)
+    (process-remote-config remote-config user-dir)))
+
 (defn create-and-start-nrepl-connection [config]
   (log/info "Creating nREPL connection with config:" config)
   (try
@@ -271,17 +294,20 @@
                          "(System/getProperty \"user.dir\")"))
                        (catch Exception e
                          (log/warn e "Failed to get user.dir")
-                         nil))]
+                         nil))
+            remote-config (load-remote-config nrepl-client user-dir)]
         (if user-dir
           (log/info "Working directory set to:" user-dir)
           (log/warn "Could not determine working directory"))
-
         (cond-> nrepl-client
-          user-dir (assoc ::nrepl-user-dir user-dir
-                          ::allowed-directories [user-dir
-                                                 ;; XXX temporary
-                                                 "/Users/bruce/workspace/llempty/clojure-mcp"]
-                          ::emacs-notify true))))
+          user-dir
+          (assoc ::nrepl-user-dir user-dir
+                 ::allowed-directories
+                 (distinct
+                  (cons user-dir
+                        (::allowed-directories remote-config)))
+                 ::emacs-notify (::emacs-notify remote-config false)))))
+
     (catch Exception e
       (log/error e "Failed to create nREPL connection")
       (throw e))))
@@ -307,16 +333,16 @@
           mcp (mcp-server)] ;; Get only mcp server
       (reset! nrepl-client-atom (assoc nrepl-client ::mcp-server mcp))
       (log/info "nREPL client connected successfully")
-
       
-      ;; Register all defined resources
+
+;; Register all defined resources
       (log/info "Registering resources...")
       (let [all-resources (resources/get-all-resources nrepl-client-atom)]
         (log/info "Found" (count all-resources) "resources to register")
         (doseq [resource all-resources]
           (log/debug "Registering resource:" (:name resource))
           (add-resource mcp resource)))
-      
+
       ;; Register all defined tools
       (log/info "Registering tools...")
       (let [tools (repl-tools/get-all-tools nrepl-client-atom)]

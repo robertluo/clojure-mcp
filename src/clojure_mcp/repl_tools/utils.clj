@@ -20,7 +20,7 @@
 
     ;; Validate current working directory is absolute
     (when-not (.isAbsolute cwd-file)
-      (throw (ex-info "Current working directory must be absolute"
+      (throw (ex-info (str "Current working directory must be absolute \nCWD:" current-working-directory)
                       {:cwd current-working-directory})))
 
     ;; Validate all allowed directories are absolute
