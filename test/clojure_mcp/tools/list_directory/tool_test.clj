@@ -1,7 +1,8 @@
 (ns clojure-mcp.tools.list-directory.tool-test
   (:require [clojure.test :refer :all]
             [clojure-mcp.tools.list-directory.tool :as sut]
-            [clojure-mcp.tool-system :as tool-system]))
+            [clojure-mcp.tool-system :as tool-system]
+            [clojure-mcp.config :as config])) ; Added config require
 
 (deftest tool-name-test
   (testing "tool-name returns the correct name"
@@ -24,24 +25,24 @@
 
 (deftest validate-inputs-test
   (testing "validate-inputs properly validates and transforms inputs"
-    (let [nrepl-client {:clojure-mcp.core/nrepl-user-dir "/base/dir"
-                        :clojure-mcp.core/allowed-directories ["/base/dir"]}
-          nrepl-client-atom (atom nrepl-client)
-          tool-config {:tool-type :list-directory
-                       :nrepl-client-atom nrepl-client-atom}]
+    (let [nrepl-client-atom (atom {})]
+      (config/set-config! nrepl-client-atom :nrepl-user-dir "/base/dir")
+      (config/set-config! nrepl-client-atom :allowed-directories ["/base/dir"])
+      (let [tool-config {:tool-type :list-directory
+                         :nrepl-client-atom nrepl-client-atom}]
 
-      (with-redefs [clojure-mcp.repl-tools.utils/validate-path-with-client
-                    (fn [path _]
-                      (str "/validated" path))]
+        (with-redefs [clojure-mcp.repl-tools.utils/validate-path-with-client
+                      (fn [path _]
+                        (str "/validated" path))]
 
-        (testing "with valid path"
-          (let [result (tool-system/validate-inputs tool-config {:path "/test/path"})]
-            (is (= {:path "/validated/test/path"} result))))
+          (testing "with valid path"
+            (let [result (tool-system/validate-inputs tool-config {:path "/test/path"})]
+              (is (= {:path "/validated/test/path"} result))))
 
-        (testing "missing required path parameter"
-          (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                                #"Missing required parameter: path"
-                                (tool-system/validate-inputs tool-config {}))))))))
+          (testing "missing required path parameter"
+            (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                                  #"Missing required parameter: path"
+                                  (tool-system/validate-inputs tool-config {})))))))))
 
 (deftest execute-tool-test
   (testing "execute-tool calls core function with correct parameters"

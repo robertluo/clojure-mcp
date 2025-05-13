@@ -2,6 +2,7 @@
   (:require [clojure.test :refer :all]
             [clojure-mcp.tools.grep.tool :as sut]
             [clojure-mcp.tool-system :as tool-system]
+            [clojure-mcp.config :as config] ; Added config require
             [clojure.string :as str]
             [clojure.data.json :as json]))
 
@@ -29,39 +30,39 @@
 
 (deftest validate-inputs-test
   (testing "validate-inputs properly validates and transforms inputs"
-    (let [nrepl-client {:clojure-mcp.core/nrepl-user-dir "/base/dir"
-                        :clojure-mcp.core/allowed-directories ["/base/dir"]}
-          nrepl-client-atom (atom nrepl-client)
-          tool-config {:tool-type :grep
-                       :nrepl-client-atom nrepl-client-atom}]
+    (let [nrepl-client-atom (atom {})]
+      (config/set-config! nrepl-client-atom :nrepl-user-dir "/base/dir")
+      (config/set-config! nrepl-client-atom :allowed-directories ["/base/dir"])
+      (let [tool-config {:tool-type :grep
+                         :nrepl-client-atom nrepl-client-atom}]
 
-      (with-redefs [clojure-mcp.repl-tools.utils/validate-path-with-client
-                    (fn [path _]
-                      (str "/validated" path))]
+        (with-redefs [clojure-mcp.repl-tools.utils/validate-path-with-client
+                      (fn [path _]
+                        (str "/validated" path))]
 
-        (testing "with only required parameters"
-          (let [result (tool-system/validate-inputs
-                        tool-config
-                        {:path "/test/path" :pattern "test.*pattern"})]
-            (is (= {:path "/validated/test/path"
-                    :pattern "test.*pattern"} result))))
+          (testing "with only required parameters"
+            (let [result (tool-system/validate-inputs
+                          tool-config
+                          {:path "/test/path" :pattern "test.*pattern"})]
+              (is (= {:path "/validated/test/path"
+                      :pattern "test.*pattern"} result))))
 
-        (testing "with all parameters"
-          (let [result (tool-system/validate-inputs
-                        tool-config
-                        {:path "/test/path"
-                         :pattern "test.*pattern"
-                         :include "*.clj"
-                         :max_results 500})]
-            (is (= {:path "/validated/test/path"
-                    :pattern "test.*pattern"
-                    :include "*.clj"
-                    :max-results 500} result))))
+          (testing "with all parameters"
+            (let [result (tool-system/validate-inputs
+                          tool-config
+                          {:path "/test/path"
+                           :pattern "test.*pattern"
+                           :include "*.clj"
+                           :max_results 500})]
+              (is (= {:path "/validated/test/path"
+                      :pattern "test.*pattern"
+                      :include "*.clj"
+                      :max-results 500} result))))
 
-        (testing "missing required pattern parameter"
-          (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                                #"Missing required parameter: pattern"
-                                (tool-system/validate-inputs tool-config {:path "/test/path"}))))))))
+          (testing "missing required pattern parameter"
+            (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                                  #"Missing required parameter: pattern"
+                                  (tool-system/validate-inputs tool-config {:path "/test/path"})))))))))
 
 (deftest execute-tool-test
   (testing "execute-tool calls core function with correct parameters"

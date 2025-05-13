@@ -280,9 +280,10 @@
         ;; Construct the final map to be put in nrepl-client-atom
         (assoc nrepl-client-map
                ::nrepl-user-dir user-dir
-               ::config loaded-config
-               ::allowed-directories (get loaded-config :clojure-mcp.core/allowed-directories)
-               ::emacs-notify (get loaded-config :clojure-mcp.core/emacs-notify false))))
+               ::config/config loaded-config
+               ; ::allowed-directories (get loaded-config :clojure-mcp.core/allowed-directories)
+               ; ::emacs-notify (get loaded-config :clojure-mcp.core/emacs-notify false)
+               )))
 
     (catch Exception e
       (log/error e "Failed to create nREPL connection")

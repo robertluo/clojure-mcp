@@ -2,13 +2,16 @@
   (:require [clojure.test :refer :all]
             [clojure-mcp.tools.glob-files.tool :as sut]
             [clojure-mcp.tool-system :as tool-system]
+            [clojure-mcp.config :as config] ; Added config require
             [clojure.string :as str]))
 
 (defn create-test-client
   "Creates a test client with the required settings"
   []
-  (atom {:clojure-mcp.core/nrepl-user-dir (System/getProperty "user.dir")
-         :clojure-mcp.core/allowed-directories [(System/getProperty "user.dir")]}))
+  (let [client-atom (atom {})]
+    (config/set-config! client-atom :nrepl-user-dir (System/getProperty "user.dir"))
+    (config/set-config! client-atom :allowed-directories [(System/getProperty "user.dir")])
+    client-atom))
 
 (deftest tool-implementation-test
   (testing "Tool name, description and schema"

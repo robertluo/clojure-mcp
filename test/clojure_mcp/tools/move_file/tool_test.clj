@@ -2,13 +2,14 @@
   (:require [clojure.test :refer :all]
             [clojure-mcp.tools.move-file.tool :as tool]
             [clojure-mcp.tool-system :as tool-system]
+            [clojure-mcp.config :as config] ; Added config require
             [clojure.java.io :as io]
             [clojure.string :as str]))
 
 ;; Create a mock nREPL client atom for testing
-(def mock-client-atom 
-  (atom {:clojure-mcp.core/nrepl-user-dir (System/getProperty "user.dir")
-         :clojure-mcp.core/allowed-directories [(System/getProperty "user.dir")]}))
+(def mock-client-atom (atom {}))
+(config/set-config! mock-client-atom :nrepl-user-dir (System/getProperty "user.dir"))
+(config/set-config! mock-client-atom :allowed-directories [(System/getProperty "user.dir")])
 
 ;; Test the tool-name multimethod
 (deftest tool-name-test
@@ -40,7 +41,7 @@
     (let [tool-config (tool/create-move-file-tool mock-client-atom)
           inputs {:destination "/tmp/dest.txt"}]
       (is (thrown? Exception (tool-system/validate-inputs tool-config inputs)))))
-  
+
   (testing "Validation rejects missing destination parameter"
     (let [tool-config (tool/create-move-file-tool mock-client-atom)
           inputs {:source "/tmp/source.txt"}]
@@ -59,7 +60,7 @@
       (is (vector? (:result formatted)))
       (is (= 1 (count (:result formatted))))
       (is (str/includes? (first (:result formatted)) "Successfully moved"))))
-  
+
   (testing "Format error results"
     (let [tool-config (tool/create-move-file-tool mock-client-atom)
           result {:success false

@@ -2,13 +2,14 @@
   (:require [clojure.test :refer :all]
             [clojure-mcp.tools.create-directory.tool :as tool]
             [clojure-mcp.tool-system :as tool-system]
+            [clojure-mcp.config :as config] ; Added config require
             [clojure.java.io :as io]
             [clojure.string :as str]))
 
 ;; Create a mock nREPL client atom for testing
-(def mock-client-atom 
-  (atom {:clojure-mcp.core/nrepl-user-dir (System/getProperty "user.dir")
-         :clojure-mcp.core/allowed-directories [(System/getProperty "user.dir")]}))
+(def mock-client-atom (atom {}))
+(config/set-config! mock-client-atom :nrepl-user-dir (System/getProperty "user.dir"))
+(config/set-config! mock-client-atom :allowed-directories [(System/getProperty "user.dir")])
 
 ;; Test the tool-name multimethod
 (deftest tool-name-test
@@ -53,7 +54,7 @@
       (is (vector? (:result formatted)))
       (is (= 1 (count (:result formatted))))
       (is (str/includes? (first (:result formatted)) "Created directory"))))
-  
+
   (testing "Format successful results for existing directory"
     (let [tool-config (tool/create-directory-tool mock-client-atom)
           result {:success true
@@ -65,7 +66,7 @@
       (is (vector? (:result formatted)))
       (is (= 1 (count (:result formatted))))
       (is (str/includes? (first (:result formatted)) "already exists"))))
-  
+
   (testing "Format error results"
     (let [tool-config (tool/create-directory-tool mock-client-atom)
           result {:success false

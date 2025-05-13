@@ -4,6 +4,7 @@
    [clojure-mcp.tools.test-utils :as test-utils :refer [*nrepl-client-atom*]]
    [clojure-mcp.tools.read-file.tool :as read-file-tool]
    [clojure-mcp.tool-system :as tool-system]
+   [clojure-mcp.config :as config] ; Added config require
    [clojure-mcp.nrepl :as nrepl]
    [clojure.java.io :as io]
    [clojure.string :as str]))
@@ -18,16 +19,15 @@
 (defn setup-test-files-fixture [f]
   (let [test-dir (io/file (System/getProperty "java.io.tmpdir") "clojure-mcp-read-test")
         test-file (io/file test-dir "test-file.txt")]
-    
+
     ;; Create test directory and file
     (.mkdirs test-dir)
     (spit test-file "Line 1\nLine 2\nLine 3\nLine 4\nLine 5")
-    
-    ;; Set allowed directories for path validation
-    (swap! *nrepl-client-atom* assoc 
-           :clojure-mcp.core/nrepl-user-dir (.getAbsolutePath test-dir)
-           :clojure-mcp.core/allowed-directories [(.getAbsolutePath test-dir)])
-    
+
+    ;; Set allowed directories for path validation using config/set-config!
+    (config/set-config! *nrepl-client-atom* :nrepl-user-dir (.getAbsolutePath test-dir))
+    (config/set-config! *nrepl-client-atom* :allowed-directories [(.getAbsolutePath test-dir)])
+
     ;; Run test with fixtures bound
     (binding [*test-dir* test-dir
               *test-file* test-file]
@@ -55,24 +55,24 @@
 (deftest validate-inputs-test
   (testing "Validate accepts valid input"
     (let [tool-instance (read-file-tool/create-read-file-tool *nrepl-client-atom*)
-          result (tool-system/validate-inputs 
-                  tool-instance 
+          result (tool-system/validate-inputs
+                  tool-instance
                   {:path (.getAbsolutePath *test-file*)})]
       (is (map? result))
       (is (string? (:path result)))
       (is (not (nil? (:path result))))
       (is (.exists (io/file (:path result))))))
-  
+
   (testing "Validate rejects missing path parameter"
     (let [tool-instance (read-file-tool/create-read-file-tool *nrepl-client-atom*)]
       (is (thrown? Exception (tool-system/validate-inputs tool-instance {})))))
-  
+
   (testing "Validate rejects paths outside allowed directories"
     (let [tool-instance (read-file-tool/create-read-file-tool *nrepl-client-atom*)]
-      (is (thrown? Exception 
-                 (tool-system/validate-inputs 
-                  tool-instance 
-                  {:path "/etc/passwd"}))))))
+      (is (thrown? Exception
+                   (tool-system/validate-inputs
+                    tool-instance
+                    {:path "/etc/passwd"}))))))
 
 (deftest execute-tool-test
   (testing "Execute returns file contents"
@@ -84,12 +84,12 @@
       (is (contains? result :path))
       (is (str/includes? (:content result) "Line 1"))
       (is (not (:truncated? result)))))
-  
+
   (testing "Execute with offset and limit"
     (let [tool-instance (read-file-tool/create-read-file-tool *nrepl-client-atom*)
           validated {:path (.getAbsolutePath *test-file*)
-                    :line_offset 2
-                    :limit 2}
+                     :line_offset 2
+                     :limit 2}
           result (tool-system/execute-tool tool-instance validated)]
       (is (map? result))
       (is (= 2 (count (str/split (:content result) #"\n"))))
@@ -100,11 +100,11 @@
   (testing "Format results adds XML wrapper"
     (let [tool-instance (read-file-tool/create-read-file-tool *nrepl-client-atom*)
           content-result {:path (.getAbsolutePath *test-file*)
-                        :content "Line 1\nLine 2\nLine 3"
-                        :truncated? false
-                        :line-count 3
-                        :offset 0
-                        :max-lines 1000}
+                          :content "Line 1\nLine 2\nLine 3"
+                          :truncated? false
+                          :line-count 3
+                          :offset 0
+                          :max-lines 1000}
           result (tool-system/format-results tool-instance content-result)]
       (is (map? result))
       (is (contains? result :result))
@@ -116,7 +116,7 @@
         (is (str/starts-with? formatted-content "<file-content"))
         (is (str/includes? formatted-content "Line 1"))
         (is (str/ends-with? formatted-content "</file-content>")))))
-  
+
   (testing "Format results handles errors"
     (let [tool-instance (read-file-tool/create-read-file-tool *nrepl-client-atom*)
           error-result {:error "File not found" :path "/nonexistent/file.txt"}
@@ -139,13 +139,13 @@
         (is (str/includes? formatted-content "Line 1"))
         (is (str/includes? formatted-content "Line 5"))
         (is (str/ends-with? formatted-content "</file-content>")))))
-  
+
   (testing "Reading with offset and limit"
     (let [tool-instance (read-file-tool/create-read-file-tool *nrepl-client-atom*)
           tool-tester (test-utils/make-tool-tester tool-instance)
           result (tool-tester {"path" (.getAbsolutePath *test-file*)
-                              "line_offset" 1
-                              "limit" 2})]
+                               "line_offset" 1
+                               "limit" 2})]
       (is (false? (:error? result)))
       (is (vector? (:result result)))
       (let [formatted-content (first (:result result))]
@@ -153,7 +153,7 @@
         (is (str/includes? formatted-content "Line 3"))
         (is (str/includes? formatted-content "truncated=\"true\""))
         (is (not (str/includes? formatted-content "Line 4"))))))
-  
+
   (testing "Reading non-existent file"
     (let [tool-instance (read-file-tool/create-read-file-tool *nrepl-client-atom*)
           tool-tester (test-utils/make-tool-tester tool-instance)
