@@ -22,6 +22,8 @@
     AnthropicChatModel
     AnthropicStreamingChatModel
     AnthropicChatModelName]
+   [dev.langchain4j.model.googleai
+    GoogleAiGeminiChatModel]
    [java.util.function Consumer Function]
 
    ;; Java Time API
@@ -36,6 +38,28 @@
       #_(.modelName AnthropicChatModelName/CLAUDE_3_5_SONNET_20241022)
       (.logRequests true)
       (.logResponses true)))
+
+(defn create-model-claude-3-5 []
+  (-> (AnthropicChatModel/builder)
+      (.apiKey (System/getenv "ANTHROPIC_API_KEY"))
+      (.modelName AnthropicChatModelName/CLAUDE_3_5_SONNET_20241022)
+      #_(.modelName AnthropicChatModelName/CLAUDE_3_5_SONNET_20241022)
+      (.logRequests true)
+      (.logResponses true)))
+
+(defn create-model-gemini []
+  (-> (GoogleAiGeminiChatModel/builder)
+      (.apiKey (System/getenv "GEMINI_API_KEY"))
+      (.modelName "gemini-2.5-pro-preview-03-25")
+      #_(.logRequests true)
+      #_(.logResponses true)))
+
+(defn create-model-gemini-2-0-flash []
+  (-> (GoogleAiGeminiChatModel/builder)
+      (.apiKey (System/getenv "GEMINI_API_KEY"))
+      (.modelName "gemini-2.0-flash")
+      #_(.logRequests true)
+      #_(.logResponses true)))
 
 (defn chat-memory
   ([]
