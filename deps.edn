@@ -1,4 +1,4 @@
-{:paths ["src" "resources" "test"]
+{:paths ["src" "resources" "test" "dev"]
  :deps {clj-kondo/clj-kondo {:mvn/version "2024.03.13"}
         org.clojure/clojure {:mvn/version "1.11.1"}
         org.clojure/data.json {:mvn/version "2.5.1"}

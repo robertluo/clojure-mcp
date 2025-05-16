@@ -21,6 +21,7 @@
    [clojure-mcp.tools.think.tool :as new-think-tool]
    [clojure-mcp.tools.code-critique.tool :as new-code-critique-tool]
    [clojure-mcp.tools.dispatch-agent.tool :as agent-tool]
+   [clojure-mcp.tools.architect.tool :as architect-tool]
    [clojure-mcp.tools.bash.tool :as new-bash-tool]))
 
 ;; Centralized function for tool registration
@@ -40,8 +41,9 @@
 
    (new-code-critique-tool/code-critique-tool nrepl-client-atom)
    (agent-tool/dispatch-agent-tool nrepl-client-atom)
+   (architect-tool/architect-tool nrepl-client-atom)
 
-   (new-symbol-tool/symbol-search-tool nrepl-client-atom)
+   ;; (new-symbol-tool/symbol-search-tool nrepl-client-atom)
 
    #_(new-unified-clojure-edit-tool/clojure-edit-tool nrepl-client-atom)
 
@@ -59,8 +61,8 @@
 
    ;; (new-project-tool/inspect-project-tool nrepl-client-atom)
 
-   (new-move-file-tool/move-file-tool nrepl-client-atom)
-   (new-create-directory-tool/create-directory-tool-registration nrepl-client-atom)
+   ;; (new-move-file-tool/move-file-tool nrepl-client-atom)
+   ;; (new-create-directory-tool/create-directory-tool-registration nrepl-client-atom)
 
    (new-grep-tool/grep-tool nrepl-client-atom)
    (new-glob-files-tool/glob-files-tool nrepl-client-atom)

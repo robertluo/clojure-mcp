@@ -5,6 +5,7 @@
   (:require
    [clojure.string :as string]
    [clojure.walk :as walk]
+   [clojure.tools.logging :as log]
    [clojure.data.json :as json]))
 
 ;; Core multimethods for tool behavior
@@ -91,16 +92,17 @@
                       formatted (format-results tool-config result)]
                   (callback (:result formatted) (:error formatted)))
                 (catch Exception e
+                  (log/error e)
                   ;; On error, create a sequence of error messages
                   (let [error-msg (or (ex-message e) "Unknown error")
                         data (ex-data e)
                         ;; Construct error messages sequence
                         error-msgs (cond-> [error-msg]
-                                    ;; Add any error-details from ex-data if available
-                                    (and data (:error-details data)) 
-                                    (concat (if (sequential? (:error-details data))
-                                              (:error-details data)
-                                              [(:error-details data)])))]
+                                     ;; Add any error-details from ex-data if available
+                                     (and data (:error-details data)) 
+                                     (concat (if (sequential? (:error-details data))
+                                               (:error-details data)
+                                               [(:error-details data)])))]
                     (callback error-msgs true)))))})
 
 (comment
