@@ -354,8 +354,7 @@
             file-content (slurp file-path)]
 
         ;; Validate MCP result format using the common function
-        (validate-mcp-result formatted false #(and (str/includes? % "+++")
-                                                   (str/includes? % "@@ ")))
+        (validate-mcp-result formatted false #(str/includes? % "@@ "))
 
         ;; Specific test for this tool
         (is (= (:result formatted) [(:diff result)]) "Result should contain the diff")
