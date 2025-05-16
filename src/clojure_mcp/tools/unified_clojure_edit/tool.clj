@@ -19,15 +19,22 @@
 
 This tool provides a powerful efficient approach to edit Clojure code using pattern matching instead of having to specify exact textual matches. The pattern syntax supports two wildcards:
    
-   - `_?` matches exactly one form
-   - `_*` matches zero or more forms
+   - `_?` matches exactly one Clojure form (a single s-expression)
+   - `_*` matches zero or more Clojure forms (multiple s-expressions)
    
+IMPORTANT: These wildcards match CLOJURE FORMS ONLY, not arbitrary text:
+   - A form is a single syntactic unit in Clojure: symbol, keyword, list, vector, map, etc.
+   - `_?` can match: a symbol (x), a keyword (:key), a list ((+ 1 2)), a vector ([1 2 3]), etc.
+   - `_?` CANNOT match partial forms or arbitrary strings of text
+   - These patterns work on the parsed syntax tree, not on raw text
+   - Example: To match `(+ 1 2)`, `_?` would match the entire expression, not just `+` or `1`
+
 The pattern matches the sexpr of the code ignoring whitespace.
 
 This tool has three operations
   - \"replace\" replaces the matched sexpr with the new content  
   - \"insert_after\" inserts the new content after the matched sexpr
-  - \"insert_efore\" inserts the new content before the matched sexpr
+  - \"insert_before\" inserts the new content before the matched sexpr
 
 PREFER this tool for editing Clojure files (`.clj` `.cljs` `.cljc` `.bb`)
 
