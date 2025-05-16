@@ -20,7 +20,8 @@
    [clojure-mcp.tools.form-edit.combined-edit-tool :as new-combined-edit-tool]
    [clojure-mcp.tools.think.tool :as new-think-tool]
    [clojure-mcp.tools.code-critique.tool :as new-code-critique-tool]
-   [clojure-mcp.tools.dispatch-agent.tool :as agent-tool]))
+   [clojure-mcp.tools.dispatch-agent.tool :as agent-tool]
+   [clojure-mcp.tools.bash.tool :as new-bash-tool]))
 
 ;; Centralized function for tool registration
 (defn get-all-tools
@@ -64,6 +65,9 @@
    (new-grep-tool/grep-tool nrepl-client-atom)
    (new-glob-files-tool/glob-files-tool nrepl-client-atom)
 
+   ;; New bash command execution tool
+   (new-bash-tool/bash-tool nrepl-client-atom)
+
    #_(new-namespace-tool/current-namespace-tool nrepl-client-atom)
    #_(new-namespace-tool/list-namespaces-tool nrepl-client-atom)
    #_(new-namespace-tool/list-vars-in-namespace-tool nrepl-client-atom)
@@ -102,6 +106,13 @@
   (def comment-tester (make-test-tool (new-form-edit-tool/comment-block-edit-tool client-atom)))
   (def outline-tester (make-test-tool (new-form-edit-tool/clojure-file-outline-tool client-atom)))
   (def unified-read-tester (make-test-tool (new-unified-read-file-tool/unified-read-file-tool client-atom)))
+  (def bash-tester (make-test-tool (new-bash-tool/bash-tool client-atom)))
+
+  ;; Example usage of the bash tool
+  (bash-tester {"command" "ls -la"})
+  (bash-tester {"command" "echo 'Hello World'"})
+  (bash-tester {"command" "ls -la", "working_directory" "/tmp"})
+  (bash-tester {"command" "sleep 10", "timeout_seconds" 2})
 
   ;; Example usage of new form editing tools
   (edit-tester {"file_path" "/path/to/file.clj"
