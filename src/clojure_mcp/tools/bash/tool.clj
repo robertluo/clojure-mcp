@@ -5,6 +5,7 @@
    [clojure-mcp.config :as config]
    [clojure-mcp.repl-tools.utils :as utils]
    [clojure-mcp.tools.bash.core :as core]
+   [clojure.tools.logging :as log]
    [clojure.java.io :as io]
    [clojure.string :as str]))
 
@@ -26,30 +27,12 @@
 (defmethod tool-system/tool-description :bash [_]
   "Execute bash shell commands on the host system.
 
-This tool allows running shell commands and capturing their output.
-Commands are executed in a bash shell with the -c flag.
-
-Parameters:
-- command: The shell command to execute (required)
-- working_directory: Directory to run the command in (optional)
-- timeout_seconds: Maximum execution time in seconds (optional, default: 30)
-
-Returns:
-- stdout: Standard output from the command
-- stderr: Standard error output
-- exit_code: The command's exit status (0 typically means success)
-- timed_out: Whether the command exceeded the timeout limit
-
-Security considerations:
-- Certain dangerous commands are blocked for safety
-- Commands with system-modifying potential may be restricted
-- All commands execute with the permissions of the MCP server process
-
 Examples:
 1. List files: bash(command: \"ls -la\")
 2. Find text in files: bash(command: \"grep -r 'pattern' /path/to/search\")
 3. With working directory: bash(command: \"ls -la\", working_directory: \"/tmp\")
-4. With timeout: bash(command: \"sleep 10\", timeout_seconds: 5)
+4. With timeout: bash(command: \"sleep 10\", timeout_ms: 5000)
+5. Git commands 
 
 Note: Non-zero exit codes are NOT treated as tool errors - check exit_code
 in the response to determine command success.")
@@ -60,12 +43,12 @@ in the response to determine command success.")
                           :description "The shell command to execute"}
                 :working_directory {:type :string
                                     :description "Directory to run the command in (optional)"}
-                :timeout_seconds {:type :integer
-                                  :description "Maximum execution time in seconds (optional, default: 30)"}}
+                :timeout_ms {:type :integer
+                             :description "Maximum execution time in milliseconds (optional, default: 30000)"}}
    :required [:command]})
 
 (defmethod tool-system/validate-inputs :bash [{:keys [nrepl-client-atom working-dir]} inputs]
-  (let [{:keys [command working_directory timeout_seconds]} inputs
+  (let [{:keys [command working_directory timeout_ms]} inputs
         nrepl-client @nrepl-client-atom
         working_directory (or working_directory working-dir)]
     ;; Validate required parameters
@@ -84,10 +67,9 @@ in the response to determine command success.")
                         {:inputs inputs
                          :error-details (str "Not a directory: " validated-dir)})))
 
-
       ;; Validate timeout if provided
-      (when (and timeout_seconds (or (not (number? timeout_seconds))
-                                     (< timeout_seconds 1)))
+      (when (and timeout_ms (or (not (number? timeout_ms))
+                                (< timeout_ms 1)))
         (throw (ex-info "Invalid timeout value"
                         {:inputs inputs
                          :error-details "Timeout must be a positive number"})))
@@ -95,15 +77,11 @@ in the response to determine command success.")
       ;; Return validated and normalized inputs
       (cond-> {:command command}
         working_directory (assoc :working-directory validated-dir)
-        timeout_seconds (assoc :timeout-seconds timeout_seconds)))))
+        timeout_ms (assoc :timeout-ms timeout_ms)))))
 
 (defmethod tool-system/execute-tool :bash [_ inputs]
-  (let [{:keys [command working-directory timeout-seconds]} inputs
-        result (core/execute-bash-command
-                command
-                {:working-directory working-directory
-                 :timeout-seconds timeout-seconds})]
-    result))
+  (let [{:keys [command working-directory timeout-ms]} inputs]
+    (core/execute-bash-command inputs)))
 
 (defmethod tool-system/format-results :bash [_ result]
   (let [{:keys [stdout stderr exit-code timed-out error]} result
@@ -134,3 +112,10 @@ in the response to determine command success.")
    - nrepl-client-atom: Atom containing the nREPL client"
   [nrepl-client-atom]
   (tool-system/registration-map (create-bash-tool nrepl-client-atom)))
+
+(comment
+  (def test-tool
+    (tool-system/registration-map (create-bash-tool (atom {::config/config {:allowed-directories [(System/getProperty "user.dir")]
+                                                                            :nrepl-user-dir (System/getProperty "user.dir")}}))))
+
+  ((:tool-fn test-tool) nil {"command" "ls -al"} (fn [a b] [a b])))
