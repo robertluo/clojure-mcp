@@ -48,9 +48,9 @@
    (new-combined-edit-tool/unified-form-edit-tool nrepl-client-atom)
 
    ;; Original form edit tools
-   (new-form-edit-tool/top-level-form-edit-tool nrepl-client-atom)
-   (new-form-edit-tool/top-level-form-insert-before-tool nrepl-client-atom)
-   (new-form-edit-tool/top-level-form-insert-after-tool nrepl-client-atom)
+   #_(new-form-edit-tool/top-level-form-edit-tool nrepl-client-atom)
+   #_(new-form-edit-tool/top-level-form-insert-before-tool nrepl-client-atom)
+   #_(new-form-edit-tool/top-level-form-insert-after-tool nrepl-client-atom)
    (new-form-edit-tool/sexp-replace-tool nrepl-client-atom)
 
    ;; (new-form-edit-tool/docstring-edit-tool nrepl-client-atom)

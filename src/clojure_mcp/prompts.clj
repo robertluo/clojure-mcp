@@ -51,6 +51,16 @@
                 (load-prompt-from-resource "prompts/system/clojure_repl_pattern_edit.md")
                 (load-prompt-from-resource "prompts/system/clojure_pattern_edit.md")))})
 
+(def clojure-system-repl-form-edit
+  {:name "clojure_repl_system_prompt"
+   :description "Provides instructions and guidelines for Clojure development, including style and best practices."
+   :arguments [] ;; No arguments needed for this prompt
+   :prompt-fn (simple-content-prompt-fn
+               "System Prompt: Clojure REPL"
+               (str
+                (load-prompt-from-resource "prompts/system/clojure_repl_form_edit.md")
+                (load-prompt-from-resource "prompts/system/clojure_form_edit.md")))})
+
 #_(def clojure-dev-prompt
     {:name "clojure_dev"
      :description "Provides instructions and guidelines for Clojure development, including style and best practices."
@@ -165,7 +175,8 @@ If the file get's *edited* outside and must be read to see the changes, you shou
   [nrepl-client-atom]
   (let [nrepl-client-map @nrepl-client-atom
         nrepl-user-dir (config/get-nrepl-user-dir nrepl-client-map)]
-    [clojure-system-repl
+    [#_clojure-system-repl
+     clojure-system-repl-form-edit
      clojure-edit-guide
      incremental-file-creation
      (create-project-summary nrepl-user-dir)]))
