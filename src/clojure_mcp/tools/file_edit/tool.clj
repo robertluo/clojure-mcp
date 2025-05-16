@@ -5,13 +5,15 @@
    [clojure-mcp.tools.file-edit.core :as core]
    [clojure-mcp.tools.file-edit.pipeline :as pipeline]
    [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.config :as config]
    [clojure.java.io :as io]))
 
 ;; Factory function to create the tool configuration
 (defn create-file-edit-tool
   "Creates the file-edit tool configuration"
   [nrepl-client-atom]
-  (let [emacs-notify (boolean (:clojure-mcp.core/emacs-notify @nrepl-client-atom))]
+  (let [client @nrepl-client-atom
+        emacs-notify (config/get-emacs-notify client)]
     {:tool-type :file-edit
      :nrepl-client-atom nrepl-client-atom
      :enable-emacs-notifications emacs-notify}))

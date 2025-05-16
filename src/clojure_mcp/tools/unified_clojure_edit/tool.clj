@@ -6,6 +6,7 @@
             [clojure-mcp.tools.form-edit.pipeline :as pipeline]
             [clojure-mcp.linting :as linting]
             [clojure-mcp.repl-tools.utils :as utils]
+            [clojure-mcp.config :as config]
             [clojure.tools.logging :as log]
             [clojure.string :as str]))
 
@@ -14,7 +15,7 @@
   "clojure_edit")
 
 (defmethod tool-system/tool-description :clojure-pattern-edit [_]
-"Clojure code editing tool that uses simple wildcards to match and edit code.
+  "Clojure code editing tool that uses simple wildcards to match and edit code.
 
 This tool provides a powerful efficient approach to edit Clojure code using pattern matching instead of having to specify exact textual matches. The pattern syntax supports two wildcards:
    
@@ -150,7 +151,7 @@ THis tool can also target explicit sexps when used without the pattern symbols.
          (ex-info (str "Must be a valid Sexpr: sexp_pattern. \n\n"
                        (linting/format-lint-warnings res))
                   {:sexp_pattern sexp_pattern}))))
-    
+
     ;; check that its not a comment
     (let [form-count (linting/count-forms sexp_pattern)]
       (when (and (str/starts-with? (str/trim sexp_pattern) ";")
@@ -166,19 +167,17 @@ THis tool can also target explicit sexps when used without the pattern symbols.
          (ex-info (str "Must be a single Sexpr: sexp_pattern.n\n "
                        "The pattern provided contains mutliple expressions.")
                   {:sexp_pattern sexp_pattern}))))
-    
+
     (when (#{"_*" "_?"} (str/trim sexp_pattern))
       (throw
        (ex-info (str "Match pattern to general to be useful: sexp_pattern.n"
                      "try a more specifc pattern.\n")
                 {:sexp_pattern sexp_pattern})))
 
-    
-    
     (when-not raw_content
       (throw (ex-info "Missing required parameter: raw_content"
                       {:inputs inputs})))
-    
+
     (when-not (contains? #{"replace" "insert_before" "insert_after"} operation)
       (throw (ex-info "Operation must be one of: replace, insert_before, insert_after"
                       {:inputs inputs
@@ -207,7 +206,6 @@ THis tool can also target explicit sexps when used without the pattern symbols.
       operation
       tool))))
 
-
 ;; Format the results for output
 (defmethod tool-system/format-results :clojure-pattern-edit [_ {:keys [error message diff]}]
   (if error
@@ -226,7 +224,7 @@ THis tool can also target explicit sexps when used without the pattern symbols.
    - A map specifying the tool for registration with MCP"
   [nrepl-client-atom]
   (let [client @nrepl-client-atom
-        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+        emacs-notify (config/get-emacs-notify client)]
     {:tool-type :clojure-pattern-edit
      :nrepl-client-atom nrepl-client-atom
      :enable-emacs-notifications emacs-notify}))
@@ -235,14 +233,8 @@ THis tool can also target explicit sexps when used without the pattern symbols.
 (defn clojure-edit-tool [nrepl-client-atom]
   (tool-system/registration-map (clojure-pattern-edit-tool nrepl-client-atom)))
 
-
-
 (comment
   (def client-atom (atom (assoc
-                          { } ;; (clojure-mcp.nrepl/create {:port 7888})
+                          {} ;; (clojure-mcp.nrepl/create {:port 7888})
                           :clojure-mcp.core/nrepl-user-dir (System/getProperty "user.dir"))))
-  (def tool (clojure-pattern-edit-tool client-atom))
-
-  
-
-  )
+  (def tool (clojure-pattern-edit-tool client-atom)))

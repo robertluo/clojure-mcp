@@ -10,6 +10,7 @@
    [clojure-mcp.tools.form-edit.core :as core]
    [clojure-mcp.tools.form-edit.pipeline :as pipeline]
    [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.config :as config]
    [clojure.string :as str]
    [rewrite-clj.parser :as p]
    [rewrite-clj.node :as n]))
@@ -21,7 +22,7 @@
    Automatically inherits emacs notification preferences from the client."
   [nrepl-client-atom]
   (let [client @nrepl-client-atom
-        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+        emacs-notify (config/get-emacs-notify client)]
     {:tool-type :clojure-edit-replace-form
      :nrepl-client-atom nrepl-client-atom
      :enable-emacs-notifications emacs-notify}))
@@ -31,7 +32,7 @@
    Automatically inherits emacs notification preferences from the client."
   [nrepl-client-atom]
   (let [client @nrepl-client-atom
-        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+        emacs-notify (config/get-emacs-notify client)]
     {:tool-type :clojure-edit-insert-before-form
      :nrepl-client-atom nrepl-client-atom
      :enable-emacs-notifications emacs-notify}))
@@ -41,7 +42,7 @@
    Automatically inherits emacs notification preferences from the client."
   [nrepl-client-atom]
   (let [client @nrepl-client-atom
-        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+        emacs-notify (config/get-emacs-notify client)]
     {:tool-type :clojure-edit-insert-after-form
      :nrepl-client-atom nrepl-client-atom
      :enable-emacs-notifications emacs-notify}))
@@ -51,7 +52,7 @@
    Automatically inherits emacs notification preferences from the client."
   [nrepl-client-atom]
   (let [client @nrepl-client-atom
-        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+        emacs-notify (config/get-emacs-notify client)]
     {:tool-type :clojure-edit-replace-docstring
      :nrepl-client-atom nrepl-client-atom
      :enable-emacs-notifications emacs-notify}))
@@ -61,7 +62,7 @@
    Automatically inherits emacs notification preferences from the client."
   [nrepl-client-atom]
   (let [client @nrepl-client-atom
-        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+        emacs-notify (config/get-emacs-notify client)]
     {:tool-type :clojure-edit-comment-block
      :nrepl-client-atom nrepl-client-atom
      :enable-emacs-notifications emacs-notify}))
@@ -71,7 +72,7 @@
    Automatically inherits emacs notification preferences from the client."
   [nrepl-client-atom]
   (let [client @nrepl-client-atom
-        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+        emacs-notify (config/get-emacs-notify client)]
     {:tool-type :clojure-file-structure
      :nrepl-client-atom nrepl-client-atom
      :enable-emacs-notifications emacs-notify}))
@@ -570,7 +571,7 @@ Recommended workflow:
    Automatically inherits emacs notification preferences from the client."
   [nrepl-client-atom]
   (let [client @nrepl-client-atom
-        emacs-notify (boolean (:clojure-mcp.core/emacs-notify client))]
+        emacs-notify (config/get-emacs-notify client)]
     {:tool-type :clojure-edit-replace-sexp
      :nrepl-client-atom nrepl-client-atom
      :enable-emacs-notifications emacs-notify}))
