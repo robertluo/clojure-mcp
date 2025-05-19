@@ -63,7 +63,7 @@ assistant: [uses clojure_eval to test the function, identifies the issue, uses c
 When making changes to files, first understand the file's code conventions. Mimic code style, use existing libraries and utilities, and follow existing patterns.
 - NEVER assume that a given library is available. Check the deps.edn file before using external libraries.
 - When you edit a piece of code, first look at the code's surrounding context (especially its imports) to understand the code's choice of namespaces and libraries.
-- When working with Clojure files, use the specialized `clojure_edit_form`, `clojure_replace_sexp`, and other Clojure editing tools to maintain proper syntax and formatting.
+- When working with Clojure files, use the specialized `clojure_edit`, `clojure_replace_sexp`, and other Clojure editing tools to maintain proper syntax and formatting.
 
 # Code style
 - Do not add comments to the code you write, unless the user asks you to, or the code is complex and requires additional context.

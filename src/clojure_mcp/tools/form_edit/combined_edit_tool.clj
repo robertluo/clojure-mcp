@@ -36,7 +36,7 @@
 
 ;; Tool name implementation
 (defmethod tool-system/tool-name :clojure-edit-form [_]
-  "clojure_edit_form")
+  "clojure_edit")
 
 ;; Tool description implementation
 (defmethod tool-system/tool-description :clojure-edit-form [_]

@@ -21,12 +21,8 @@
   [nrepl-client-atom]
   (try
     (let [memory (chain/chat-memory 300)
-          model (-> (chain/create-model-claude-3-7)
-                    #_(.thinkingType "enabled")
-                    #_(.thinkingBudgetTokens (int 1024))
-                    (.beta "prompt-caching-2024-07-31")
-                    (.cacheSystemMessages true)
-                    (.maxTokens (int 4096))
+          model (-> (chain/create-model-gemini)
+                    (.maxOutputTokens (int 8096))
                     (.temperature 1.0)
                     (.build))
           ai-service-data {:memory memory
@@ -68,13 +64,10 @@
      :error true}
     (let [ai-service (get-ai-service nrepl-client-atom)]
       (.clear (:memory ai-service))
-      (let [result (if (string/blank? context)
-                     (.chat (:service ai-service) prompt)
-                     (do
-                       ;; Add context message first if provided
-                       (.chat (:service ai-service) (str "Context information: " context))
-                       ;; Then send the actual prompt
-                       (.chat (:service ai-service) prompt)))]
+      (let [result (.chat (:service ai-service)
+                          (cond-> prompt
+                            (not (string/blank? context))
+                            (str prompt  "\n\n```context\n" context "\n```\n")))]
         {:result result
          :error false}))))
 

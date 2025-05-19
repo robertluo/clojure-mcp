@@ -10,7 +10,7 @@ These tools understand Clojure syntax and prevent common errors.
 - Target forms by name rather than trying to match exact text
 
 ## Core Tools to Use
-- `clojure_edit_form` - Replace entire top-level forms
+- `clojure_edit` - Replace entire top-level forms
 - `clojure_edit_replace_sexp` - Modify expressions within functions
 - `clojure_edit_replace_docstring` - Update only docstrings
 
@@ -43,7 +43,7 @@ These tools understand Clojure syntax and prevent common errors.
    (ns my.namespace
      (:require [other.ns :as o]))
    ```
-3. Then add each function one at a time with `clojure_edit_form` using the "insert_after" operation.
+3. Then add each function one at a time with `clojure_edit` using the "insert_after" operation.
 4. Test each function in the REPL before adding the next
 
 ## Working with Defmethod
