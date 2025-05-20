@@ -3,16 +3,17 @@
    This namespace provides the implementation details for analyzing project structure."
   (:require
    [clojure.edn :as edn]
-   [clojure-mcp.nrepl :as mcp-nrepl]))
+   [clojure-mcp.nrepl :as mcp-nrepl]
+   [clojure-mcp.config :as config]))
 
 (defn inspect-project-code
   "REPL expression to gather project information including paths, dependencies, and source files.
    Returns a map with project details that can be evaluated in the project's context."
   []
   '(let [deps (when (.exists (clojure.java.io/file "deps.edn"))
-               (-> "deps.edn" slurp clojure.edn/read-string))
+                (-> "deps.edn" slurp clojure.edn/read-string))
          project-clj (when (.exists (clojure.java.io/file "project.clj"))
-                      (-> "project.clj" slurp read-string))
+                       (-> "project.clj" slurp read-string))
          lein-project? (boolean project-clj)
          deps-project? (boolean deps)
          source-files (fn [dir]
@@ -27,26 +28,26 @@
          source-paths (cond
                         deps (or (:paths deps) ["src"])
                         lein-project? (->> project-clj
-                                          (drop-while #(not= :source-paths %))
-                                          second)
+                                           (drop-while #(not= :source-paths %))
+                                           second)
                         :else ["src"])
          test-paths (cond
                       deps (get-in deps [:aliases :test :extra-paths] ["test"])
                       lein-project? (->> project-clj
-                                        (drop-while #(not= :test-paths %))
-                                        second)
+                                         (drop-while #(not= :test-paths %))
+                                         second)
                       :else ["test"])
          all-paths (concat source-paths test-paths)
          sources (mapcat source-files all-paths)
-         namespaces (mapv #(-> % 
-                              (.replace "/" ".")
-                              (.replace "_" "-")
-                              (.replace ".clj" "")) 
-                         (filter #(.endsWith % ".clj") sources))
+         namespaces (mapv #(-> %
+                               (.replace "/" ".")
+                               (.replace "_" "-")
+                               (.replace ".clj" ""))
+                          (filter #(.endsWith % ".clj") sources))
          java-version (System/getProperty "java.version")
          clojure-version-info (clojure-version)]
      {:working-dir (System/getProperty "user.dir")
-      :project-type (cond 
+      :project-type (cond
                       (and deps-project? lein-project?) "deps.edn + Leiningen"
                       deps-project? "deps.edn"
                       lein-project? "Leiningen"
@@ -54,7 +55,7 @@
       :java-version java-version
       :clj-version clojure-version-info
       :deps deps
-      :project-clj (when lein-project? 
+      :project-clj (when lein-project?
                      (let [version (->> project-clj (drop-while #(not= :version %)) second)
                            name (->> project-clj (drop-while #(not= :name %)) second)]
                        {:name name
@@ -69,53 +70,59 @@
    
    Arguments:
    - insp-data: The project inspection data as an EDN string
+   - allowed-directories: Optional list of allowed directories
    
    Returns a formatted string with project details"
-  [insp-data]
+  [insp-data & [allowed-directories]]
   (when insp-data
     (when-let [{:keys [working-dir
-                      project-type
-                      clj-version
-                      java-version
-                      deps
-                      project-clj
-                      source-paths
-                      test-paths
-                      namespaces
-                      sources]}
+                       project-type
+                       clj-version
+                       java-version
+                       deps
+                       project-clj
+                       source-paths
+                       test-paths
+                       namespaces
+                       sources]}
                (try
                  (edn/read-string insp-data)
-                 (catch Throwable e 
+                 (catch Throwable e
                    (println "Error parsing data:" (ex-message e))
                    nil))]
       (with-out-str
         (println "\nClojure Project Information:")
         (println "==============================")
-        
+
         (println "\nEnvironment:")
         (println "• Working Directory:" working-dir)
         (println "• Project Type:" project-type)
         (println "• Clojure Version:" clj-version)
         (println "• Java Version:" java-version)
-        
+
         (println "\nSource Paths:")
         (doseq [path source-paths]
           (println "•" path))
-        
+
         (println "\nTest Paths:")
         (doseq [path test-paths]
           (println "•" path))
-        
+
+        (when allowed-directories
+          (println "\nOther Relevant Accessible Directories:")
+          (doseq [dir allowed-directories]
+            (println "•" dir)))
+
         (when deps
           (println "\nDependencies:")
           (doseq [[dep coord] (sort-by key (:deps deps))]
             (println "•" dep "=>" coord)))
-        
+
         (when-let [aliases (:aliases deps)]
           (println "\nAliases:")
           (doseq [[alias config] (sort-by key aliases)]
             (println "•" alias ":" (pr-str config))))
-        
+
         (when project-clj
           (println "\nLeiningen Project:")
           (println "• Name:" (:name project-clj))
@@ -127,7 +134,7 @@
             (println "•" ns-name))
           (when (> (count namespaces) limit)
             (println "• ... and" (- (count namespaces) limit) "more"))
-          
+
           (println "\nProject Structure (" (count sources) " files):")
           (doseq [source-file (take limit sources)]
             (println "•" source-file))
@@ -143,19 +150,20 @@
    Returns a map with :outputs (containing the formatted project info) and :error (boolean)"
   [nrepl-client]
   (let [insp-code (str (inspect-project-code))
-        result-promise (promise)]
+        result-promise (promise)
+        allowed-directories (config/get-allowed-directories nrepl-client)]
     (try
       (let [edn-result (mcp-nrepl/tool-eval-code nrepl-client insp-code)]
         (if (or (nil? edn-result) (.startsWith edn-result "Error"))
-          (deliver result-promise 
+          (deliver result-promise
                    {:outputs [(or edn-result "Error during project inspection")]
                     :error true})
-          (let [formatted-info (format-project-info edn-result)]
-            (deliver result-promise 
+          (let [formatted-info (format-project-info edn-result allowed-directories)]
+            (deliver result-promise
                      {:outputs [formatted-info]
                       :error false}))))
       (catch Exception e
-        (deliver result-promise 
+        (deliver result-promise
                  {:outputs [(str "Exception during project inspection: " (.getMessage e))]
                   :error true})))
     @result-promise))
@@ -165,11 +173,10 @@
   (require '[clojure-mcp.nrepl :as nrepl])
   (def client (nrepl/create {:port 7888}))
   (nrepl/start-polling client)
-  
+
   ;; Test inspection
   (def result (inspect-project client))
   (println (first (:outputs result)))
-  
+
   ;; Clean up
-  (nrepl/stop-polling client)
-)
+  (nrepl/stop-polling client))
