@@ -56,7 +56,7 @@
     (let [reg-map (sut/inspect-project-tool *client-atom*)]
       (is (= "clojure_inspect_project" (:name reg-map)))
       (is (string? (:description reg-map)))
-      (is (string? (:schema reg-map)))
+      (is (map? (:schema reg-map)))
       (is (fn? (:tool-fn reg-map))))))
 
 (deftest multimethod-implementations-test

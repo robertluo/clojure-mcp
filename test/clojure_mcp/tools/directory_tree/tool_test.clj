@@ -90,5 +90,5 @@
           reg-map (sut/directory-tree-tool nrepl-client-atom)]
       (is (= "LS" (:name reg-map)))
       (is (string? (:description reg-map)))
-      (is (string? (:schema reg-map)))
+      (is (map? (:schema reg-map)))
       (is (fn? (:tool-fn reg-map))))))

@@ -144,5 +144,5 @@
           reg-map (sut/grep-tool nrepl-client-atom)]
       (is (= "fs_grep" (:name reg-map)))
       (is (string? (:description reg-map)))
-      (is (string? (:schema reg-map)))
+      (is (map? (:schema reg-map)))
       (is (fn? (:tool-fn reg-map))))))

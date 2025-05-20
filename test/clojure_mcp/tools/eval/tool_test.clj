@@ -36,9 +36,9 @@
         reg-map (tool-system/registration-map tool-instance)
         tool-fn (:tool-fn reg-map)
         promise-result (promise)]
-    (tool-fn nil {"code" code} 
-            (fn [result error?]
-              (deliver promise-result {:result result :error? error?})))
+    (tool-fn nil {"code" code}
+             (fn [result error?]
+               (deliver promise-result {:result result :error? error?})))
     @promise-result))
 
 ;; Helper to test just the individual steps of the pipeline
@@ -57,7 +57,7 @@
       (is (map? reg-map))
       (is (= "clojure_eval" (:name reg-map)))
       (is (string? (:description reg-map)))
-      (is (string? (:schema reg-map)))
+      (is (map? (:schema reg-map)))
       (is (fn? (:tool-fn reg-map))))))
 
 (deftest validate-inputs-test
@@ -65,7 +65,7 @@
     (let [tool-instance (eval-tool/create-eval-tool *nrepl-client-atom*)
           result (tool-system/validate-inputs tool-instance {:code "(+ 1 2)"})]
       (is (= {:code "(+ 1 2)"} result))))
-  
+
   (testing "Validate rejects missing code parameter"
     (let [tool-instance (eval-tool/create-eval-tool *nrepl-client-atom*)]
       (is (thrown? Exception (tool-system/validate-inputs tool-instance {}))))))
@@ -97,33 +97,33 @@
     (let [result (test-tool-execution "(+ 1 2)")]
       (is (false? (:error? result)))
       (is (= ["=> 3"] (:result result)))))
-  
+
   (testing "Evaluation with output"
     (let [result (test-tool-execution "(println \"hello\")")]
       (is (false? (:error? result)))
       (is (= ["hello\n=> nil"] (:result result)))))
-  
+
   (testing "Evaluation with error"
     (let [result (test-tool-execution "(throw (Exception. \"test error\"))")]
       (is (true? (:error? result)))
       (is (= 1 (count (:result result))))
       (is (str/includes? (first (:result result)) "test error"))
       (is (str/includes? (first (:result result)) "Evaluation failed"))))
-  
+
   (testing "Multiple expressions"
     (let [result (test-tool-execution "(println \"first\") (+ 10 20)")]
       (is (false? (:error? result)))
       (is (= 3 (count (:result result))))
-      (is (= ["first\n=> nil" "*===============================================*" "=> 30"] 
+      (is (= ["first\n=> nil" "*===============================================*" "=> 30"]
              (:result result)))))
-  
+
   (testing "Evaluation with linter warning"
     (let [result (test-tool-execution "(let [unused 1] (+ 2 3))")]
       (is (false? (:error? result)))
       (is (= 1 (count (:result result))))
       (is (str/includes? (first (:result result)) "unused binding"))
       (is (str/includes? (first (:result result)) "=> 5"))))
-  
+
   (testing "Evaluation with linter error"
     (let [result (test-tool-execution "(def ^:dynamic 1)")]
       (is (true? (:error? result)))

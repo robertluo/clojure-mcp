@@ -49,7 +49,7 @@
       (is (map? reg-map))
       (is (= "fs_read_file" (:name reg-map)))
       (is (string? (:description reg-map)))
-      (is (string? (:schema reg-map)))
+      (is (map? (:schema reg-map)))
       (is (fn? (:tool-fn reg-map))))))
 
 (deftest validate-inputs-test

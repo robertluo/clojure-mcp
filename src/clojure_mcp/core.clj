@@ -5,6 +5,7 @@
             [clojure-mcp.prompts :as prompts]
             [clojure-mcp.resources :as resources]
             [clojure-mcp.config :as config]
+            [clojure-mcp.tool-system :as tool-system]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.tools.logging :as log])
@@ -89,7 +90,8 @@
                       * nrepl-client - the validated and dereferenced nREPL client
                       * clj-result-k - continuation fn taking vector of strings and boolean error flag."
   [{:keys [name description schema tool-fn]}]
-  (let [mono-fn (create-mono-from-callback
+  (let [schema-json (json/write-str schema)
+        mono-fn (create-mono-from-callback
                  (fn [exchange arg-map mono-fill-k] ;; The mono wrapper still gets exchange and args
                    (let [[service-valid? service-error] (ensure-service-atom nrepl-client-atom)]
                      (if-not service-valid?
@@ -102,7 +104,7 @@
                          ;; Call the tool's function with the nrepl-client and the continuation
                          (tool-fn exchange arg-map clj-result-k))))))]
     (McpServerFeatures$AsyncToolSpecification.
-     (McpSchema$Tool. name description schema)
+     (McpSchema$Tool. name description schema-json)
      (reify java.util.function.BiFunction
        (apply [this exchange arguments]
          (mono-fn exchange arguments))))))

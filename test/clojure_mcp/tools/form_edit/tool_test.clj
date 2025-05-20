@@ -319,17 +319,17 @@
       (testing "Registration maps have correct structure"
         (is (string? (:name replace-reg)))
         (is (string? (:description replace-reg)))
-        (is (string? (:schema replace-reg))) ;; Schema is serialized as JSON string
+        (is (map? (:schema replace-reg))) ;; Schema is serialized as JSON string
         (is (fn? (:tool-fn replace-reg)))
 
         (is (string? (:name before-reg)))
         (is (string? (:description before-reg)))
-        (is (string? (:schema before-reg))) ;; Schema is serialized as JSON string
+        (is (map? (:schema before-reg))) ;; Schema is serialized as JSON string
         (is (fn? (:tool-fn before-reg)))
 
         (is (string? (:name comment-reg)))
         (is (string? (:description comment-reg)))
-        (is (string? (:schema comment-reg))) ;; Schema is serialized as JSON string
+        (is (map? (:schema comment-reg))) ;; Schema is serialized as JSON string
         (is (fn? (:tool-fn comment-reg)))))))
 
 ;; Functional tests with tool execution

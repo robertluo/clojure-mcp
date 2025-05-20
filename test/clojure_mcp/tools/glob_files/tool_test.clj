@@ -102,7 +102,7 @@
           reg-map (sut/glob-files-tool client-atom)]
       (is (= "glob_files" (:name reg-map)))
       (is (string? (:description reg-map)))
-      (is (string? (:schema reg-map)))
+      (is (map? (:schema reg-map)))
       (is (fn? (:tool-fn reg-map)))
 
       ;; Test the actual function execution with a promise
