@@ -93,7 +93,10 @@
      (let [project-code (str (project/inspect-project-code))
            ;; Pass nrepl-client-map to tool-eval-code
            project-data (mcp-nrepl/tool-eval-code nrepl-client-map project-code)
-           project-markdown (project/format-project-info project-data)]
+           project-markdown (project/format-project-info
+                             project-data
+                             (config/get-allowed-directories
+                              @nrepl-client-atom))]
        (create-string-resource
         "custom://project-info"
         "Clojure Project Info"
