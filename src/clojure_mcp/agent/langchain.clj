@@ -103,7 +103,8 @@
           (str "ERROR: Arguments provided to the tool call were malformed.\n=====\n" arg-str "\n=====\n"))))))
 
 (defn registration-map->tool-specification [{:keys [name description schema]}]
-  {:pre [(string? schema) (string? name) (string? description)]}
+  {:pre [(or (string? schema) (map? schema))
+         (string? name) (string? description)]}
   (-> (ToolSpecification/builder)
       (.name name)
       (.description description)
