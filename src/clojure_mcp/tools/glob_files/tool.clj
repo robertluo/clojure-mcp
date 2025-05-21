@@ -24,10 +24,10 @@
 
 (defmethod tool-system/tool-description :glob-files [_]
   "Fast file pattern matching tool that works with any codebase size.
-- Supports glob patterns like \"**/*.clj\" or \"src/**/*.cljs\".
-- Returns matching file paths sorted by modification time (most recent first).
-- Use this tool when you need to find files by name patterns.
-- When you are doing an open ended search that may require multiple rounds of globbing and grepping, use the `dispatch_agent` tool instead")
+ - Supports glob patterns like \"**/*.clj\" or \"src/**/*.cljs\".
+ - Returns matching file paths sorted by modification time (most recent first).
+ - Use this tool when you need to find files by name patterns.
+ - When you are doing an open ended search that may require multiple rounds of globbing and grepping, use the `dispatch_agent` tool instead")
 
 (defmethod tool-system/tool-schema :glob-files [_]
   {:type :object

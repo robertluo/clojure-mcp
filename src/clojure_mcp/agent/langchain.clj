@@ -15,6 +15,7 @@
    [dev.langchain4j.model.chat.request.json JsonObjectSchema]
    [dev.langchain4j.memory ChatMemory]
    [dev.langchain4j.memory.chat MessageWindowChatMemory]
+   [dev.langchain4j.model.chat.request ChatRequest ToolChoice]
 
    ;; LangChain4j Model classes (using Anthropic as an example)
    [dev.langchain4j.model.chat ChatLanguageModel]
@@ -119,6 +120,17 @@
         (map (juxt registration-map->tool-specification
                    registration-map->tool-executor)
              registration-maps)))
+
+(defn chat-request [message & {:keys [system-message tools require-tool-choice]}]
+  ;; ChatResponse response = model.chat(request);
+  ;;AiMessage aiMessage = response.aiMessage();
+  (cond-> (ChatRequest/builder)
+    system-message (.messages (list (SystemMessage. system-message)
+                                    (UserMessage. message)))
+    (not system-message) (.messages (list (UserMessage. message)))
+    (not-empty tools) (.toolSpecifications (map registration-map->tool-specification tools))
+    require-tool-choice (.toolChoice ToolChoice/REQUIRED)
+    :else (.build)))
 
 (definterface AiService
   (^String chat [^String userMessage])
