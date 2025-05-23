@@ -129,7 +129,8 @@
                                     (UserMessage. message)))
     (not system-message) (.messages (list (UserMessage. message)))
     (not-empty tools) (.toolSpecifications (map registration-map->tool-specification tools))
-    require-tool-choice (.toolChoice ToolChoice/REQUIRED)
+    ;; TODO on next langchain bump
+    ;; require-tool-choice (.toolChoice ToolChoice/REQUIRED)
     :else (.build)))
 
 (definterface AiService
