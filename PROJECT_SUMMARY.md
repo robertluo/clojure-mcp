@@ -1,8 +1,14 @@
 # Clojure MCP Project Summary
 
+## Project Status
+
+**⚠️ Alpha Software** - This project is in early development and rapidly evolving. While invaluable for Clojure development workflows, expect breaking changes, rough edges, and incomplete documentation. Community contributions are actively welcomed for bug reports, feature suggestions, documentation improvements, and code contributions.
+
 ## Project Overview
 
 Clojure MCP is a Model Context Protocol (MCP) server that enables AI assistants (like Claude) to interact directly with a Clojure REPL. It provides a collaborative, REPL-driven development workflow between humans and LLMs. The core philosophy is "tiny steps with high quality rich feedback" for effective development.
+
+**Recent Major Refactoring**: The project has been refactored to separate the core MCP API from its consumption, enabling easier customization and reuse.
 
 The project allows AI assistants to:
 - Evaluate Clojure code and see immediate results
@@ -16,12 +22,14 @@ The project allows AI assistants to:
 
 ### Core System Files
 
-- `/src/clojure_mcp/core.clj`: Main entry point, sets up the MCP server and tools
+- `/src/clojure_mcp/core.clj`: **Refactored** - Now provides the reusable API for building MCP servers with convenience higher-level functions
+- `/src/clojure_mcp/main.clj`: **New** - Example implementation showing how to consume the core API to build the actual Clojure MCP server
 - `/src/clojure_mcp/nrepl.clj`: nREPL client implementation for connecting to Clojure REPL
 - `/src/clojure_mcp/tool_system.clj`: Defines the multimethod-based architecture for tools
 - `/src/clojure_mcp/repl_tools.clj`: Central registry for all available tools
 - `/src/clojure_mcp/prompts.clj`: Manages system prompts for AI assistants
 - `/src/clojure_mcp/resources.clj`: Manages resources to be exposed to AI assistants
+- `/src/clojure_mcp/config.clj`: **Enhanced** - Configuration system supporting `.clojure-mcp/config.edn` files
 - `/src/clojure_mcp/linting.clj`: Code quality and formatting utilities
 
 ### Tool Implementations
@@ -72,6 +80,35 @@ The project allows AI assistants to:
 - `dev.langchain4j/langchain4j` (1.0.0-beta3): Java library for LLM integration
 - `dev.langchain4j/langchain4j-anthropic` (1.0.0-beta3): Anthropic-specific integration
 - `pogonos/pogonos` (0.2.1): Mustache templating for prompts
+
+## Configuration System
+
+The project supports project-specific configuration through `.clojure-mcp/config.edn` files:
+
+### Configuration Location
+```
+your-project/
+├── .clojure-mcp/
+│   └── config.edn
+├── src/
+└── deps.edn
+```
+
+### Configuration Options
+- `allowed-directories`: Controls which directories MCP tools can access (security)
+- `emacs-notify`: Boolean flag for Emacs integration
+
+### Example Configuration
+```edn
+{:allowed-directories ["." "src" "test" "resources" "../sibling-project"]
+ :emacs-notify false}
+```
+
+### Path Resolution and Security
+- Relative paths resolved from project root
+- Absolute paths used as-is
+- All file operations validated against allowed directories
+- Project root automatically included in allowed directories
 
 ## Available Tools and Examples
 
