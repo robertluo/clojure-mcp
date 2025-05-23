@@ -4,7 +4,6 @@
             [clojure.tools.logging :as log]
             [clojure-mcp.core :as core]
             [clojure-mcp.nrepl :as nrepl]
-            [clojure-mcp.repl-tools :as repl-tools]
             [clojure-mcp.prompts :as prompts]
             [clojure-mcp.tools.project.core :as project]
             [clojure-mcp.resources :as resources]
@@ -24,8 +23,6 @@
             [clojure-mcp.tools.dispatch-agent.tool :as dispatch-agent-tool]
             [clojure-mcp.tools.architect.tool :as architect-tool]
             [clojure-mcp.tools.code-critique.tool :as code-critique-tool]))
-
-(def work-dir (System/getProperty "user.dir"))
 
 ;; Define the resources you want available
 (defn my-resources [nrepl-client-map working-dir]
@@ -52,7 +49,7 @@
     (resources/create-file-resource
      "custom://llm-code-style"
      "LLM_CODE_STYLE.md"
-     "Guidelines for writing Clojure code"
+     "Guidelines for writing Clojure code for the current project hosting the REPL"
      "text/markdown"
      (str working-dir "/LLM_CODE_STYLE.md"))
     (let [{:keys [outputs error]} (project/inspect-project nrepl-client-map)]
