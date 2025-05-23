@@ -32,14 +32,13 @@ This approach enables:
 - [Clojure](https://clojure.org/guides/install_clojure) (1.11 or later)
 - [Java](https://openjdk.org/) (JDK 11 or later)
 - [Claude Desktop](https://claude.ai/desktop) (for the best experience)
-- [MCP Server for Filesystem](https://github.com/anthropics/ModelContextProtocol) (`npx -y @modelcontextprotocol/server-filesystem`)
-- [MCP Server for Git](https://github.com/Anthropic-Labs/mcp-server-git) (optional, for Git integration)
+
 
 ### Setting up the project
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/clojure-mcp.git
+   git clone https://github.com/bhauman/clojure-mcp.git
    cd clojure-mcp
    ```
 
@@ -50,25 +49,11 @@ This approach enables:
    ```json
    {
        "mcpServers": {
-           "filesystem": {
-               "command": "/bin/sh",
-               "args": [
-                   "-c",
-                   "PATH=/your/bin/path:$PATH exec npx -y @modelcontextprotocol/server-filesystem /path/to/your/workspace"
-                ]
-           },
-           "git": {
-               "command": "/bin/sh",
-               "args": [
-                   "-c",
-                   "PATH=/path/to/python:$PATH exec uvx mcp-server-git --repository /path/to/your/workspace/clojure-mcp/.git"
-               ]
-           },
            "clojure_connect": {
                "command": "/bin/sh",
                "args": [
                    "-c",
-                   "cd /path/to/your/workspace/clojure-mcp && PATH=/your/bin/path:$PATH && clojure -X:mcp"
+                   "cd /path/to/your/workspace/project && PATH=/your/bin/path:$PATH && clojure -X:mcp :port 7888"
                 ]
            }
        }
@@ -77,37 +62,71 @@ This approach enables:
    
    Replace the paths with your specific configuration:
    - `/your/bin/path` - Path to your binaries (e.g., `/Users/username/.nix-profile/bin`)
-   - `/path/to/your/workspace` - Path to your workspace directory
-   - `/path/to/python` - Path to your Python installation if using Git integration
+   - `/path/to/your/workspace/clojure-mcp` - Path to your local clojure-mcp repo checkout
 
 4. Launch Claude Desktop and start a new conversation.
 
 > If you change the server you must restart Claude Desktop to see the changes.
 
-### Integarted prompt 
-
-In the chat message input box there is a icon with 2 little plugs. You
-can use this to choose some build in prompts.  The only one of use
-right now is the REPL driven development prompt `clojure-repl-driven.txt`.
-
 ### Using with Claude Desktop
 
 Claude Desktop integrates with the Clojure MCP server, allowing Claude to:
 
-1. **Evaluate Clojure code**: Claude can run code and see results immediately
-2. **Access the filesystem**: Read and write Clojure files
-3. **Access Git**: Interact with your Git repository (if configured)
-4. **Navigate project structure**: Understand and modify your Clojure project
+First you will want to start an nREPL server in the project you want to work on.
 
-To connect Claude to your project:
+It's easier to pick a stable port number for now. Currently the port
+defaults to 7888 and you would specify the `:port` either in the `deps.edn`
+on in the `claude_desktop_config.json`. You could set it up like
 
-1. Open Claude Desktop
-2. Start a new conversation
-3. Claude will automatically connect to the configured MCP servers
-4. Use the little plug tool in the chat interface to bring up available prompts
-5. Choose the clojure-repl-driven.txt 
-6. Start a conversation initiating
-7. Guide the development process
+***deps.edn***
+```clojure
+{
+  :aliases {
+    ;; this is the env that the mcp is going to execute code
+    :nrepl {:extra-paths ["test"] 
+            :extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}
+                         ch.qos.logback/logback-classic {:mvn/version "1.4.14"}}
+            :main-opts ["-m" "nrepl.cmdline" "--port" "7888"]}
+	:mcp   {;; required of the stdio server output gets corrupted
+	        deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
+			      clojure-mcp/clojure-mcp {:local/root "<path to clojure-mcp cloned repo>"}}
+            :exec-fn clojure-mcp.main/start-mcp-server
+            ;; it needs an nrepl port to talk to
+            :exec-args {:port 7888}}
+  }
+}
+```
+
+Now you can hopefully start Claude Desktop and have access to the mcp tools.
+
+It may take a moment to load. 
+
+You can check if everything is hooked up by clicking the `+` in the chat area and you should see `Add from clojure_connect` in the menu.
+
+Right next to the `+` is a settings icon, when you click on that you can which tools are available.
+
+> If you want to design and chat about a solution you can turn the editing tools off.
+
+#### Starting a new conversation
+
+I click the `+` tools and I add
+ * resource `PROJECT_SUMMARY.md`  - see below
+ * resource `Clojure Project Info` - which introspects the repl and the project
+ * resource `LLM_CODE_STYLE.md` - Which is your personal coding style instructions
+ * prompt `clojure_repl_system_prompt` - instructions on how to code - cribbed a bit from Clod Code
+
+Then start the chat.
+
+I would start by having giving it a problem then have it design a solution for your review.
+
+Iterate on that a bit then have it either
+
+A. code and validate the idea in the REPL.
+B. go started to file editing and then have it validate the code after file editing.
+
+There is a bash tool so it can run tests and it can make commits for you.
+
+Make a branch commit often so that it doesn't blow your work away with bad ideas.
 
 ## Project Summary Management
 
@@ -146,32 +165,12 @@ This workflow creates a virtuous cycle where each session builds on the accumula
 | Tool Name | Description | Example Usage |
 |-----------|-------------|---------------|
 | `clojure_eval` | Evaluates Clojure code | Evaluating `(+ 1 2)` returns `=> 3` |
-| `current_namespace` | Shows active namespace | Returns `"user"` |
-| `symbol_completions` | Provides completions | Finding all functions starting with "map" |
-| `clojure_eval_history` | Shows recent evaluations | Retrieving last 5 evaluated expressions |
-
-### Symbol Information
-
-| Tool Name | Description | Example Usage |
-|-----------|-------------|---------------|
-| `symbol_documentation` | Gets documentation | Docs for `map` function |
-| `symbol_metadata` | Gets symbol metadata | Complete metadata for `reduce` |
-| `source_code` | Views source code | Source code for `filter` |
-| `symbol-search` | Searches symbols | Finding all symbols containing "seq" |
-
-### Namespace Tools
-
-| Tool Name | Description | Example Usage |
-|-----------|-------------|---------------|
-| `clojure_list_namespaces` | Lists all namespaces | Showing available namespaces |
-| `clojure_list_vars_in_namespace` | Lists namespace vars | All public vars in `clojure.string` |
 
 ### File Editing Tools
 
 | Tool Name | Description | Example Usage |
 |-----------|-------------|---------------|
-| `clojure_file_outline` | Shows file structure | Overview of a Clojure file |
-| `clojure_edit_replace_form` | Replaces a form | Updating a function definition |
+| `clojure_edit` | Replaces a form | Updating a function definition |
 | `clojure_edit_insert_before_form` | Inserts before a form | Adding a helper function |
 | `clojure_edit_insert_after_form` | Inserts after a form | Adding a new function |
 
@@ -194,7 +193,6 @@ This workflow creates a virtuous cycle where each session builds on the accumula
 ### Best Practices
 
 - **Small steps** - Prefer many small, valid steps over a few large steps
-- **Functional approach** - Use pure functions that are easier to test and reason about
 - **Human guidance** - Provide feedback to keep development on track
 - **Test early** - Validate ideas directly in the REPL before committing to them
 
@@ -218,20 +216,6 @@ The core philosophy of this project is that:
 1. **Tiny steps with rich feedback** lead to better quality code
 2. **REPL-driven development** provides the highest quality feedback loop
 3. **Keeping humans in the loop** ensures discernment and maintainable code
-4. **Functional programming patterns** produce more maintainable AI-generated code
-5. **Collaborative development** between humans and AI can lead to higher quality than either alone
-
-## 📋 Prompts
-
-The project includes several prompts that guide LLM behavior:
-
-- `clojure-repl-driven` - REPL-driven development workflow
-
-- `clojure_dev` - General Clojure development guidelines
-- `clj-spec-driven-modifier` - Spec-driven development guidelines
-- `clj-test-driven-modifier` - Test-driven development workflow
-- `clj-set-project-dir` - Project context setting
-- `clj-sync-namespace` - Namespace synchronization
 
 ## 🔍 Troubleshooting
 

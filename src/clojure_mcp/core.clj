@@ -1,14 +1,10 @@
 (ns clojure-mcp.core
   (:require [clojure.data.json :as json]
-            [clojure-mcp.nrepl :as nrepl]
-            [clojure-mcp.repl-tools :as repl-tools]
-            [clojure-mcp.prompts :as prompts]
-            [clojure-mcp.resources :as resources]
-            [clojure-mcp.config :as config]
-            [clojure-mcp.tool-system :as tool-system]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [clojure.tools.logging :as log])
+            [clojure.tools.logging :as log]
+            [clojure-mcp.nrepl :as nrepl]
+            [clojure-mcp.config :as config])
   (:gen-class)
   (:import [io.modelcontextprotocol.server.transport StdioServerTransportProvider]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
@@ -248,10 +244,22 @@
       (log/error e "Failed to initialize MCP server")
       (throw e))))
 
-(defn create-and-start-nrepl-connection [initial-config]
+(defn create-and-start-nrepl-connection
+  "Convenience higher-level API function to create and initialize an nREPL connection.
+   
+   This function handles the complete setup process including:
+   - Creating the nREPL client connection
+   - Starting the polling mechanism
+   - Loading required namespaces and helpers
+   - Setting up the working directory
+   - Loading remote configuration
+   
+   Takes initial-config map with :port and optional :host.
+   Returns the configured nrepl-client-map with ::config/config attached."
+  [initial-config]
   (log/info "Creating nREPL connection with config:" initial-config)
   (try
-    (let [nrepl-client-map (nrepl/create initial-config)] ;; nrepl-client is a map
+    (let [nrepl-client-map (nrepl/create initial-config)]
       (log/info "nREPL client map created")
       (nrepl/start-polling nrepl-client-map)
       (log/info "Started polling nREPL")
@@ -286,7 +294,16 @@
       (log/error e "Failed to create nREPL connection")
       (throw e))))
 
-(defn close-servers [mcp]
+(defn close-servers
+  "Convenience higher-level API function to gracefully shut down MCP and nREPL servers.
+   
+   This function handles the complete shutdown process including:
+   - Stopping nREPL polling if a client exists in nrepl-client-atom
+   - Gracefully closing the MCP server
+   - Proper error handling and logging
+   
+   Takes the MCP server instance to close."
+  [mcp]
   (log/info "Shutting down servers")
   (try
     (when-let [client @nrepl-client-atom]
@@ -299,111 +316,4 @@
       (log/error e "Error during server shutdown")
       (throw e))))
 
-;; the args is a config map that must have :port and may have :host
-(defn nrepl-mcp-server [args]
-  (log/info "Starting nREPL MCP server with args:" args)
-  (try
-    (let [nrepl-client-map (create-and-start-nrepl-connection args)
-          mcp (mcp-server)]
-      (reset! nrepl-client-atom (assoc nrepl-client-map ::mcp-server mcp))
-      (log/info "nREPL client connected successfully")
-
-      (log/info "Registering resources...")
-      (let [all-resources (resources/get-all-resources nrepl-client-atom)]
-        (log/info "Found" (count all-resources) "resources to register")
-        (doseq [resource all-resources]
-          (log/debug "Registering resource:" (:name resource))
-          (add-resource mcp resource)))
-
-      (log/info "Registering tools...")
-      (let [tools (repl-tools/get-all-tools nrepl-client-atom)]
-        (log/info "Found" (count tools) "tools to register")
-        (doseq [tool tools]
-          (log/debug "Registering tool:" (:name tool))
-          (add-tool mcp tool)))
-
-      (log/info "Registering prompts...")
-      (let [all-prompts (prompts/get-all-prompts nrepl-client-atom)]
-        (log/info "Found" (count all-prompts) "prompts to register")
-        (doseq [prompt all-prompts]
-          (log/debug "Registering prompt:" (:name prompt))
-          (add-prompt mcp prompt)))
-
-      (log/info "nREPL MCP server started successfully")
-      mcp
-      nil)
-    (catch Exception e
-      (log/error e "Failed to start nREPL MCP server")
-      (throw e))))
-
-(comment
-  (def mcp-serv (nrepl-mcp-server {:port 54171})) ;; Start server, sets atom
-  (close-servers mcp-serv) ;; Close server
-
-  ;; Test logging at different levels
-  (defn test-logging []
-    (log/trace "This is a TRACE message")
-    (log/debug "This is a DEBUG message")
-    (log/info "This is an INFO message")
-    (log/warn "This is a WARN message")
-    (log/error "This is an ERROR message")
-    (log/error (Exception. "Test exception") "This is an ERROR with exception"))
-
-  (test-logging)
-
-  ;; Check the logs/clojure-mcp.log file to verify the log messages
-  )
-#_(defn -main [& args]
-    (let [server (mcp-server args)]
-      (println "MCP Async Server running on STDIO transport.")
-    ;; Keep the process alive
-      #_(while true
-          (Thread/sleep 1000))))
-
-(comment
-  ;; For REPL testing:
-  (mcp-server)
-
-  ;; Example of how to create and add a resource to the MCP server
-  (def example-resource
-    {:url "custom://example-resource"
-     :name "Example Resource"
-     :description "An example resource that returns a simple text string"
-     :mime-type "text/plain"
-     :resource-fn (fn [_ _ clj-result-k]
-                    (clj-result-k ["Hello, this is an example resource!"]))})
-
-  ;; Adding the resource to an MCP server
-  (def mcp-serv (nrepl-mcp-server {:port 54171}))
-  (add-resource mcp-serv example-resource)
-
-  ;; Example of a file resource
-  (def file-resource
-    {:url "custom://file-resource"
-     :name "File Resource"
-     :description "A resource that serves the content of a file"
-     :mime-type "text/plain"
-     :resource-fn (fn [_ _ clj-result-k]
-                    (let [file-content (slurp "path/to/file.txt")]
-                      (clj-result-k [file-content])))})
-
-  ;; Adding the file resource to an MCP server
-  (add-resource mcp-serv file-resource)
-
-  ;; Example of a dynamic resource with request parameters
-  (def dynamic-resource
-    {:url "custom://dynamic-resource"
-     :name "Dynamic Resource"
-     :description "A resource that generates content based on request parameters"
-     :mime-type "text/plain"
-     :resource-fn (fn [_ request clj-result-k]
-                    (let [params (.. request parameters) ;; Access request parameters
-                          content (str "You requested: " params)]
-                      (clj-result-k [content])))})
-
-  ;; Adding the dynamic resource to an MCP server
-  (add-resource mcp-serv dynamic-resource)
-
-  ;; Closing the server
-  (close-servers mcp-serv))
 

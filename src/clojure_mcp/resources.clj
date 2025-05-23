@@ -51,9 +51,27 @@
    :resource-fn (fn [_ _ clj-result-k]
                   (clj-result-k contents))})
 
-;; This function is no longer needed as we handle resource creation directly in get-all-resources
 
-(defn get-all-resources
+
+;; This function is no longer needed as we handle resource creation directly in get-all-resources
+#_(defn project-info-resource [nrepl-client-atom]
+  
+  (let [project-code (str (project/inspect-project-code))
+        ;; Pass nrepl-client-map to tool-eval-code
+        project-data (mcp-nrepl/tool-eval-code nrepl-client-map project-code)
+        project-markdown (project/format-project-info
+                          project-data
+                          (config/get-allowed-directories
+                           @nrepl-client-atom))]
+    (create-string-resource
+     "custom://project-info"
+     "Clojure Project Info"
+     "Information about the current Clojure project structure, attached REPL environment and dependencies"
+     "text/markdown"
+     [project-markdown])))
+
+
+#_(defn get-all-resources
   "Returns a list of all defined resources for registration with the MCP server.
    Now gets the working directory once and uses it for all file resources."
   [nrepl-client-atom]

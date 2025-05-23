@@ -14,7 +14,7 @@
      {:description description
       :messages [{:role :assistant :content content}]})))
 
-(defn- load-prompt-from-resource
+(defn load-prompt-from-resource
   "Loads prompt content from a classpath resource file."
   [filename]
   (if-let [resource (io/resource filename)]
@@ -22,6 +22,31 @@
     (str "Error: Prompt file not found on classpath: " filename)))
 
 ;; --- Prompt Definitions ---
+
+(defn create-project-summary [working-dir]
+  {:name "create-project-summary"
+   :description "Generates a prompt instructing the LLM to create a summary of a project."
+   :arguments []
+   :prompt-fn (fn [_ _ clj-result-k]
+                (if (and working-dir
+                         (let [f (io/file working-dir)]
+                           (and (.exists f)
+                                (.isDirectory f))))
+                  (clj-result-k
+                   {:description (str "Create project summary for: " working-dir)
+                    :messages [{:role :user
+                                :content
+                                (pg/render-resource "prompts/create_project_summary.md"
+                                                    {:root-directory
+                                                     working-dir})}]})
+                  (clj-result-k
+                   {:description (str "Root directory not found.")
+                    :messages [{:role :user
+                                :content
+                                (str "Root directory not provided So this will not be a prompt." "::" working-dir "::")}]})))})
+
+
+;; this is just scratch work for now
 
 (def clojure-system-repl-flex
   {:name "clojure_repl_flex_system_prompt"
@@ -41,7 +66,7 @@
                 (load-prompt-from-resource "prompts/system/clojure_repl.md")
                 (load-prompt-from-resource "prompts/system/clojure_clojure_edit_tool_inst.md")))})
 
-(def clojure-system-repl-new
+(def clojure-system-repl-pattern-edit
   {:name "clojure_repl_system_prompt"
    :description "Provides instructions and guidelines for Clojure development, including style and best practices."
    :arguments [] ;; No arguments needed for this prompt
@@ -60,32 +85,6 @@
                (str
                 (load-prompt-from-resource "prompts/system/clojure_repl_form_edit.md")
                 (load-prompt-from-resource "prompts/system/clojure_form_edit.md")))})
-
-#_(def clojure-dev-prompt
-    {:name "clojure_dev"
-     :description "Provides instructions and guidelines for Clojure development, including style and best practices."
-     :arguments [] ;; No arguments needed for this prompt
-     :prompt-fn (simple-content-prompt-fn
-                 "Clojure Development Guidelines"
-                 (str
-                  (load-prompt-from-resource "prompts/CLOJURE.md")
-                  "\n\n---\n\n" ;; Separator
-                  (load-prompt-from-resource "prompts/clojure_dev.txt")))})
-
-#_(def clojure-repl-driven-prompt
-    {:name "clojure-repl-driven"
-     :description "Provides comprehensive instructions for REPL-driven development in Clojure, including style, best practices, and REPL usage guidelines."
-     :arguments [] ;; No arguments needed
-     :prompt-fn (simple-content-prompt-fn
-                 "REPL-Driven Development Guide for Clojure"
-                 (str
-                ;(load-prompt-from-resource "prompts/CLOJURE.md")
-                ; "\n\n---\n\n" ;; Separator
-                ;(load-prompt-from-resource "prompts/clojure_dev.txt")
-                ;"\n\n---\n\n" ;; Separator
-                ;(load-prompt-from-resource "prompts/clojure-repl-guide.md")
-                ;"\n\n---\n\n" ;; Separator
-                  (load-prompt-from-resource "prompts/repl_driven.md")))})
 
 (def clojure-spec-driven-modifier
   {:name "clj-spec-driven-modifier"
@@ -130,27 +129,7 @@ If the file get's *edited* outside and must be read to see the changes, you shou
                     :messages [{:role :user
                                 :content (sync-namespace-workflow-prompt namespace-arg)}]})))})
 
-(defn create-project-summary [working-dir]
-  {:name "create-project-summary"
-   :description "Generates a prompt instructing the LLM to create a summary of a project."
-   :arguments []
-   :prompt-fn (fn [_ _ clj-result-k]
-                (if (and working-dir
-                         (let [f (io/file working-dir)]
-                           (and (.exists f)
-                                (.isDirectory f))))
-                  (clj-result-k
-                   {:description (str "Create project summary for: " working-dir)
-                    :messages [{:role :user
-                                :content
-                                (pg/render-resource "prompts/create_project_summary.md"
-                                                    {:root-directory
-                                                     working-dir})}]})
-                  (clj-result-k
-                   {:description (str "Root directory not found.")
-                    :messages [{:role :user
-                                :content
-                                (str "Root directory not provided So this will not be a prompt." "::" working-dir "::")}]})))})
+
 
 ;; Function to get all prompts for registration with the MCP server
 (def clojure-edit-guide
@@ -169,7 +148,7 @@ If the file get's *edited* outside and must be read to see the changes, you shou
                "Incremental File Creation for Clojure"
                (load-prompt-from-resource "prompts/system/incremental_file_creation.md"))})
 
-(defn get-all-prompts
+#_(defn get-all-prompts
   "Returns a list of all defined prompts for registration with the MCP server.
    Takes an nrepl-client-atom to allow prompts to access nREPL if needed."
   [nrepl-client-atom]
