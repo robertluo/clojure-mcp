@@ -1,5 +1,18 @@
 # Clojure MCP - REPL-Driven Development with AI Assistance
 
+> **⚠️ Alpha Software - Work in Progress**
+> 
+> This project is in early development and rapidly evolving. While I've found it invaluable for working with Clojure projects and it has significantly improved my development workflow, expect breaking changes, rough edges, and incomplete documentation.
+> 
+> **🤝 Help Wanted!** If you find this useful, please consider contributing:
+> - Report bugs and issues you encounter
+> - Suggest improvements or new features
+> - Submit pull requests for fixes or enhancements
+> - Share your configuration patterns and workflows
+> - Help improve documentation and examples
+> 
+> Your feedback and contributions will help make this tool better for the entire Clojure community!
+
 A Model Context Protocol (MCP) server for Clojure that enables AI assistants (like Claude) to interact directly with a Clojure REPL, providing a collaborative, REPL-driven development workflow between humans and LLMs.
 
 ## 🚀 Overview
@@ -357,6 +370,92 @@ Choose tools based on your workflow needs:
 - **For testing**: Include bash tool for running tests
 
 This modular approach lets you create focused, efficient MCP servers tailored to specific development workflows.
+
+## ⚙️ Configuration
+
+The Clojure MCP server supports project-specific configuration through a `.clojure-mcp/config.edn` file in your project's root directory. This configuration provides security controls and customization options for the MCP server.
+
+### Configuration File Location
+
+Create a `.clojure-mcp/config.edn` file in your project root:
+
+```
+your-project/
+├── .clojure-mcp/
+│   └── config.edn
+├── src/
+├── deps.edn
+└── ...
+```
+
+### Configuration Options
+
+#### `allowed-directories`
+Controls which directories the MCP tools can access for security. Paths can be relative (resolved from project root) or absolute.
+
+#### `emacs-notify` 
+Boolean flag to enable Emacs integration notifications.
+
+### Example Configuration
+
+```edn
+{:allowed-directories ["." 
+                       "src" 
+                       "test" 
+                       "resources"
+                       "dev"
+                       "/absolute/path/to/shared/code"
+                       "../sibling-project"]
+ :emacs-notify false}
+```
+
+### Configuration Details
+
+**Path Resolution**: 
+- Relative paths (like `"src"`, `"../other-project"`) are resolved relative to your project root
+- Absolute paths (like `"/home/user/shared"`) are used as-is
+- The project root directory is automatically included in allowed directories
+
+**Security**: 
+- Tools validate all file operations against the allowed directories
+- Attempts to access files outside allowed directories will fail with an error
+- This prevents accidental access to sensitive system files
+- the Bash tool doesn't respect these boundaries so be wary
+
+**Default Behavior**:
+- Without a config file, only the project directory and its subdirectories are accessible
+- The nREPL working directory is automatically added to allowed directories
+
+### Common Configuration Patterns
+
+#### Development Setup
+```edn
+{:allowed-directories ["." 
+                       "src" 
+                       "test" 
+                       "dev" 
+                       "resources"
+                       "docs"]
+ :emacs-notify false}
+```
+
+#### Multi-Project Setup
+```edn
+{:allowed-directories ["."
+                       "../shared-utils"
+                       "../common-config"
+                       "/home/user/reference-code"]
+ :emacs-notify false}
+```
+
+#### Restricted Mode (Extra Security)
+```edn
+{:allowed-directories ["src" 
+                       "test"]
+ :emacs-notify false}
+```
+
+**Note**: Configuration is loaded when the MCP server starts. Restart the server after making configuration changes.
 
 ## 📜 Development Practices
 
