@@ -32,7 +32,7 @@
       (let [tool-config {:tool-type :directory-tree
                          :nrepl-client-atom nrepl-client-atom}]
 
-        (with-redefs [clojure-mcp.repl-tools.utils/validate-path-with-client
+        (with-redefs [clojure-mcp.utils.valid-paths/validate-path-with-client
                       (fn [path _]
                         (str "/validated" path))]
 

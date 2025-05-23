@@ -9,7 +9,7 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.form-edit.core :as core]
    [clojure-mcp.tools.form-edit.pipeline :as pipeline]
-   [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.utils.valid-paths :as valid-paths]
    [clojure-mcp.config :as config]
    [clojure.string :as str]
    [rewrite-clj.parser :as p]
@@ -88,7 +88,7 @@
       (throw (ex-info "Missing required parameter: file_path"
                       {:inputs inputs})))
     ;; Use the utils/validate-path-with-client function to ensure path is valid
-    (utils/validate-path-with-client file_path nrepl-client)))
+    (valid-paths/validate-path-with-client file_path nrepl-client)))
 
 ;; Implement the required multimethods for the form replacement tool
 

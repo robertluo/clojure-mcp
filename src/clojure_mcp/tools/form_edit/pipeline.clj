@@ -5,7 +5,7 @@
   (:require
    [clojure-mcp.tools.form-edit.core :as core]
    [clojure-mcp.utils.emacs-integration :as emacs]
-   [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.utils.diff :as diff-utils]
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [rewrite-clj.zip :as z]
    [rewrite-clj.parser :as p]
@@ -439,30 +439,30 @@
                "" ;; No diff if content is identical
                (try
                  ;; Use 3 lines of context
-                 (utils/generate-diff-via-shell old-content new-content 3)
+                 (diff-utils/generate-diff-via-shell old-content new-content 3)
                  (catch Exception e
                    ;; If shell diff fails, return a fallback message
                    (str "Changes made, but diff generation failed: " (.getMessage e)))))]
     (assoc ctx ::diff diff)))
 
 #_(defn emacs-set-auto-revert
-  "Ensures that the file is open in Emacs with auto-revert-mode enabled if notifications are enabled.
+    "Ensures that the file is open in Emacs with auto-revert-mode enabled if notifications are enabled.
    Requires ::file-path and ::config in the context."
-  [ctx]
-  (try
-    (let [file-path (::file-path ctx)
-          config (::config ctx)]
+    [ctx]
+    (try
+      (let [file-path (::file-path ctx)
+            config (::config ctx)]
       ;; Only notify if emacs notifications are enabled in config
-      (if (emacs/config-enables-emacs-notifications? config)
-        (do
-          (emacs/ensure-auto-revert file-path) ;; Now ensure-auto-revert is always async
-          ctx)
+        (if (emacs/config-enables-emacs-notifications? config)
+          (do
+            (emacs/ensure-auto-revert file-path) ;; Now ensure-auto-revert is always async
+            ctx)
         ;; Otherwise return context unchanged
-        ctx))
+          ctx))
     ;; Fail silently if emacs isn't started
-    (catch Exception _
+      (catch Exception _
       ;; Return context unchanged if Emacs integration fails
-      ctx)))
+        ctx)))
 
 (defn save-file
   "Saves the updated source to the file, creating parent directories if needed.

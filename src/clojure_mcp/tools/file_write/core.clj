@@ -4,7 +4,7 @@
   (:require
    [clojure.java.io :as io]
    [clojure-mcp.tools.form-edit.pipeline :as pipeline]
-   [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.utils.diff :as diff-utils]
    [clojure-mcp.linting :as linting]
    [rewrite-clj.zip :as z]))
 
@@ -79,7 +79,7 @@
           diff (if file-exists?
                  (if (= old-content content)
                    ""
-                   (utils/generate-diff-via-shell old-content content 3))
+                   (diff-utils/generate-diff-via-shell old-content content 3))
                  "")]
 
       ;; Write the content directly

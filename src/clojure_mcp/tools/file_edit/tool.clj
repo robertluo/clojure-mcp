@@ -4,7 +4,7 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.file-edit.core :as core]
    [clojure-mcp.tools.file-edit.pipeline :as pipeline]
-   [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.utils.valid-paths :as valid-paths]
    [clojure-mcp.config :as config]
    [clojure.java.io :as io]))
 
@@ -73,7 +73,7 @@ To make a file edit, provide the file_path, old_string (the text to replace), an
                       {:inputs inputs})))
 
     ;; Validate path using the utility function
-    (let [validated-path (utils/validate-path-with-client file_path nrepl-client)]
+    (let [validated-path (valid-paths/validate-path-with-client file_path nrepl-client)]
       ;; Return validated inputs with normalized path
       (assoc inputs
              :file_path validated-path

@@ -5,7 +5,7 @@
             [clojure-mcp.tools.unified-clojure-edit.pipeline :as clj-edit-pipeline]
             [clojure-mcp.tools.form-edit.pipeline :as pipeline]
             [clojure-mcp.linting :as linting]
-            [clojure-mcp.repl-tools.utils :as utils]
+            [clojure-mcp.utils.valid-paths :as valid-paths]
             [clojure-mcp.config :as config]
             [clojure.tools.logging :as log]
             [clojure.string :as str]))
@@ -142,7 +142,7 @@ THis tool can also target explicit sexps when used without the pattern symbols.
       (throw (ex-info "Missing required parameter: file_path"
                       {:inputs inputs})))
     ;; Use the utils/validate-path-with-client function to ensure path is valid
-    (utils/validate-path-with-client file_path nrepl-client)))
+    (valid-paths/validate-path-with-client file_path nrepl-client)))
 
 (defmethod tool-system/validate-inputs :clojure-pattern-edit [{:keys [nrepl-client-atom]} inputs]
   (let [file-path (validate-file-path inputs nrepl-client-atom)

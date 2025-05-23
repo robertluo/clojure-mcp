@@ -7,7 +7,7 @@
    [clojure-mcp.tools.read-file.core :as read-file-core]
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [clojure-mcp.tools.form-edit.core :as form-edit-core]
-   [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.utils.valid-paths :as valid-paths]
    [clojure.java.io :as io]
    [clojure.string :as str]))
 
@@ -119,7 +119,7 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
              (throw (ex-info (str "Invalid content_pattern regex: " (.getMessage e))
                              {:pattern content_pattern})))))
 
-    (let [validated-path (utils/validate-path-with-client path nrepl-client)]
+    (let [validated-path (valid-paths/validate-path-with-client path nrepl-client)]
       {:path validated-path
        :collapsed (if (nil? collapsed) true collapsed)
        :name_pattern name_pattern

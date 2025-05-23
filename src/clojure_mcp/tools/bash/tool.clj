@@ -3,7 +3,7 @@
   (:require
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.config :as config]
-   [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.utils.valid-paths :as valid-paths]
    [clojure-mcp.tools.bash.core :as core]
    [clojure.tools.logging :as log]
    [clojure.java.io :as io]
@@ -56,7 +56,7 @@ in the response to determine command success.")
       (throw (ex-info "Missing required parameter: command"
                       {:inputs inputs})))
     (assert working_directory)
-    (let [validated-dir (utils/validate-path-with-client working_directory nrepl-client)
+    (let [validated-dir (valid-paths/validate-path-with-client working_directory nrepl-client)
           dir (io/file validated-dir)]
       (when-not (.exists dir)
         (throw (ex-info (str "Working directory does not exist: " validated-dir)

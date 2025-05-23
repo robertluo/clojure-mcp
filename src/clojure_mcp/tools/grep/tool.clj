@@ -3,7 +3,7 @@
   (:require
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.grep.core :as core]
-   [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.utils.valid-paths :as valid-paths]
    [clojure-mcp.config :as config] ; Added config require
    [clojure.data.json :as json]))
 
@@ -53,7 +53,7 @@
       (throw (ex-info "Missing required parameter: pattern" {:inputs inputs})))
 
     ;; Pass the dereferenced map to validate-path-with-client
-    (let [validated-path (utils/validate-path-with-client effective-path nrepl-client-map)]
+    (let [validated-path (valid-paths/validate-path-with-client effective-path nrepl-client-map)]
       (cond-> {:path validated-path
                :pattern pattern}
         include (assoc :include include)

@@ -3,10 +3,10 @@
   (:require
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.move-file.core :as core]
-   [clojure-mcp.repl-tools.utils :as utils]))
+   [clojure-mcp.utils.valid-paths :as valid-paths]))
 
 ;; Factory function to create the tool configuration
-(defn create-move-file-tool 
+(defn create-move-file-tool
   "Creates the move-file tool configuration"
   [nrepl-client-atom]
   {:tool-type :move-file
@@ -22,9 +22,9 @@
 (defmethod tool-system/tool-schema :move-file [_]
   {:type :object
    :properties {:source {:type :string
-                        :description "The source file or directory path to move or rename."}
+                         :description "The source file or directory path to move or rename."}
                 :destination {:type :string
-                             :description "The destination file or directory path."}}
+                              :description "The destination file or directory path."}}
    :required [:source :destination]})
 
 (defmethod tool-system/validate-inputs :move-file [{:keys [nrepl-client-atom]} inputs]
@@ -33,15 +33,15 @@
     ;; Validate required parameters
     (when-not source
       (throw (ex-info "Missing required parameter: source" {:inputs inputs})))
-    
+
     (when-not destination
       (throw (ex-info "Missing required parameter: destination" {:inputs inputs})))
-    
+
     ;; Validate both paths using the utility function
-    (let [validated-source (utils/validate-path-with-client source nrepl-client)
-          validated-destination (utils/validate-path-with-client destination nrepl-client)]
+    (let [validated-source (valid-paths/validate-path-with-client source nrepl-client)
+          validated-destination (valid-paths/validate-path-with-client destination nrepl-client)]
       ;; Return validated inputs with normalized paths
-      (assoc inputs 
+      (assoc inputs
              :source validated-source
              :destination validated-destination))))
 
@@ -65,28 +65,27 @@
 
 (comment
   ;; === Examples of using the move-file tool ===
-  
+
   ;; Setup for REPL-based testing
   (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
   (clojure-mcp.nrepl/start-polling @client-atom)
-  
+
   ;; Create a tool instance
   (def move-tool (create-move-file-tool client-atom))
-  
+
   ;; Test the individual multimethod steps
   (def inputs {:source "/tmp/test-source.txt" :destination "/tmp/test-dest.txt"})
   (def validated (tool-system/validate-inputs move-tool inputs))
   (def result (tool-system/execute-tool move-tool validated))
   (def formatted (tool-system/format-results move-tool result))
-  
+
   ;; Generate the full registration map
   (def reg-map (tool-system/registration-map move-tool))
-  
+
   ;; Test running the tool-fn directly
   (def tool-fn (:tool-fn reg-map))
-  (tool-fn nil {"source" "/tmp/test-source.txt" "destination" "/tmp/test-dest.txt"} 
-          (fn [result error] (println "Result:" result "Error:" error)))
-  
+  (tool-fn nil {"source" "/tmp/test-source.txt" "destination" "/tmp/test-dest.txt"}
+           (fn [result error] (println "Result:" result "Error:" error)))
+
   ;; Clean up
-  (clojure-mcp.nrepl/stop-polling @client-atom)
-)
+  (clojure-mcp.nrepl/stop-polling @client-atom))

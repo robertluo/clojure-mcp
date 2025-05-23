@@ -3,7 +3,7 @@
   (:require
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.list-directory.core :as core]
-   [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.utils.valid-paths :as valid-paths]
    [clojure.string :as str]))
 
 ;; Factory function to create the tool configuration
@@ -62,7 +62,7 @@ Returns a formatted directory listing with files and subdirectories clearly labe
       (throw (ex-info "Missing required parameter: path" {:inputs inputs})))
 
     ;; Use the existing validate-path-with-client function
-    (let [validated-path (utils/validate-path-with-client path nrepl-client)]
+    (let [validated-path (valid-paths/validate-path-with-client path nrepl-client)]
       ;; Return validated inputs with normalized path
       {:path validated-path})))
 

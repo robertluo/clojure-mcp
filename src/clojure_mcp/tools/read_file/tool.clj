@@ -4,7 +4,7 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.read-file.core :as core]
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
-   [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.utils.valid-paths :as valid-paths]
    [clojure.java.io :as io]))
 
 ;; Factory function to create the tool configuration
@@ -60,7 +60,7 @@
       (throw (ex-info "Missing required parameter: path" {:inputs inputs})))
 
     ;; Use the existing validate-path-with-client function
-    (let [validated-path (utils/validate-path-with-client path nrepl-client)]
+    (let [validated-path (valid-paths/validate-path-with-client path nrepl-client)]
       ;; Return validated inputs with normalized path
       (assoc inputs :path validated-path))))
 

@@ -3,10 +3,10 @@
   (:require
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.create-directory.core :as core]
-   [clojure-mcp.repl-tools.utils :as utils]))
+   [clojure-mcp.utils.valid-paths :as valid-paths]))
 
 ;; Factory function to create the tool configuration
-(defn create-directory-tool 
+(defn create-directory-tool
   "Creates the create-directory tool configuration"
   [nrepl-client-atom]
   {:tool-type :create-directory
@@ -22,7 +22,7 @@
 (defmethod tool-system/tool-schema :create-directory [_]
   {:type :object
    :properties {:path {:type :string
-                      :description "The path to the directory to create or ensure exists."}}
+                       :description "The path to the directory to create or ensure exists."}}
    :required [:path]})
 
 (defmethod tool-system/validate-inputs :create-directory [{:keys [nrepl-client-atom]} inputs]
@@ -31,9 +31,9 @@
     ;; Validate required parameters
     (when-not path
       (throw (ex-info "Missing required parameter: path" {:inputs inputs})))
-    
+
     ;; Validate path using the utility function
-    (let [validated-path (utils/validate-path-with-client path nrepl-client)]
+    (let [validated-path (valid-paths/validate-path-with-client path nrepl-client)]
       ;; Return validated inputs with normalized path
       (assoc inputs :path validated-path))))
 
@@ -46,9 +46,9 @@
   (if success
     ;; Success case
     {:result [(cond
-               exists (str "Directory already exists: " path)
-               created (str "Created directory: " path)
-               :else (str "Directory operation completed: " path))]
+                exists (str "Directory already exists: " path)
+                created (str "Created directory: " path)
+                :else (str "Directory operation completed: " path))]
      :error false}
     ;; Error case
     {:result [(or error "Unknown error creating directory")]
@@ -60,28 +60,27 @@
 
 (comment
   ;; === Examples of using the create-directory tool ===
-  
+
   ;; Setup for REPL-based testing
   (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
   (clojure-mcp.nrepl/start-polling @client-atom)
-  
+
   ;; Create a tool instance
   (def dir-tool (create-directory-tool client-atom))
-  
+
   ;; Test the individual multimethod steps
   (def inputs {:path "/tmp/test-dir/nested"})
   (def validated (tool-system/validate-inputs dir-tool inputs))
   (def result (tool-system/execute-tool dir-tool validated))
   (def formatted (tool-system/format-results dir-tool result))
-  
+
   ;; Generate the full registration map
   (def reg-map (tool-system/registration-map dir-tool))
-  
+
   ;; Test running the tool-fn directly
   (def tool-fn (:tool-fn reg-map))
-  (tool-fn nil {"path" "/tmp/test-dir/nested"} 
-          (fn [result error] (println "Result:" result "Error:" error)))
-  
+  (tool-fn nil {"path" "/tmp/test-dir/nested"}
+           (fn [result error] (println "Result:" result "Error:" error)))
+
   ;; Clean up
-  (clojure-mcp.nrepl/stop-polling @client-atom)
-)
+  (clojure-mcp.nrepl/stop-polling @client-atom))

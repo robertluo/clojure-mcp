@@ -4,7 +4,7 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.file-write.core :as core]
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
-   [clojure-mcp.repl-tools.utils :as utils]
+   [clojure-mcp.utils.valid-paths :as valid-paths]
    [clojure.java.io :as io]))
 
 ;; Factory function to create the tool configuration
@@ -70,7 +70,7 @@ Before using this tool:
       (throw (ex-info "Missing required parameter: content" {:inputs inputs})))
 
     ;; Use the existing validate-path-with-client function
-    (let [validated-path (utils/validate-path-with-client file_path nrepl-client)
+    (let [validated-path (valid-paths/validate-path-with-client file_path nrepl-client)
           file (io/file validated-path)]
 
       ;; Check if file exists and has been modified since last read

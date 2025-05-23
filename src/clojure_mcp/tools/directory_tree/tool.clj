@@ -3,7 +3,7 @@
   (:require
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.directory-tree.core :as core]
-   [clojure-mcp.repl-tools.utils :as utils]))
+   [clojure-mcp.utils.valid-paths :as valid-paths]))
 
 ;; Factory function to create the tool configuration
 (defn create-directory-tree-tool
@@ -36,7 +36,7 @@
       (throw (ex-info "Missing required parameter: path" {:inputs inputs})))
 
     ;; Use the existing validate-path-with-client function
-    (let [validated-path (utils/validate-path-with-client path nrepl-client)]
+    (let [validated-path (valid-paths/validate-path-with-client path nrepl-client)]
       ;; Return validated inputs with normalized path
       (cond-> {:path validated-path}
         ;; Only include max_depth if provided

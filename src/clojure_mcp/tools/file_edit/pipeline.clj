@@ -9,7 +9,6 @@
    [clojure-mcp.tools.file-write.core :as file-write-core]
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [clojure-mcp.utils.emacs-integration :as emacs]
-   [clojure-mcp.repl-tools.utils :as utils]
    [clojure-mcp.linting :as linting]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
