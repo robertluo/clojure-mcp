@@ -160,25 +160,72 @@ This workflow creates a virtuous cycle where each session builds on the accumula
 
 ## 🧰 Available Tools
 
-### Code Evaluation and Exploration
+The default tools included in `main.clj` are organized by category to support different workflows:
+
+### Read-Only Tools
 
 | Tool Name | Description | Example Usage |
 |-----------|-------------|---------------|
-| `clojure_eval` | Evaluates Clojure code | Evaluating `(+ 1 2)` returns `=> 3` |
+| `LS` | Returns a recursive tree view of files and directories | Exploring project structure |
+| `read_file` | Smart file reader with pattern-based exploration for Clojure files | Reading files with collapsed view, pattern matching |
+| `fs_grep` | Fast content search using regular expressions | Finding files containing specific patterns |
+| `glob_files` | Pattern-based file finding | Finding files by name patterns like `*.clj` |
+| `think` | Log thoughts for complex reasoning and brainstorming | Planning approaches, organizing thoughts |
+
+### Code Evaluation
+
+| Tool Name | Description | Example Usage |
+|-----------|-------------|---------------|
+| `clojure_eval` | Evaluates Clojure code in the current namespace | Testing expressions like `(+ 1 2)` |
+| `bash` | Execute shell commands on the host system | Running tests, git commands, file operations |
 
 ### File Editing Tools
 
 | Tool Name | Description | Example Usage |
 |-----------|-------------|---------------|
-| `clojure_edit` | Replaces a form | Updating a function definition |
-| `clojure_edit_insert_before_form` | Inserts before a form | Adding a helper function |
-| `clojure_edit_insert_after_form` | Inserts after a form | Adding a new function |
+| `clojure_edit` | Structure-aware editing of Clojure forms | Replacing/inserting functions, handling defmethod |
+| `clojure_edit_replace_sexp` | Modify expressions within functions | Changing specific s-expressions |
+| `file_edit` | Edit files by replacing text strings | Simple text replacements |
+| `file_write` | Write complete files with safety checks | Creating new files, overwriting with validation |
 
-### Project Tools
+### Agent Tools (Require API Keys)
 
 | Tool Name | Description | Example Usage |
 |-----------|-------------|---------------|
-| `clojure_inspect_project` | Analyzes project | Shows deps, structure, etc. |
+| `dispatch_agent` | Launch agents with read-only tools for complex searches | Multi-step file exploration and analysis |
+| `architect` | Technical planning and implementation guidance | System design, architecture decisions |
+
+### Experimental Tools
+
+| Tool Name | Description | Example Usage |
+|-----------|-------------|---------------|
+| `code_critique` | Interactive code review and improvement suggestions | Iterative code quality improvement |
+
+### Key Tool Features
+
+#### Smart File Reading (`read_file`)
+- **Collapsed View**: Shows only function signatures for large Clojure files
+- **Pattern Matching**: Use `name_pattern` to find functions by name, `content_pattern` to search content
+- **defmethod Support**: Handles dispatch values like `"area :rectangle"` or vector dispatches
+- **Multi-language**: Clojure files get smart features, other files show raw content
+
+#### Structure-Aware Editing (`clojure_edit`)
+- **Form-based Operations**: Target functions by type and identifier, not text matching
+- **Multiple Operations**: Replace, insert_before, insert_after
+- **Syntax Validation**: Built-in linting prevents unbalanced parentheses
+- **defmethod Handling**: Works with qualified names and dispatch values
+
+#### Code Evaluation (`clojure_eval`)
+- **REPL Integration**: Executes in the connected nREPL session
+- **Helper Functions**: Built-in namespace and symbol exploration tools
+- **Multiple Expressions**: Evaluates and partitions multiple expressions
+- **Namespace Support**: Optional namespace parameter for context switching
+
+#### Agent System (`dispatch_agent`)
+- **Autonomous Search**: Handles complex, multi-step exploration tasks
+- **Read-only Access**: Agents have safe, limited tool access
+- **Concurrent Execution**: Launch multiple agents for parallel processing
+- **Detailed Results**: Returns comprehensive analysis and findings
 
 ## 🎛️ Customization
 
