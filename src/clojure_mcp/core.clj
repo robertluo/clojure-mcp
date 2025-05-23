@@ -282,7 +282,6 @@
         (assoc nrepl-client-map
                ::config/config
                (config/load-remote-config nrepl-client-map user-dir))))
-
     (catch Exception e
       (log/error e "Failed to create nREPL connection")
       (throw e))))

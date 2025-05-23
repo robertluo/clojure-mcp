@@ -21,7 +21,7 @@
                  (.isDirectory ud)))
     (cond-> config
       user-dir (assoc :nrepl-user-dir (.getCanonicalPath ud))
-      (seq allowed-directories)
+      true
       (assoc :allowed-directories
              (->> (cons user-dir allowed-directories)
                   (keep #(relative-to user-dir %))
