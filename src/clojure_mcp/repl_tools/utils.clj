@@ -2,7 +2,7 @@
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
             [clojure.java.shell :as shell]
-            [clojure-mcp.config :as config])) ; Added :refer [nrepl-client-atom]
+            [clojure-mcp.config :as config]))
 
 (defn validate-path
   "Validates that a path is within allowed directories.

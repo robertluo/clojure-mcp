@@ -147,17 +147,3 @@ If the file get's *edited* outside and must be read to see the changes, you shou
    :prompt-fn (simple-content-prompt-fn
                "Incremental File Creation for Clojure"
                (load-prompt-from-resource "prompts/system/incremental_file_creation.md"))})
-
-#_(defn get-all-prompts
-  "Returns a list of all defined prompts for registration with the MCP server.
-   Takes an nrepl-client-atom to allow prompts to access nREPL if needed."
-  [nrepl-client-atom]
-  (let [nrepl-client-map @nrepl-client-atom
-        nrepl-user-dir (config/get-nrepl-user-dir nrepl-client-map)]
-    [#_clojure-system-repl
-     clojure-system-repl-form-edit
-     clojure-edit-guide
-     incremental-file-creation
-     (create-project-summary nrepl-user-dir)]))
-
-
