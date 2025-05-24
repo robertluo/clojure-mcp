@@ -34,6 +34,8 @@ The project allows AI assistants to:
 
 ### Tool Implementations
 
+#### Active Tools (used in main.clj)
+
 - `/src/clojure_mcp/tools/eval/`: Code evaluation tools
 - `/src/clojure_mcp/tools/read_file/`: File reading utilities
   - `core.clj`: Core file reading functionality
@@ -48,11 +50,27 @@ The project allows AI assistants to:
 - `/src/clojure_mcp/tools/directory_tree/`: Filesystem navigation
 - `/src/clojure_mcp/tools/grep/`: Content searching in files
 - `/src/clojure_mcp/tools/glob_files/`: Pattern-based file finding
-- `/src/clojure_mcp/tools/namespace/`: Clojure namespace exploration
-- `/src/clojure_mcp/tools/symbol/`: Symbol information and documentation
 - `/src/clojure_mcp/tools/project/`: Project structure analysis
 - `/src/clojure_mcp/tools/code_critique/`: Code quality feedback
 - `/src/clojure_mcp/tools/think/`: Reflective thinking tool for AI assistants
+- `/src/clojure_mcp/tools/bash/`: Shell command execution
+- `/src/clojure_mcp/tools/dispatch_agent/`: Agent dispatching for complex tasks
+- `/src/clojure_mcp/tools/architect/`: Technical planning and architecture assistance
+- `/src/clojure_mcp/tools/file_write/`: File writing operations
+
+#### Unused Tools (moved to other_tools/)
+
+**Note**: These tools have been moved to `/src/clojure_mcp/other_tools/` to clearly separate them from actively used tools. They remain fully functional with passing tests but are not registered in `main.clj`. This organizational change helps maintain a cleaner codebase by distinguishing between essential tools and potentially unnecessary ones.
+
+- `/src/clojure_mcp/other_tools/create_directory/`: Tool for creating directories
+- `/src/clojure_mcp/other_tools/list_directory/`: Tool for listing directory contents
+- `/src/clojure_mcp/other_tools/move_file/`: Tool for moving/renaming files
+- `/src/clojure_mcp/other_tools/namespace/`: Clojure namespace exploration tools
+  - Includes: `current_namespace`, `clojure_list_namespaces`, `clojure_list_vars_in_namespace`
+- `/src/clojure_mcp/other_tools/symbol/`: Symbol information and documentation tools
+  - Includes: `symbol_completions`, `symbol_metadata`, `symbol_documentation`, `source_code`, `symbol_search`
+
+All unused tools have corresponding test files moved to `/test/clojure_mcp/other_tools/` with updated namespace declarations.
 
 ### Resource Directories
 
@@ -182,10 +200,9 @@ glob_files:
 fs_grep:
   Input: {:pattern "defn my-func"}
   Output: List of files containing the pattern
-  
-symbol_search:
-  Input: {:search-str "map"}
-  Output: List of symbol names containing "map"
+
+# Note: symbol_search tool has been moved to other_tools/ and is not actively used
+# but remains available for specialized namespace/symbol exploration if needed
 ```
 
 ### Project Information
@@ -423,9 +440,10 @@ The unified `clojure_edit` tool uses a pattern-matching approach for finding and
 ## Extension Points
 
 1. **Adding New Tools**:
-   - Create a new tool namespace in `/src/clojure_mcp/tools/`
+   - Create a new tool namespace in `/src/clojure_mcp/tools/` for active tools
    - Implement the required multimethods from `tool-system`
-   - Register the tool in `repl_tools.clj`
+   - Register the tool in `main.clj` within the `my-tools` function
+   - Note: Tools in `/src/clojure_mcp/other_tools/` are not automatically registered
 
 2. **Enhancing Existing Tools**:
    - Most tools follow a pipeline architecture that can be modified by adding new steps
@@ -433,21 +451,37 @@ The unified `clojure_edit` tool uses a pattern-matching approach for finding and
      to validate that patterns match exactly one form, preventing ambiguous edits
    - Pipeline steps follow a thread-first pattern with error short-circuiting
 
-3. **Enhancing Prompt System**:
+3. **Re-activating Unused Tools**:
+   - Tools in `/src/clojure_mcp/other_tools/` can be re-activated by:
+     - Moving them back to `/src/clojure_mcp/tools/`
+     - Updating namespace declarations
+     - Adding them to the imports and `my-tools` function in `main.clj`
+   - Alternatively, create custom MCP servers using these tools via the core API
+
+4. **Enhancing Prompt System**:
    - Add new prompts in `/resources/prompts/`
    - Register them in `prompts.clj`
 
-4. **Improving Code Editing**:
+5. **Improving Code Editing**:
    - Extend form editing capabilities in `tools/form_edit/core.clj`
    - Add specialized tools for common editing patterns
    - Extend pattern matching in `sexp/match.clj`
 
-5. **Language Model Integration**:
+6. **Language Model Integration**:
    - Explore langchain4j integration for more advanced AI capabilities
    - Implement feedback mechanisms for model improvements
 
-6. **IDE Integration**:
+7. **IDE Integration**:
    - Extend `/src/clojure_mcp/utils/emacs_integration.clj` for better editor support
    - Add support for VS Code or other editors
+
+## Recent Organizational Changes
+
+**Tool Reorganization (Latest)**: To improve codebase maintainability, unused tools have been moved to `/src/clojure_mcp/other_tools/`. This separation clarifies which tools are actively used in the main MCP server (`main.clj`) versus those that remain available but are not currently essential. The moved tools include:
+
+- `create_directory`, `list_directory`, `move_file`: Basic file system operations
+- `namespace`, `symbol`: Advanced Clojure introspection tools
+
+All moved tools retain full functionality with passing tests and can be easily re-activated if needed. This organizational approach helps maintain focus on the core tool set while preserving additional capabilities for specialized use cases.
 
 This project summary is designed to provide AI assistants with a quick understanding of the Clojure MCP project structure and capabilities, enabling more effective assistance with minimal additional context. The project continues to evolve with improvements such as the unified clojure_edit tool with pattern-based matching and validation to ensure safer, more precise code editing operations while maintaining compatibility with a wide range of LLMs.
