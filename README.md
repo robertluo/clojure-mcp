@@ -453,18 +453,9 @@ This modular approach lets you create focused, efficient MCP servers tailored to
 
 ## 🔧 Extending with Custom Tools
 
-Want to create your own MCP tools? The Clojure MCP server provides a powerful multimethod-based system for building custom tools that integrate seamlessly with the existing architecture.
+Want to create your own MCP tools?
 
-**📖 [Custom Tools Development Guide](CUSTOM_TOOLS.md)** - Comprehensive guide covering:
-
-- **Architecture Overview** - Understanding the multimethod-based tool system
-- **Simple Tool Example** - Complete walkthrough of creating an echo tool
-- **Complex Tool Example** - File processing tool with nREPL integration
-- **Testing Strategies** - Unit testing, integration testing, and REPL testing
-- **Integration Guide** - Adding your tools to the MCP server
-- **Best Practices** - Error handling, validation, and code organization
-
-The guide includes working examples and templates you can use as starting points for your own tools.
+**📖 [Custom Tools Development Guide](CUSTOM_TOOLS.md)** 
 
 ## ⚙️ Configuration
 
@@ -494,7 +485,7 @@ Boolean flag to enable Emacs integration notifications.
 ### Example Configuration
 
 ```edn
-{:allowed-directories ["." 
+{:allowed-directories ["."
                        "src" 
                        "test" 
                        "resources"
