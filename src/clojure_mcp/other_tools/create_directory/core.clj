@@ -1,4 +1,4 @@
-(ns clojure-mcp.tools.create-directory.core
+(ns clojure-mcp.other-tools.create-directory.core
   "Core implementation for the create-directory tool.
    This namespace contains the pure functionality without any MCP-specific code."
   (:require
@@ -29,7 +29,7 @@
         {:success false
          :path path
          :error (str "Path exists but is a file, not a directory: " path)})
-      
+
       ;; Case 2: Try to create directory
       :else
       (try
@@ -48,29 +48,28 @@
 
 (comment
   ;; === Examples of using the create-directory core functionality directly ===
-  
+
   ;; Test within temp directory
   (def temp-dir (System/getProperty "java.io.tmpdir"))
   (def test-path (str temp-dir "/test-dir/nested/path"))
-  
+
   ;; Create directory
   (create-directory test-path)
-  
+
   ;; Verify directory exists
-  (.exists (io/file test-path))  ;; Should be true
+  (.exists (io/file test-path)) ;; Should be true
   (.isDirectory (io/file test-path)) ;; Should be true
-  
+
   ;; Create same directory again (should not error)
   (create-directory test-path)
-  
+
   ;; Create a file that conflicts with directory path
   (def conflict-path (str temp-dir "/test-file-not-dir"))
   (spit conflict-path "test content")
   (create-directory conflict-path) ;; Should fail
-  
+
   ;; Clean up
   (io/delete-file conflict-path)
   (.delete (io/file test-path))
   (.delete (io/file (str temp-dir "/test-dir/nested")))
-  (.delete (io/file (str temp-dir "/test-dir")))
-)
+  (.delete (io/file (str temp-dir "/test-dir"))))

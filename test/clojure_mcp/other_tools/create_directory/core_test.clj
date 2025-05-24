@@ -1,6 +1,6 @@
-(ns clojure-mcp.tools.create-directory.core-test
+(ns clojure-mcp.other-tools.create-directory.core-test
   (:require [clojure.test :refer :all]
-            [clojure-mcp.tools.create-directory.core :as core]
+            [clojure-mcp.other-tools.create-directory.core :as core]
             [clojure.java.io :as io]
             [clojure.string :as str]))
 
@@ -11,22 +11,22 @@
 
 ;; Test fixture to set up a test environment
 (defn create-test-environment-fixture [f]
-  (let [tmp-dir (io/file (System/getProperty "java.io.tmpdir") 
+  (let [tmp-dir (io/file (System/getProperty "java.io.tmpdir")
                          (str "create-dir-test-" (System/currentTimeMillis)))
         nested-dir (io/file tmp-dir "nested/path")
         conflict-file (io/file tmp-dir "file-not-dir")]
-    
+
     ;; Create root test directory
     (.mkdirs tmp-dir)
-    
+
     ;; Create a file that will conflict with directory path testing
     (spit conflict-file "test content")
-    
+
     ;; Bind dynamic vars for the test
     (binding [*test-dir* tmp-dir
               *nested-dir* nested-dir
               *conflict-file* conflict-file]
-      
+
       ;; Run the test
       (try
         (f)
@@ -59,7 +59,7 @@
     ;; First, create the directory
     (.mkdirs *nested-dir*)
     (is (.exists *nested-dir*) "Setup check: directory should exist")
-    
+
     ;; Then test calling create-directory on the existing directory
     (let [dir-path (.getAbsolutePath *nested-dir*)
           result (core/create-directory dir-path)]
@@ -74,5 +74,5 @@
           result (core/create-directory file-path)]
       (is (not (:success result)) "Operation should fail")
       (is (:error result) "Should have an error message")
-      (is (str/includes? (:error result) "is a file") 
+      (is (str/includes? (:error result) "is a file")
           "Error should mention path exists as a file"))))

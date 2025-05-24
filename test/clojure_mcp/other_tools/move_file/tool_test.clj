@@ -1,6 +1,6 @@
-(ns clojure-mcp.tools.move-file.tool-test
+(ns clojure-mcp.other-tools.move-file.tool-test
   (:require [clojure.test :refer :all]
-            [clojure-mcp.tools.move-file.tool :as tool]
+            [clojure-mcp.other-tools.move-file.tool :as tool]
             [clojure-mcp.tool-system :as tool-system]
             [clojure-mcp.config :as config] ; Added config require
             [clojure.java.io :as io]

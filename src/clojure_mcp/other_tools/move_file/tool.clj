@@ -1,8 +1,8 @@
-(ns clojure-mcp.tools.move-file.tool
+(ns clojure-mcp.other-tools.move-file.tool
   "Implementation of the move-file tool using the tool-system multimethod approach."
   (:require
    [clojure-mcp.tool-system :as tool-system]
-   [clojure-mcp.tools.move-file.core :as core]
+   [clojure-mcp.other-tools.move-file.core :as core]
    [clojure-mcp.utils.valid-paths :as valid-paths]))
 
 ;; Factory function to create the tool configuration

@@ -1,6 +1,6 @@
-(ns clojure-mcp.tools.list-directory.core-test
+(ns clojure-mcp.other-tools.list-directory.core-test
   (:require [clojure.test :refer :all]
-            [clojure-mcp.tools.list-directory.core :as sut]
+            [clojure-mcp.other-tools.list-directory.core :as sut]
             [clojure.java.io :as io]))
 
 (deftest list-directory-test

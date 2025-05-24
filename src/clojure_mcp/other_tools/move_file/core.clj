@@ -1,4 +1,4 @@
-(ns clojure-mcp.tools.move-file.core
+(ns clojure-mcp.other-tools.move-file.core
   "Core implementation for the move-file tool.
    This namespace contains the pure functionality without any MCP-specific code."
   (:require
@@ -24,7 +24,7 @@
   [source destination]
   (let [source-file (io/file source)
         dest-file (io/file destination)]
-    
+
     (cond
       ;; Case 1: Source doesn't exist
       (not (.exists source-file))
@@ -32,14 +32,14 @@
        :source source
        :destination destination
        :error (str "Source file or directory does not exist: " source)}
-      
+
       ;; Case 2: Destination already exists
       (.exists dest-file)
       {:success false
        :source source
        :destination destination
        :error (str "Destination already exists: " destination)}
-      
+
       ;; Case 3: Try to perform the move
       :else
       (try
@@ -67,22 +67,21 @@
 
 (comment
   ;; === Examples of using the move-file core functionality directly ===
-  
+
   ;; Test within temp directory
   (def temp-dir (System/getProperty "java.io.tmpdir"))
   (def test-source (str temp-dir "/test-source.txt"))
   (def test-dest (str temp-dir "/test-dest.txt"))
-  
+
   ;; Create a test file
   (spit test-source "Test content")
-  
+
   ;; Test move operation
   (move-file test-source test-dest)
-  
+
   ;; Verify destination exists and source doesn't
-  (.exists (io/file test-dest))  ;; Should be true
+  (.exists (io/file test-dest)) ;; Should be true
   (.exists (io/file test-source)) ;; Should be false
-  
+
   ;; Clean up
-  (io/delete-file test-dest)
-)
+  (io/delete-file test-dest))

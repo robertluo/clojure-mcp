@@ -1,8 +1,8 @@
-(ns clojure-mcp.tools.create-directory.tool
+(ns clojure-mcp.other-tools.create-directory.tool
   "Implementation of the create-directory tool using the tool-system multimethod approach."
   (:require
    [clojure-mcp.tool-system :as tool-system]
-   [clojure-mcp.tools.create-directory.core :as core]
+   [clojure-mcp.other-tools.create-directory.core :as core]
    [clojure-mcp.utils.valid-paths :as valid-paths]))
 
 ;; Factory function to create the tool configuration

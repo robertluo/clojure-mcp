@@ -1,4 +1,4 @@
-(ns clojure-mcp.tools.list-directory.core
+(ns clojure-mcp.other-tools.list-directory.core
   "Core implementation for the list-directory tool.
    This namespace contains the pure functionality without any MCP-specific code."
   (:require

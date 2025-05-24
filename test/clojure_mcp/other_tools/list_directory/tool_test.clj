@@ -1,6 +1,6 @@
-(ns clojure-mcp.tools.list-directory.tool-test
+(ns clojure-mcp.other-tools.list-directory.tool-test
   (:require [clojure.test :refer :all]
-            [clojure-mcp.tools.list-directory.tool :as sut]
+            [clojure-mcp.other-tools.list-directory.tool :as sut]
             [clojure-mcp.tool-system :as tool-system]
             [clojure-mcp.config :as config])) ; Added config require
 
@@ -46,7 +46,7 @@
 
 (deftest execute-tool-test
   (testing "execute-tool calls core function with correct parameters"
-    (with-redefs [clojure-mcp.tools.list-directory.core/list-directory
+    (with-redefs [clojure-mcp.other-tools.list-directory.core/list-directory
                   (fn [path]
                     {:called-with {:path path}})]
 
