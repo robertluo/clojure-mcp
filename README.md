@@ -61,7 +61,7 @@ This approach enables:
    ```json
    {
        "mcpServers": {
-           "clojure_connect": {
+           "clojure-mcp": {
                "command": "/bin/sh",
                "args": [
                    "-c",
@@ -115,7 +115,7 @@ Now you can hopefully start Claude Desktop and have access to the mcp tools.
 
 It may take a moment to load. 
 
-You can check if everything is hooked up by clicking the `+` in the chat area and you should see `Add from clojure_connect` in the menu.
+You can check if everything is hooked up by clicking the `+` in the chat area and you should see `Add from clojure-mcp` in the menu.
 
 Right next to the `+` is a settings icon, when you click on that you can which tools are available.
 
@@ -209,7 +209,7 @@ When setting up Claude Desktop, ensure it can access your environment variables 
 ```json
 {
     "mcpServers": {
-        "clojure_connect": {
+        "clojure-mcp": {
             "command": "/bin/sh",
             "args": [
                 "-c",
@@ -230,7 +230,7 @@ Personally I `source` them right in bash command:
 ```json
 {
     "mcpServers": {
-        "clojure_connect": {
+        "clojure-mcp": {
             "command": "/bin/sh",
             "args": [
                 "-c",
