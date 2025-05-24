@@ -24,6 +24,7 @@ This project implements an MCP server that connects AI models to a Clojure nREPL
 - **Clojure REPL Connection**
 - **Clojure Aware editing** - Using clj-kondo, parinfer, cljfmt, and clj-rewrite
 - **Optimized set of tools for Clojure Development**
+- **Emacs edit highlighting** - alpha
 
 ### Why REPL-Driven Development with AI?
 

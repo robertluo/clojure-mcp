@@ -396,11 +396,15 @@ For complex tools, separate the core functionality from MCP integration:
   (:require
    [clojure.test :refer :all]
    [clojure-mcp.tool-system :as tool-system]
-   [my-project.tools.file-counter.tool :as tool]))
+   [clojure-mcp.config :as config]
+   [my-project.tools.file-counter.tool :as tool]
+   [clojure.java.io :as io]))
 
 (deftest test-tool-integration
-  (let [mock-client (atom {:clojure-mcp.core/nrepl-user-dir (System/getProperty "user.dir")
-                           :clojure-mcp.core/allowed-directories [(System/getProperty "user.dir")]})
+  (let [test-dir (System/getProperty "user.dir")
+        mock-client (atom {})
+        _ (config/set-config! mock-client :nrepl-user-dir test-dir)
+        _ (config/set-config! mock-client :allowed-directories [test-dir])
         tool-config (tool/create-file-counter-tool mock-client)
         
         ;; Test validation
@@ -426,10 +430,13 @@ For complex tools, separate the core functionality from MCP integration:
   ;; Test in REPL
   (require '[my-project.tools.file-counter.tool :as tool])
   (require '[clojure-mcp.tool-system :as tool-system])
+  (require '[clojure-mcp.config :as config])
   
-  ;; Create tool
-  (def mock-client (atom {:clojure-mcp.core/nrepl-user-dir (System/getProperty "user.dir")
-                          :clojure-mcp.core/allowed-directories [(System/getProperty "user.dir")]}))
+  ;; Create tool with proper config setup
+  (def test-dir (System/getProperty "user.dir"))
+  (def mock-client (atom {}))
+  (config/set-config! mock-client :nrepl-user-dir test-dir)
+  (config/set-config! mock-client :allowed-directories [test-dir])
   (def tool-instance (tool/file-counter-tool mock-client))
   
   ;; Test the tool function directly
