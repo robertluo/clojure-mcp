@@ -1,8 +1,8 @@
-(ns clojure-mcp.tools.symbol.tool-test
+(ns clojure-mcp.other-tools.symbol.tool-test
   (:require
    [clojure.test :refer [deftest is testing use-fixtures]]
-   [clojure-mcp.tools.symbol.tool :as sut]
-   [clojure-mcp.tools.symbol.core :as core]
+   [clojure-mcp.other-tools.symbol.tool :as sut]
+   [clojure-mcp.other-tools.symbol.core :as core]
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.nrepl :as nrepl]
    [nrepl.server :as nrepl-server]
@@ -54,8 +54,8 @@
             tool-fn (:tool-fn reg-map)
             promise-result (promise)]
         (tool-fn nil inputs
-                (fn [result error?]
-                  (deliver promise-result {:result result :error? error?})))
+                 (fn [result error?]
+                   (deliver promise-result {:result result :error? error?})))
         @promise-result))))
 
 ;; Helper to test just the individual steps of the pipeline
@@ -75,15 +75,15 @@
 
 (deftest tool-name-test
   (testing "Tool names are correct"
-    (is (= "symbol_completions" 
+    (is (= "symbol_completions"
            (tool-system/tool-name {:tool-type :symbol-completions})))
-    (is (= "symbol_metadata" 
+    (is (= "symbol_metadata"
            (tool-system/tool-name {:tool-type :symbol-metadata})))
-    (is (= "symbol_documentation" 
+    (is (= "symbol_documentation"
            (tool-system/tool-name {:tool-type :symbol-documentation})))
-    (is (= "source_code" 
+    (is (= "source_code"
            (tool-system/tool-name {:tool-type :source-code})))
-    (is (= "symbol_search" 
+    (is (= "symbol_search"
            (tool-system/tool-name {:tool-type :symbol-search})))))
 
 (deftest tool-description-test
@@ -101,14 +101,14 @@
       (is (= :object (:type schema)))
       (is (contains? (:properties schema) :prefix))
       (is (= [:prefix] (:required schema)))))
-  
+
   (testing "symbol-metadata schema is correct"
     (let [schema (tool-system/tool-schema {:tool-type :symbol-metadata})]
       (is (map? schema))
       (is (= :object (:type schema)))
       (is (contains? (:properties schema) :symbol))
       (is (= [:symbol] (:required schema)))))
-  
+
   (testing "source-code schema is correct"
     (let [schema (tool-system/tool-schema {:tool-type :source-code})]
       (is (map? schema))
@@ -119,21 +119,21 @@
 (deftest validate-inputs-test
   (testing "symbol-completions validates prefix parameter"
     (let [completions-tool {:tool-type :symbol-completions}]
-      (is (= {:prefix "map"} 
+      (is (= {:prefix "map"}
              (tool-system/validate-inputs completions-tool {:prefix "map"})))
-      (is (= {:prefix ""} 
+      (is (= {:prefix ""}
              (tool-system/validate-inputs completions-tool {:prefix ""})))
       (is (thrown? Exception (tool-system/validate-inputs completions-tool {})))))
-  
+
   (testing "symbol-metadata validates symbol parameter"
     (let [metadata-tool {:tool-type :symbol-metadata}]
-      (is (= {:symbol "map"} 
+      (is (= {:symbol "map"}
              (tool-system/validate-inputs metadata-tool {:symbol "map"})))
       (is (thrown? Exception (tool-system/validate-inputs metadata-tool {})))))
-  
+
   (testing "symbol-search validates search-str parameter"
     (let [search-tool {:tool-type :symbol-search}]
-      (is (= {:search-str "map"} 
+      (is (= {:search-str "map"}
              (tool-system/validate-inputs search-tool {:search-str "map"})))
       (is (thrown? Exception (tool-system/validate-inputs search-tool {}))))))
 
@@ -145,7 +145,7 @@
          (is (map? result))
          (is (vector? (:completions result)))
          (is (false? (:error result))))))
-  
+
   (testing "symbol-metadata execution returns metadata"
     (with-mocked-core-fns
       #(let [tool-instance (sut/create-symbol-metadata-tool *nrepl-client-atom*)
@@ -153,7 +153,7 @@
          (is (map? result))
          (is (map? (:metadata result)))
          (is (false? (:error result))))))
-  
+
   (testing "source-code execution returns source"
     (with-mocked-core-fns
       #(let [tool-instance (sut/create-source-code-tool *nrepl-client-atom*)
@@ -170,7 +170,7 @@
           error-formatted (tool-system/format-results {:tool-type :symbol-completions} error-result)]
       (is (= {:result ["map" "mapv"] :error false} success-formatted))
       (is (= {:result ["Error retrieving completions"] :error true} error-formatted))))
-  
+
   (testing "symbol-metadata formatting"
     (let [success-result {:metadata {:name 'map :doc "Doc"} :error false}
           error-result {:error true :message "Symbol not found"}
@@ -180,7 +180,7 @@
       (is (= 1 (count (:result success-formatted))))
       (is (false? (:error success-formatted)))
       (is (= {:result ["Symbol not found"] :error true} error-formatted))))
-  
+
   (testing "source-code formatting"
     (let [success-result {:source "(defn map [f coll] ...)" :error false}
           error-result {:error true :message "Source not found"}
@@ -194,25 +194,25 @@
     (let [result (test-tool-execution :symbol-completions {"prefix" "ma"})]
       (is (false? (:error? result)))
       (is (= ["map" "mapv"] (:result result)))))
-  
+
   (testing "symbol-metadata tool execution"
     (let [result (test-tool-execution :symbol-metadata {"symbol" "map"})]
       (is (false? (:error? result)))
       (is (= 1 (count (:result result))))
       (is (string? (first (:result result))))))
-  
+
   (testing "symbol-documentation tool execution"
     (let [result (test-tool-execution :symbol-documentation {"symbol" "map"})]
       (is (false? (:error? result)))
       (is (= 1 (count (:result result))))
       (is (string? (first (:result result))))
       (is (str/includes? (first (:result result)) "Doc"))))
-  
+
   (testing "source-code tool execution"
     (let [result (test-tool-execution :source-code {"symbol" "map"})]
       (is (false? (:error? result)))
       (is (= ["(defn map [f coll] ...)"] (:result result)))))
-  
+
   (testing "symbol-search tool execution"
     (let [result (test-tool-execution :symbol-search {"search-str" "map"})]
       (is (false? (:error? result)))

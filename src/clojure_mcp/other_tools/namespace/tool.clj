@@ -1,8 +1,8 @@
-(ns clojure-mcp.tools.namespace.tool
+(ns clojure-mcp.other-tools.namespace.tool
   "Implementation of namespace-related tools using the tool-system multimethod approach."
   (:require
    [clojure-mcp.tool-system :as tool-system]
-   [clojure-mcp.tools.namespace.core :as core]
+   [clojure-mcp.other-tools.namespace.core :as core]
    [clojure-mcp.nrepl :as nrepl]
    [clojure.string :as str]))
 

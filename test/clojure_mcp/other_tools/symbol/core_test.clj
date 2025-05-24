@@ -1,7 +1,7 @@
-(ns clojure-mcp.tools.symbol.core-test
+(ns clojure-mcp.other-tools.symbol.core-test
   (:require
    [clojure.test :refer [deftest is testing use-fixtures]]
-   [clojure-mcp.tools.symbol.core :as sut]
+   [clojure-mcp.other-tools.symbol.core :as sut]
    [clojure-mcp.nrepl :as nrepl]
    [nrepl.server :as nrepl-server]
    [clojure.string :as str]))
@@ -49,7 +49,7 @@
       (is (map? (:metadata result)))
       (is (= (str (:name (:metadata result))) "map") "Name should be map")
       (is (false? (:error result)))))
-  
+
   (testing "get-symbol-metadata handles missing symbols"
     (let [client @*nrepl-client-atom*
           result (sut/get-symbol-metadata client "this-symbol-does-not-exist-anywhere")]
@@ -68,7 +68,7 @@
       (is (string? (:doc result)))
       (is (str/includes? (:doc result) "Returns a lazy"))
       (is (false? (:error result)))))
-  
+
   (testing "get-symbol-documentation handles missing symbols"
     (let [client @*nrepl-client-atom*
           result (sut/get-symbol-documentation client "this-symbol-does-not-exist-anywhere")]
@@ -86,7 +86,7 @@
       (is (string? (:source result)))
       (is (str/includes? (:source result) "(defn map"))
       (is (false? (:error result)))))
-  
+
   (testing "get-source-code handles missing source"
     (let [client @*nrepl-client-atom*
           result (sut/get-source-code client "this-symbol-does-not-exist-anywhere")]
@@ -104,7 +104,7 @@
       (is (some #(= % "clojure.core/map") (:matches result)))
       (is (some #(= % "clojure.core/mapv") (:matches result)))
       (is (false? (:error result)))))
-  
+
   (testing "search-symbols handles empty results"
     (let [client @*nrepl-client-atom*
           result (sut/search-symbols client "xyz123nonexistent")]

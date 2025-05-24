@@ -1,4 +1,4 @@
-(ns clojure-mcp.tools.namespace.core
+(ns clojure-mcp.other-tools.namespace.core
   "Core implementation for namespace-related tools.
    This namespace contains the pure functionality without any MCP-specific code."
   (:require

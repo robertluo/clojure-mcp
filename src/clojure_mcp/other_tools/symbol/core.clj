@@ -1,4 +1,4 @@
-(ns clojure-mcp.tools.symbol.core
+(ns clojure-mcp.other-tools.symbol.core
   "Core implementation for symbol-related tools.
    This namespace contains the pure functionality without any MCP-specific code."
   (:require

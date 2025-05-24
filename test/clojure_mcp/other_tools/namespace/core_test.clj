@@ -1,7 +1,7 @@
-(ns clojure-mcp.tools.namespace.core-test
+(ns clojure-mcp.other-tools.namespace.core-test
   (:require
    [clojure.test :refer [deftest is testing use-fixtures]]
-   [clojure-mcp.tools.namespace.core :as sut]
+   [clojure-mcp.other-tools.namespace.core :as sut]
    [clojure-mcp.nrepl :as nrepl]
    [nrepl.server :as nrepl-server]
    [clojure.string :as str]))
@@ -41,7 +41,7 @@
       (is (map? result))
       (is (= "user" (:namespace result)))
       (is (false? (:error result)))))
-  
+
   (testing "get-current-namespace with custom namespace"
     ;; Create and switch to a test namespace
     (nrepl/eval-code @*nrepl-client-atom* "(create-ns 'test-ns)" identity)
@@ -73,7 +73,7 @@
       ;; Check some common functions in clojure.string
       (is (some #(= 'join (:name %)) (:vars result)))
       (is (some #(= 'split (:name %)) (:vars result)))))
-  
+
   (testing "get-vars-in-namespace returns error for nonexistent namespace"
     (let [result (sut/get-vars-in-namespace @*nrepl-client-atom* eval-helper "nonexistent.namespace")]
       (is (map? result))

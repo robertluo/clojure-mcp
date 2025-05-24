@@ -1,8 +1,8 @@
-(ns clojure-mcp.tools.namespace.tool-test
+(ns clojure-mcp.other-tools.namespace.tool-test
   (:require
    [clojure.test :refer [deftest is testing use-fixtures]]
-   [clojure-mcp.tools.namespace.tool :as sut]
-   [clojure-mcp.tools.namespace.core :as core]
+   [clojure-mcp.other-tools.namespace.tool :as sut]
+   [clojure-mcp.other-tools.namespace.core :as core]
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.nrepl :as nrepl]
    [nrepl.server :as nrepl-server]
@@ -41,8 +41,8 @@
         tool-fn (:tool-fn reg-map)
         promise-result (promise)]
     (tool-fn nil inputs
-            (fn [result error?]
-              (deliver promise-result {:result result :error? error?})))
+             (fn [result error?]
+               (deliver promise-result {:result result :error? error?})))
     @promise-result))
 
 ;; Helper to test just the individual steps of the pipeline
@@ -58,11 +58,11 @@
 
 (deftest tool-name-test
   (testing "Tool names are correct"
-    (is (= "current_namespace" 
+    (is (= "current_namespace"
            (tool-system/tool-name {:tool-type :current-namespace})))
-    (is (= "clojure_list_namespaces" 
+    (is (= "clojure_list_namespaces"
            (tool-system/tool-name {:tool-type :list-namespaces})))
-    (is (= "clojure_list_vars_in_namespace" 
+    (is (= "clojure_list_vars_in_namespace"
            (tool-system/tool-name {:tool-type :list-vars-in-namespace})))))
 
 (deftest tool-description-test
@@ -77,12 +77,12 @@
     (let [schema (tool-system/tool-schema {:tool-type :current-namespace})]
       (is (map? schema))
       (is (= :object (:type schema)))))
-  
+
   (testing "list-namespaces schema is correct"
     (let [schema (tool-system/tool-schema {:tool-type :list-namespaces})]
       (is (map? schema))
       (is (= :object (:type schema)))))
-  
+
   (testing "list-vars-in-namespace schema is correct"
     (let [schema (tool-system/tool-schema {:tool-type :list-vars-in-namespace})]
       (is (map? schema))
@@ -96,25 +96,25 @@
           list-ns-tool {:tool-type :list-namespaces}]
       (is (= {} (tool-system/validate-inputs current-ns-tool {})))
       (is (= {} (tool-system/validate-inputs list-ns-tool {})))))
-  
+
   (testing "list-vars-in-namespace validates namespace parameter"
     (let [list-vars-tool {:tool-type :list-vars-in-namespace
-                         :nrepl-client-atom *nrepl-client-atom*}]
-      (is (= {:namespace "clojure.string"} 
+                          :nrepl-client-atom *nrepl-client-atom*}]
+      (is (= {:namespace "clojure.string"}
              (tool-system/validate-inputs list-vars-tool {:namespace "clojure.string"})))
       (is (thrown? Exception (tool-system/validate-inputs list-vars-tool {}))))))
 
 (deftest execute-tool-test
   (testing "Set current namespace before testing"
     (nrepl/eval-code @*nrepl-client-atom* "(in-ns 'user)" identity))
-  
+
   (testing "current-namespace execution returns current namespace"
     (let [tool-instance (sut/create-current-namespace-tool *nrepl-client-atom*)
           result (tool-system/execute-tool tool-instance {})]
       (is (map? result))
       (is (= "user" (:namespace result)))
       (is (false? (:error result)))))
-  
+
   (testing "list-namespaces execution returns list of namespaces"
     (let [tool-instance (sut/create-list-namespaces-tool *nrepl-client-atom*)
           result (tool-system/execute-tool tool-instance {})]
@@ -122,7 +122,7 @@
       (is (vector? (:namespaces result)))
       (is (some #(= "clojure.core" %) (:namespaces result)))
       (is (false? (:error result)))))
-  
+
   (testing "list-vars-in-namespace execution returns vars for valid namespace"
     (let [tool-instance (sut/create-list-vars-tool *nrepl-client-atom*)
           result (tool-system/execute-tool tool-instance {:namespace "clojure.string"})]
@@ -130,7 +130,7 @@
       (is (vector? (:vars result)))
       (is (map? (first (:vars result))))
       (is (false? (:error result)))))
-  
+
   (testing "list-vars-in-namespace execution returns error for invalid namespace"
     (let [tool-instance (sut/create-list-vars-tool *nrepl-client-atom*)
           result (tool-system/execute-tool tool-instance {:namespace "nonexistent.ns"})]
@@ -146,7 +146,7 @@
           error-formatted (tool-system/format-results {:tool-type :current-namespace} error-result)]
       (is (= {:result ["user"] :error false} success-formatted))
       (is (= {:result ["No current namespace"] :error true} error-formatted))))
-  
+
   (testing "list-namespaces formatting"
     (let [success-result {:namespaces ["clojure.core" "clojure.string"] :error false}
           error-result {:error true :message "Error retrieving namespaces"}
@@ -154,7 +154,7 @@
           error-formatted (tool-system/format-results {:tool-type :list-namespaces} error-result)]
       (is (= {:result ["clojure.core" "clojure.string"] :error false} success-formatted))
       (is (= {:result ["Error retrieving namespaces"] :error true} error-formatted))))
-  
+
   (testing "list-vars-in-namespace formatting"
     (let [var-meta {:name 'join :arglists '([coll] [separator coll]) :doc "Joins strings" :ns "clojure.string"}
           success-result {:vars [var-meta] :error false}
@@ -168,18 +168,18 @@
 (deftest tool-execution-test
   (testing "Set current namespace before testing"
     (nrepl/eval-code @*nrepl-client-atom* "(in-ns 'user)" identity))
-  
+
   (testing "current-namespace tool execution"
     (let [result (test-tool-execution :current-namespace {})]
       (is (false? (:error? result)))
       (is (= ["user"] (:result result)))))
-  
+
   (testing "list-namespaces tool execution"
     (let [result (test-tool-execution :list-namespaces {})]
       (is (false? (:error? result)))
       (is (some #(= "clojure.core" %) (:result result)))
       (is (some #(= "clojure.string" %) (:result result)))))
-  
+
   (testing "list-vars-in-namespace tool execution with valid namespace"
     (let [result (test-tool-execution :list-vars-in-namespace {"namespace" "clojure.string"})]
       (is (false? (:error? result)))
@@ -194,7 +194,7 @@
         (is (str/includes? output "([coll]"))
         ; Check that we have separators between functions
         (is (str/includes? output "---")))))
-  
+
   (testing "list-vars-in-namespace tool execution with invalid namespace"
     (let [result (test-tool-execution :list-vars-in-namespace {"namespace" "nonexistent.ns"})]
       (is (true? (:error? result)))
