@@ -22,42 +22,34 @@
   "Creates an AI service for doings read only tasks"
   [nrepl-client-atom]
   (try
-    (let [memory (chain/chat-memory 300)
-          model (-> (chain/create-model-claude-3-7)
-                    #_(.thinkingType "enabled")
-                    #_(.thinkingBudgetTokens (int 1024))
-                    (.beta "prompt-caching-2024-07-31")
-                    (.cacheSystemMessages true)
-                    (.maxTokens (int 4096))
-                    (.temperature 1.0)
-                    (.build))
-          ai-service-data {:memory memory
-                           :model model
-                           :tools
-                           (mapv
-                            #(% nrepl-client-atom)
-                            [read-file-tool/unified-read-file-tool
-                             directory-tree-tool/directory-tree-tool
-                             grep-tool/grep-tool
-                             glob-files-tool/glob-files-tool
-                             ;; needs REPL setup
-                             project-tool/inspect-project-tool
-                             think-tool/think-tool])
-                           :system-message system-message}
-          service (-> (chain/create-service AiService
-                                            ai-service-data)
-                      (.build))]
-      (log/info "AI service for code critique successfully created")
-      (assoc ai-service-data
-             :service service))
+    (when-let [model (some-> (chain/agent-model)
+                             (.build))]
+      (let [memory (chain/chat-memory 300)
+            ai-service-data {:memory memory
+                             :model model
+                             :tools
+                             (mapv
+                              #(% nrepl-client-atom)
+                              [read-file-tool/unified-read-file-tool
+                               directory-tree-tool/directory-tree-tool
+                               grep-tool/grep-tool
+                               glob-files-tool/glob-files-tool
+                               ;; needs REPL setup
+                               project-tool/inspect-project-tool
+                               think-tool/think-tool])
+                             :system-message system-message}
+            service (-> (chain/create-service AiService ai-service-data)
+                        (.build))]
+        (assoc ai-service-data
+               :service service)))
     (catch Exception e
-      (log/error e "Failed to create AI service for code critique")
+      (log/error e "Failed to create dispatch_agent AI service for code critique")
       (throw e))))
 
 (defn get-ai-service
   [nrepl-client-atom]
   (or (::ai-service @nrepl-client-atom)
-      (let [ai (create-ai-service nrepl-client-atom)]
+      (when-let [ai (create-ai-service nrepl-client-atom)]
         (swap! nrepl-client-atom assoc ::ai-service ai)
         ai)))
 
@@ -68,14 +60,17 @@
   (if (string/blank? prompt)
     {:critique "Error: Cannot critique empty code"
      :error true}
-    (let [ai-service (get-ai-service nrepl-client-atom)]
+    (if-let [ai-service (get-ai-service nrepl-client-atom)]
       ;; TODO we have a stateful memory problem here.
       ;; parallel requests will corrupt the memory?
       ;; should use a Oneshot Memory
-      (.clear (:memory ai-service))
-      (let [result (.chat (:service ai-service) prompt)]
-        {:result result
-         :error false}))))
+      (do
+        (.clear (:memory ai-service))
+        (let [result (.chat (:service ai-service) prompt)]
+          {:result result
+           :error false}))
+      {:result "ERROR: No model configured for this agent."
+       :error true})))
 
 (defn validate-dispatch-agent-inputs
   "Validates inputs for the dispatch-agent function"

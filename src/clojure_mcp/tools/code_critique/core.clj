@@ -11,27 +11,23 @@
 (declare system-message)
 
 (defn create-ai-service
-  "Creates an AI service for code critique using Claude model."
+  "Creates an AI service for code critique."
   []
   (try
-    (let [memory (chain/chat-memory 12)
-          model (-> (chain/create-model-claude-3-7)
-                    (.thinkingType "enabled")
-                    (.thinkingBudgetTokens (int 1024))
-                    (.beta "prompt-caching-2024-07-31")
-                    (.cacheSystemMessages true)
-                    (.maxTokens (int 2048))
-                    (.temperature 1.0)
-                    (.build))
-          ai-service-data {:memory memory
-                           :model model
-                           :system-message (system-message 2)}
-          service (-> (chain/create-service AiService
-                                            ai-service-data)
-                      (.build))]
-      (log/info "AI service for code critique successfully created")
-      (assoc ai-service-data
-             :service service))
+    (when-let [model (some-> (chain/reasoning-agent-model)
+                             (chain/default-request-parameters
+                              #(chain/reasoning-effort % :low))
+                             (.build))]
+      (let [memory (chain/chat-memory 30)
+            ai-service-data {:memory memory
+                             :model model
+                             :system-message (system-message 2)}
+            service (-> (chain/create-service AiService
+                                              ai-service-data)
+                        (.build))]
+        (log/info "AI service for code critique successfully created")
+        (assoc ai-service-data
+               :service service)))
     (catch Exception e
       (log/error e "Failed to create AI service for code critique")
       (throw e))))
@@ -39,7 +35,7 @@
 (defn get-ai-service
   [nrepl-client-atom]
   (or (::ai-service @nrepl-client-atom)
-      (let [ai (create-ai-service)]
+      (when-let [ai (create-ai-service)]
         (swap! nrepl-client-atom assoc ::ai-service ai)
         ai)))
 
@@ -48,15 +44,17 @@
   (if (string/blank? code)
     {:critique "Error: Cannot critique empty code"
      :error true}
-    (let [ai-service (get-ai-service nrepl-client-atom)]
+    (if-let [ai-service (get-ai-service nrepl-client-atom)]
       (let [critique (.chat (:service ai-service) code)]
         {:critique critique
-         :error false}))))
+         :error false})
+      {:result "ERROR: No model configured for this agent."
+       :error true})))
 
 (comment
   (def ai-service (create-ai-service))
-
-  (critique-code (atom {})
+  (.chat (:service ai-service) "(defn i [x] x)")
+  #_(critique-code (atom {})
                  "(defn i [x] x)"))
 
 ;; beter to read this from an text file in resources

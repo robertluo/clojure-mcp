@@ -27,12 +27,17 @@
     GoogleAiGeminiChatModel]
    [java.util.function Consumer Function]
 
+   [dev.langchain4j.model.openai
+    OpenAiChatModel
+    OpenAiChatRequestParameters
+    OpenAiChatModelName]
+   
    ;; Java Time API
    [java.time LocalTime LocalDate ZoneId]))
 
 (def default-max-memory 100)
 
-(defn create-model-claude-3-7 []
+#_(defn create-model-claude-3-7 []
   (-> (AnthropicChatModel/builder)
       (.apiKey (System/getenv "ANTHROPIC_API_KEY"))
       (.modelName AnthropicChatModelName/CLAUDE_3_7_SONNET_20250219)
@@ -40,7 +45,7 @@
       (.logRequests true)
       (.logResponses true)))
 
-(defn create-model-claude-3-5 []
+#_(defn create-model-claude-3-5 []
   (-> (AnthropicChatModel/builder)
       (.apiKey (System/getenv "ANTHROPIC_API_KEY"))
       (.modelName AnthropicChatModelName/CLAUDE_3_5_SONNET_20241022)
@@ -48,19 +53,74 @@
       (.logRequests true)
       (.logResponses true)))
 
-(defn create-model-gemini []
+#_(defn create-model-gemini []
   (-> (GoogleAiGeminiChatModel/builder)
       (.apiKey (System/getenv "GEMINI_API_KEY"))
       (.modelName "gemini-2.5-pro-preview-03-25")
       #_(.logRequests true)
       #_(.logResponses true)))
 
-(defn create-model-gemini-2-0-flash []
+#_(defn create-model-gemini-2-0-flash []
   (-> (GoogleAiGeminiChatModel/builder)
       (.apiKey (System/getenv "GEMINI_API_KEY"))
       (.modelName "gemini-2.0-flash")
       #_(.logRequests true)
       #_(.logResponses true)))
+
+;; simple API as we don't really need more right now
+
+(defn create-gemini-model [model-name]
+  (-> (OpenAiChatModel/builder)
+      (.baseUrl "https://generativelanguage.googleapis.com/v1beta/openai/")
+      (.apiKey (System/getenv "GEMINI_API_KEY"))
+      (.modelName model-name)))
+
+(defn create-openai-model [model-name]
+  (-> (OpenAiChatModel/builder)
+      (.apiKey (System/getenv "OPENAI_API_KEY"))
+      (.modelName model-name)))
+
+;; reasoning not supported yet??
+;; Langchain Anthropic client is unstable, using OPENAI api is better but
+;; can't seem to find how to add request parameters for thinking to it
+(defn create-anthropic-model [model-name]
+  (-> (OpenAiChatModel/builder)
+      (.baseUrl "https://api.anthropic.com/v1/")
+      (.apiKey (System/getenv "ANTHROPIC_API_KEY"))
+      (.modelName model-name)))
+
+(defn default-request-parameters [model-builder configure-fn]
+   (.defaultRequestParameters model-builder
+    (.build (configure-fn (OpenAiChatRequestParameters/builder)))))
+
+(defn reasoning-effort [request-params-builder reasoning-effort]
+  (assert (#{:low :medium :high} reasoning-effort))
+  (.reasoningEffort request-params-builder (name reasoning-effort)))
+
+(defn max-output-tokens [request-params-builder max-output-tokens]
+  (.maxOutputTokens request-params-builder (int max-output-tokens)))
+
+(defn reasoning-agent-model []
+  (cond
+    (System/getenv "GEMINI_API_KEY")
+    (create-gemini-model "gemini-2.5-flash-preview-05-20")
+    (System/getenv "OPENAI_API_KEY")
+    (create-openai-model "o4-mini")
+    :else nil))
+
+(defn agent-model []
+  (cond
+    (System/getenv "GEMINI_API_KEY")
+    (create-gemini-model "gemini-2.5-flash-preview-05-20")
+    (System/getenv "OPENAI_API_KEY")
+    (create-openai-model "o4-mini")
+    (System/getenv "ANTHROPIC_API_KEY")
+    (create-anthropic-model AnthropicChatModelName/CLAUDE_3_7_SONNET_20250219)
+    :else nil))
+
+#_(-> (agent-model)
+      (default-request-parameters #(max-output-tokens % 4096))
+      (.build))
 
 (defn chat-memory
   ([]

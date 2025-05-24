@@ -20,29 +20,29 @@
   "Creates an AI service for architecture-related tasks"
   [nrepl-client-atom]
   (try
-    (let [memory (chain/chat-memory 300)
-          model (-> (chain/create-model-gemini)
-                    (.maxOutputTokens (int 8096))
-                    (.temperature 1.0)
-                    (.build))
-          ai-service-data {:memory memory
-                           :model model
-                           :tools
-                           (mapv
-                            #(% nrepl-client-atom)
-                            [read-file-tool/unified-read-file-tool
-                             directory-tree-tool/directory-tree-tool
-                             grep-tool/grep-tool
-                             glob-files-tool/glob-files-tool
-                             project-tool/inspect-project-tool
-                             think-tool/think-tool])
-                           :system-message system-message}
-          service (-> (chain/create-service AiService
-                                            ai-service-data)
-                      (.build))]
-      (log/info "AI service for architect successfully created")
-      (assoc ai-service-data
-             :service service))
+    (when-let [model (some-> (chain/reasoning-agent-model)
+                    (chain/default-request-parameters
+                     #(chain/reasoning-effort % :medium))
+                    (.build))]
+      (let [memory (chain/chat-memory 300)
+            ai-service-data {:memory memory
+                             :model model
+                             :tools
+                             (mapv
+                              #(% nrepl-client-atom)
+                              [read-file-tool/unified-read-file-tool
+                               directory-tree-tool/directory-tree-tool
+                               grep-tool/grep-tool
+                               glob-files-tool/glob-files-tool
+                               project-tool/inspect-project-tool
+                               think-tool/think-tool])
+                             :system-message system-message}
+            service (-> (chain/create-service AiService
+                                              ai-service-data)
+                        (.build))]
+        (log/info "AI service for architect successfully created")
+        (assoc ai-service-data
+               :service service)))
     (catch Exception e
       (log/error e "Failed to create AI service for architect")
       (throw e))))
@@ -50,7 +50,7 @@
 (defn get-ai-service
   [nrepl-client-atom]
   (or (::ai-service @nrepl-client-atom)
-      (let [ai (create-ai-service nrepl-client-atom)]
+      (when-let [ai (create-ai-service nrepl-client-atom)]
         (swap! nrepl-client-atom assoc ::ai-service ai)
         ai)))
 
@@ -62,14 +62,17 @@
   (if (string/blank? prompt)
     {:critique "Error: Cannot process empty prompt"
      :error true}
-    (let [ai-service (get-ai-service nrepl-client-atom)]
-      (.clear (:memory ai-service))
-      (let [result (.chat (:service ai-service)
-                          (cond-> prompt
-                            (not (string/blank? context))
-                            (str prompt  "\n\n```context\n" context "\n```\n")))]
-        {:result result
-         :error false}))))
+    (if-let [ai-service (get-ai-service nrepl-client-atom)]
+      (do
+        (.clear (:memory ai-service))
+        (let [result (.chat (:service ai-service)
+                            (cond-> prompt
+                              (not (string/blank? context))
+                              (str prompt  "\n\n```context\n" context "\n```\n")))]
+          {:result result
+           :error false}))
+      {:result "ERROR: No model configured for this agent."
+       :error true})))
 
 (defn validate-architect-inputs
   "Validates inputs for the architect function"
