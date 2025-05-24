@@ -45,11 +45,17 @@ This approach enables:
 
 #### Step 1: Get the Clojure MCP Server
 
-Clone this repository to your development machine:
+Clone this repository to your development machine
 
 ```bash
 git clone https://github.com/bhauman/clojure-mcp.git
-cd clojure-mcp
+```
+
+or use it as git dep in your `deps.edn`
+
+```clojure
+{:deps {:git/url "https://github.com/bhauman/clojure-mcp.git"
+        :latest-sha "main"}}
 ```
 
 #### Step 2: Configure Your Target Project
