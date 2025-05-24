@@ -133,16 +133,20 @@ I click the `+` tools and I add
 
 Then start the chat.
 
-I would start by having giving it a problem then have it design a solution for your review.
+I would start by having giving it a problem then chat with the LLM and interactively design a solution.
 
 Iterate on that a bit then have it either
 
 A. code and validate the idea in the REPL.
-B. go started to file editing and then have it validate the code after file editing.
+
+> Don't underestimate LLMs abilities to use the REPL! Current LLMs are
+> absolutely fantastic at using the Clojure REPL. 
+
+B. go started to file editing and then have it validate the code in the REPL after file editing.
 
 There is a bash tool so it can run tests and it can make commits for you.
 
-Make a branch commit often so that it doesn't blow your work away with bad ideas.
+Make a branch and have the LLM commit often so that it doesn't blow your work away by going in a bad direction.
 
 ## Project Summary Management
 

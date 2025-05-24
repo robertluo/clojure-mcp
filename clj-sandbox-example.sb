@@ -1,0 +1,209 @@
+(version 1)
+(allow default)
+
+(debug deny)
+
+(deny network*)
+(allow network* (local ip "localhost:*"))
+(allow network* (remote ip "localhost:*"))
+(allow network* (remote unix-socket))
+
+(deny file-write*)
+(allow file-write* 
+       ;; System temp and cache directories
+
+  (subpath "/private/tmp")
+  (subpath "/private/var/tmp")
+  (regex "^/private/var/folders/.*/T")
+  (subpath "/Users/bruce/Library/Caches")
+  (subpath "/Users/bruce/Library/Logs")
+
+  (subpath "/Users/bruce/.clojure")
+  (subpath "/dev/dtracehelper")
+  
+  ;; (literal "/dev/tty")
+  ;; (regex "^/dev/ttys[0-9]+$")
+  ;; Your project directories (customize these)
+  (subpath "/Users/bruce/workspace/llempty/clojure-mcp")
+  (subpath "/Users/bruce/workspace/llempty/sandboxed")
+  ;; Add other allowed project paths here
+  )
+
+(deny file-read* file-write*
+  (subpath "/Users/bruce/Desktop")
+  (subpath "/Users/bruce/Documents") 
+  (subpath "/Users/bruce/Downloads")
+  (subpath "/Users/bruce/.ssh")
+  (subpath "/Users/bruce/.aws")
+  (regex "^/Users/bruce/.*\\.key$")
+  (regex "^/Users/bruce/.*\\.pem$")
+
+  (literal "/etc/passwd")
+  (literal "/etc/shadow") 
+  (subpath "/etc/ssh")
+  (subpath "/private/etc/ssh"))
+
+(deny process-exec*)
+
+;; =============================================================================
+;; ESSENTIAL BINARIES FOR AI CODING ASSISTANT - FOCUSED LIST
+;; =============================================================================
+;; This is a curated list of the most useful tools for code development tasks
+
+(allow process-exec*
+  ;; === CORE SHELLS ===
+  (literal "/bin/bash")
+  (literal "/bin/sh") 
+  (literal "/bin/zsh")
+  
+  ;; === ESSENTIAL FILE OPERATIONS ===
+  (literal "/bin/ls")
+  (literal "/bin/cat")
+  (literal "/bin/cp")
+  (literal "/bin/mv") 
+  (literal "/bin/rm")
+  (literal "/bin/mkdir")
+  (literal "/bin/chmod")
+  (literal "/bin/ln")
+  (literal "/usr/bin/find")
+  (literal "/usr/bin/which")
+  (literal "/usr/bin/file")
+  (literal "/usr/bin/touch")
+  (literal "/usr/bin/du")
+  
+  ;; === TEXT PROCESSING & SEARCH ===
+  (literal "/usr/bin/grep")
+  (literal "/usr/bin/sed")
+  (literal "/usr/bin/awk")
+  (literal "/usr/bin/sort")
+  (literal "/usr/bin/cut")
+  (literal "/usr/bin/head")
+  (literal "/usr/bin/tail")
+  (literal "/usr/bin/wc")
+  (literal "/usr/bin/uniq")
+  (literal "/usr/bin/diff")
+  (literal "/usr/bin/tr")
+  (literal "/usr/bin/tee")
+  (literal "/usr/bin/cksum")
+  
+  ;; === VERSION CONTROL ===
+  (regex "^/Users/bruce/\\.nix-profile/bin/git$")  ; Your Nix git
+  (literal "/usr/bin/git")                          ; Fallback system git
+  
+  ;; === ARCHIVE/COMPRESSION (Essential only) ===
+  (literal "/usr/bin/tar")
+  (literal "/usr/bin/gzip")
+  (literal "/usr/bin/gunzip")
+  (literal "/usr/bin/zip")
+  (literal "/usr/bin/unzip")
+  
+  ;; === BUILD TOOLS ===
+  (literal "/usr/bin/make")
+  (literal "/usr/bin/gcc")
+  (literal "/usr/bin/clang")
+  (literal "/usr/bin/clang++")
+  
+  ;; === JAVA ECOSYSTEM ===
+  (regex "^/nix/store/.*/bin/java$")
+  (regex "^/nix/store/.*/bin/javac$")
+  (regex "^/nix/store/.*/bin/jar$")
+  
+  ;; === PYTHON ===
+  (literal "/usr/local/bin/python3")
+  (literal "/usr/local/bin/pip3")
+  
+  ;; === RUBY ===
+  (literal "/usr/bin/ruby")
+  (literal "/usr/bin/gem")
+  (literal "/usr/bin/bundle")
+  
+  ;; === OTHER USEFUL LANGUAGES ===
+  (literal "/usr/bin/perl")
+  (literal "/usr/bin/swift")
+  
+  ;; === CLOJURE TOOLS ===
+  (literal "/usr/local/bin/clojure")
+  (literal "/usr/local/bin/clj")
+  (literal "/usr/local/bin/lein")
+  (literal "/usr/local/bin/bb")
+  (literal "/usr/local/bin/cljfmt")
+  ;; Nix versions
+  (regex "^/nix/store/.*/bin/clojure$")
+  (regex "^/nix/store/.*/bin/clj$") 
+  (regex "^/nix/store/.*/bin/bb$")
+  
+  ;; === NETWORK TOOLS (Essential) ===
+  (literal "/usr/bin/curl")
+  (literal "/usr/bin/ssh")
+  (literal "/usr/bin/scp")
+  (literal "/usr/bin/rsync")
+  
+  ;; === EDITORS ===
+  (literal "/usr/bin/vim")
+  (literal "/usr/bin/nano")
+  
+  ;; === DATA TOOLS ===
+  (literal "/usr/bin/jq")
+  (literal "/usr/bin/sqlite3")
+  
+  ;; === PROCESS MANAGEMENT ===
+  (literal "/bin/ps")
+  (literal "/bin/kill")
+  (literal "/usr/bin/killall")
+  
+  ;; === PACKAGE MANAGERS ===
+  (literal "/usr/local/bin/brew")
+  
+  ;; === CONTAINER TOOLS (if needed) ===
+  (literal "/usr/local/bin/docker")
+  (literal "/usr/local/bin/kubectl")
+  
+  ;; === SYSTEM INFO ===
+  (literal "/bin/pwd")
+  (literal "/bin/echo")
+  (literal "/bin/date")
+  (literal "/usr/bin/less")  ; For viewing files
+  (literal "/usr/bin/stat")
+  
+  ;; === ALLOW SELECTIVE NIX TOOLS ===
+  ;; Instead of allowing ALL nix tools, be more selective
+  (regex "^/nix/store/.*/bin/")
+)
+
+;; =============================================================================
+;; RATIONALE FOR THIS FOCUSED LIST:
+;; =============================================================================
+;;
+;; INCLUDED - Essential for coding tasks:
+;; • File operations: ls, cat, find, grep - core workflow
+;; • Text processing: sed, awk, sort - code manipulation  
+;; • Version control: git - fundamental for any project
+;; • Build tools: make, gcc/clang - compiling code
+;; • Languages: Java, Python, Ruby, Clojure - your main languages
+;; • Data tools: jq, sqlite3 - common in development
+;; • Network: curl, ssh - downloading dependencies, remote access
+;;
+;; EXCLUDED - Less essential for LLM coding assistant:
+;; • System admin tools: dd, sync, stty, launchctl
+;; • Multiple compression formats: bzip2, compress (kept tar/gzip)
+;; • Rarely used text tools: expand, unexpand, fold
+;; • Advanced debugging: objdump, nm, strings
+;; • Network debugging: ping, telnet, nslookup  
+;; • Multiple shells: csh, tcsh, ksh (kept bash/zsh)
+;;
+;; RESULT: ~40 essential tools vs 100+ comprehensive list
+;;
+;; This gives the LLM everything needed for:
+;; ✓ Reading/writing/organizing code files
+;; ✓ Searching and analyzing codebases  
+;; ✓ Building and running programs
+;; ✓ Managing dependencies and packages
+;; ✓ Version control operations
+;; ✓ Basic system tasks and process management
+;;
+;; While avoiding tools that could be:
+;; ✗ Used for system administration beyond coding
+;; ✗ Security risks if misused
+;; ✗ Confusing due to too many similar options
+;; =============================================================================
+
