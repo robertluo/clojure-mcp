@@ -92,8 +92,8 @@
                 :timed-out false
                 :error (.getMessage e)}))"
           (pr-str command)
-          (if working-directory (pr-str working-directory) "nil")
-          (if working-directory (pr-str working-directory) "")
+          (if working-directory (pr-str working-directory) (pr-str nil))
+          (if working-directory (pr-str working-directory) (pr-str ""))
           (or timeout-ms default-timeout-ms)))
 
 (defn execute-bash-command
