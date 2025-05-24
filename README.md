@@ -17,26 +17,21 @@ A Model Context Protocol (MCP) server for Clojure that enables AI assistants (li
 
 ## 🚀 Overview
 
-This project implements an MCP server that connects AI models to a Clojure nREPL, enabling a powerful REPL-driven development workflow. The driving philosophy is:
+This project implements an MCP server that connects AI models to a Clojure nREPL, enabling a powerful REPL-driven development workflow.
 
-> Tiny steps with high quality rich feedback is the recipe for the sauce.
+## Main Features
 
-The project enables LLMs to:
-- Evaluate Clojure code and see immediate results
-- Incrementally develop solutions with step-by-step verification
-- Navigate and explore namespaces and symbols
-- Edit Clojure files with proper formatting
-- Look up documentation and source code
-- Test code directly in the REPL environment
+- **Clojure REPL Connection**
+- **Clojure Aware editing** - Using clj-kondo, parinfer, cljfmt, and clj-rewrite
+- **Optimized set of tools for Clojure Development**
 
 ### Why REPL-Driven Development with AI?
 
 This approach enables:
-- **Immediate feedback** - Validate code by running it, not just statically analyzing it
+- **Immediate feedback** - Validate code by running it in a stateful REPL, not just statically analyzing it
 - **Incremental development** - Build solutions in small, verified steps
 - **Human oversight** - Keep the programmer in the loop for guidance
 - **Functional approach** - Encourage pure functions that are easier to understand and test
-- **Enhanced context** - The LLM learns from each step's result, improving future steps
 
 ## 📋 Installation
 
@@ -48,84 +43,76 @@ This approach enables:
 
 ### Setting up the project
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/bhauman/clojure-mcp.git
-   cd clojure-mcp
-   ```
+#### Step 1: Get the Clojure MCP Server
 
-2. Configure Claude Desktop to use the Clojure MCP server:
+Clone this repository to your development machine:
 
-   Edit your Claude Desktop config file at `~/Library/Application Support/Claude/claude_desktop_config.json`:
-   
-   ```json
-   {
-       "mcpServers": {
-           "clojure-mcp": {
-               "command": "/bin/sh",
-               "args": [
-                   "-c",
-                   "cd /path/to/your/workspace/clojure-mcp && PATH=/your/bin/path:$PATH && clojure -X:mcp :port 7888"
-                ]
-           }
-       }
-   }
-   ```
-   
-   Replace the paths with your specific configuration:
-   - `/your/bin/path` - Path to your binaries (e.g., `/Users/username/.nix-profile/bin`)
-   - `/path/to/your/workspace/clojure-mcp` - Path to your local clojure-mcp repo checkout
+```bash
+git clone https://github.com/bhauman/clojure-mcp.git
+cd clojure-mcp
+```
 
-3. IMPORTANT: Run an nREPL server in the Clojure project that you are going to be working on.
+#### Step 2: Configure Your Target Project
 
-4. Launch Claude Desktop and start a new conversation.
+In the Clojure project where you want AI assistance, add MCP server configuration to your `deps.edn`:
 
-> If you change the server you must restart Claude Desktop to see the changes.
-
-### Using with Claude Desktop
-
-Claude Desktop integrates with the Clojure MCP server, allowing Claude to:
-
-> First you will want to start an nREPL server in the project you want to work on.
-
-It's easier to pick a stable port number for now. Currently the port
-defaults to 7888 and you would specify the `:port` either in the `deps.edn`
-on in the `claude_desktop_config.json`. You could set it up like
-
-***deps.edn***
 ```clojure
+{:aliases {
+  ;; nREPL server for AI to connect to
+  :nrepl {:extra-paths ["test"] 
+          :extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}
+                       ch.qos.logback/logback-classic {:mvn/version "1.4.14"}}
+          :jvm-opts ["-Djdk.attach.allowAttachSelf"]						 
+          :main-opts ["-m" "nrepl.cmdline" "--port" "7888"]}
+  
+  ;; MCP server configuration (for reference)
+  :mcp {:extra-deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
+                     clojure-mcp/clojure-mcp {:local/root "/path/to/clojure-mcp"}}
+        :exec-fn clojure-mcp.main/start-mcp-server
+        :exec-args {:port 7888}}}}
+```
+
+**Important**: Replace `/path/to/clojure-mcp` with the actual path to your cloned repository.
+
+#### Step 3: Configure Claude Desktop
+
+Edit your Claude Desktop configuration file:
+- **Location**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+```json
 {
-  :aliases {
-    ;; this is the env that the mcp is going to execute code
-    :nrepl {:extra-paths ["test"] 
-            :extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}
-                         ch.qos.logback/logback-classic {:mvn/version "1.4.14"}}
-            ;; See https://nrepl.org/nrepl/installation.html#jvmti
-            :jvm-opts ["-Djdk.attach.allowAttachSelf"]						 
-            :main-opts ["-m" "nrepl.cmdline" "--port" "7888"]}
-    :mcp   {;; required or the stdio server output gets corrupted
-            deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
-            clojure-mcp/clojure-mcp {:local/root "<path to clojure-mcp cloned repo>"}}
-            :exec-fn clojure-mcp.main/start-mcp-server
-            ;; it needs an nrepl port to talk to
-            :exec-args {:port 7888}}
-  }
+    "mcpServers": {
+        "clojure-mcp": {
+            "command": "/bin/sh",
+            "args": [
+                "-c",
+                "cd /path/to/your/clojure/project && PATH=/your/bin-or-nix/path:$PATH && clojure -X:mcp :port 7888"
+            ]
+        }
+    }
 }
 ```
 
-Now you can hopefully start Claude Desktop and have access to the mcp tools.
+**Replace these paths**:
+- `/path/to/clojure-mcp` → Your cloned repository location
+- `/your/bin/path` → Your system's binary path (e.g., `/Users/username/.nix-profile/bin`)
 
-It may take a moment to load. 
+#### Step 4: Test the Setup
 
-You can check if everything is hooked up by clicking the `+` in the chat area and you should see `Add from clojure-mcp` in the menu.
+1. **Start nREPL** in your target project:
+   ```bash
+   cd /path/to/your/project
+   clojure -M:nrepl
+   ```
+   You should see: `nREPL server started on port 7888...`
 
-Right next to the `+` is a settings icon, when you click on that you can which tools are available.
+2. **Restart Claude Desktop** (required after config changes)
 
-> From this settings icon menu you can select which tools are available, you can use this to say focus the chat session on design and exploration. You can force the LLM to code in the REPL first as well.
+3. **Verify connection**: In Claude Desktop, click the `+` button in the chat area. You should see "Add from clojure-mcp" in the menu.
 
 #### Starting a new conversation
 
-I click the `+` tools and I add
+In Claude Desktop click the `+` tools and I add
  * resource `PROJECT_SUMMARY.md`  - see below
  * resource `Clojure Project Info` - which introspects the repl and the project
  * resource `LLM_CODE_STYLE.md` - Which is your personal coding style instructions
@@ -133,7 +120,7 @@ I click the `+` tools and I add
 
 Then start the chat.
 
-I would start by having giving it a problem then chat with the LLM and interactively design a solution.
+I would start by having giving it a problem then chat with the LLM and interactively design a solution. You can ask Claude to propose a solution to a problem.
 
 Iterate on that a bit then have it either
 
@@ -142,19 +129,20 @@ A. code and validate the idea in the REPL.
 > Don't underestimate LLMs abilities to use the REPL! Current LLMs are
 > absolutely fantastic at using the Clojure REPL. 
 
-B. go started to file editing and then have it validate the code in the REPL after file editing.
+B. ask to make the changes to the source code and then have it validate the code in the REPL after file editing.
 
-There is a bash tool so it can run tests and it can make commits for you.
+C. ask it to run the tests.
+D. ask it to commit the changes.
 
-Make a branch and have the LLM commit often so that it doesn't blow your work away by going in a bad direction.
+> Make a branch and have the LLM commit often so that it doesn't blow your work away by going in a bad direction.
 
 ## Project Summary Management
 
-This project includes a workflow for maintaining an LLM-friendly project summary that helps assistants quickly understand the codebase structure.
+This project includes a workflow for maintaining an LLM-friendly `PROJECT_SUMMARY.md` that helps assistants quickly understand the codebase structure.
 
 ### How It Works
 
-1. **Creating the Summary**: To generate or update the PROJECT_SUMMARY.md file, use the MCP prompt `create-project-summary`. This prompt will:
+1. **Creating the Summary**: To generate or update the PROJECT_SUMMARY.md file, use the MCP prompt in the `+` > `clojure-mcp` menu `create-project-summary`. This prompt will:
    - Analyze the codebase structure
    - Document key files, dependencies, and available tools
    - Generate comprehensive documentation in a format optimized for LLM assistants
