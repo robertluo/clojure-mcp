@@ -46,6 +46,83 @@ This approach enables:
 - [Java](https://openjdk.org/) (JDK 11 or later)
 - [Claude Desktop](https://claude.ai/desktop) (for the best experience)
 
+### API Keys for Agent Tools
+
+Several powerful tools (`dispatch_agent`, `architect`, `code_critique`) require API keys from AI providers. These tools use multiple AI models to provide enhanced capabilities like autonomous search, technical planning, and interactive code review.
+
+#### Required API Keys
+
+To use the agent tools, you'll need API keys from one or more of these providers:
+
+- **`GEMINI_API_KEY`** - For Google Gemini models
+  - Get your API key at: https://makersuite.google.com/app/apikey
+  - Used by: `dispatch_agent`, `architect`, `code_critique`
+
+- **`OPENAI_API_KEY`** - For GPT models
+  - Get your API key at: https://platform.openai.com/api-keys
+  - Used by: `dispatch_agent`, `architect`, `code_critique`
+
+- **`ANTHROPIC_API_KEY`** - For Claude models
+  - Get your API key at: https://console.anthropic.com/
+  - Used by: `dispatch_agent`
+
+#### Setting Environment Variables
+
+**Option 1: Export in your shell**
+```bash
+export ANTHROPIC_API_KEY="your-anthropic-api-key-here"
+export OPENAI_API_KEY="your-openai-api-key-here"
+export GEMINI_API_KEY="your-gemini-api-key-here"
+```
+
+**Option 2: Add to your shell profile** (`.bashrc`, `.zshrc`, etc.)
+```bash
+# Add these lines to your shell profile
+export ANTHROPIC_API_KEY="your-anthropic-api-key-here"
+export OPENAI_API_KEY="your-openai-api-key-here"
+export GEMINI_API_KEY="your-gemini-api-key-here"
+```
+
+#### Configuring Claude Desktop
+
+When setting up Claude Desktop, ensure it can access your environment variables by updating your config.
+
+```json
+{
+    "mcpServers": {
+        "clojure_connect": {
+            "command": "/bin/sh",
+            "args": [
+                "-c",
+                "cd /path/to/your/workspace/project && PATH=/your/bin/path:$PATH && clojure -X:mcp :port 7888"
+            ],
+            "env": {
+                "ANTHROPIC_API_KEY": "$ANTHROPIC_API_KEY",
+                "OPENAI_API_KEY": "$OPENAI_API_KEY", 
+                "GEMINI_API_KEY": "$GEMINI_API_KEY"
+            }
+        }
+    }
+}
+```
+
+Personally I `source` them right in bash command:
+
+```json
+{
+    "mcpServers": {
+        "clojure_connect": {
+            "command": "/bin/sh",
+            "args": [
+                "-c",
+                "source ~/.api_credentials.sh && cd /path/to/your/workspace/project && PATH=/your/bin/path:$PATH && clojure -X:mcp :port 7888"
+            ]
+        }
+    }
+}
+```
+
+> **Note**: The agent tools will work with any available API key. You don't need all three - just set up the ones you have access to. The tools will automatically select from available models. For now the ANTHROPIC API is limited to the displatch_agent.
 
 ### Setting up the project
 
