@@ -22,7 +22,7 @@ Bespoke syntaxes
 **EASIER**  
 Simple regular syntax
 
-> Gen AI has no problem generating programs that are HARD to reason about
+## Gen AI has no problem generating programs that are HARD to reason about
 
 LLMs will accrete complexity just like us. Producing programs that HUMANS and thus the LLMs will have a hard time thinking about.
 
@@ -34,7 +34,7 @@ The problem has always been: how do we produce high quality maintainable code?
 
 This hasn't changed.
 
-> Perhaps the Lisp REPL workflow that I have come to love is a solution.
+## Perhaps the Lisp REPL workflow that I have come to love is a solution.
 
 A lifetime of coding has led me to this workflow and it has proven itself over and over again to be very effective.
 
@@ -55,7 +55,7 @@ Hammock time and paper time is needed always.
 
 > The granular steps in LLM REPL iteration PRODUCES the LLM context you want.
 
-> GenAI code is like compiled code, do you want to maintain compiled code?
+## GenAI code is like compiled code, do you want to maintain compiled code?
 
 Generated programs are in dire need of higher level concise maintainable abstractions.
 
@@ -70,19 +70,13 @@ Clojure has a lot of potential here especially with contracts via Clojure Spec.
 
 > LLM REPL driven workflow with high quality feedback provides Reinforcement Learning (o1 Deepseek style) the examples it needs.
 
-Perhaps smaller models that are constantly improved with the feedback from tiny REPL interactions are the way forward to customize the model to you and what you are working on.
-
-Also, the hybrid approach of calling non-big models via a THINK tool when a problem occurs.
-
-This seems like a valid path for research.
-
 > The REPL is closed over all Tools
 
 AI can quickly build and dismantle tools as needed.
 
-> Even if the machine doesn't need this workflow, I do.
+## Even if the LLM doesn't need this workflow, I do.
 
-Even if the machine doesn't need it, I DO. I need to see the steps and the direction it takes.
+Even if the LLM doesn't need it, I DO. I need to see the steps and the direction it takes.
 
 I need the collaboration and to be present with the moment-to-moment ideation.
 
@@ -92,9 +86,9 @@ I need to be able to see the potential problems so that I can stop it and exerci
 
 This is a much more humane workflow.
 
-> Within collaboration we can and should be creating higher quality code
+## Within collaboration we can and should be creating higher quality code
 
-This is the ultimate goal after all.
+The goal to be clear is to write better code than we could without the LLMs assistance.
 
 And now I believe it's possible.
 
