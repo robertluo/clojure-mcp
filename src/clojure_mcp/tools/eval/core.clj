@@ -52,7 +52,8 @@
    Returns:
    - A map with :outputs (raw outputs), :error (boolean flag)"
   [nrepl-client opts]
-  (let [{:keys [code ns]} opts
+  (let [{:keys [code ns timeout-ms]} opts
+        timeout-ms (or timeout-ms 5000)
         outputs (atom [])
         error-occurred (atom false)
         form-str code
@@ -96,9 +97,7 @@
                                                             :error true})))))
 
         ;; Wait for the result and return it
-        (let [timeout-ms 5000
-              tmb (Object.)
-              ;; timeout should be configurable
+        (let [tmb (Object.)
               res (deref result-promise timeout-ms tmb)]
           (if-not (= tmb res)
             res

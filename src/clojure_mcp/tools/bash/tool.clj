@@ -79,9 +79,9 @@ in the response to determine command success.")
         working_directory (assoc :working-directory validated-dir)
         timeout_ms (assoc :timeout-ms timeout_ms)))))
 
-(defmethod tool-system/execute-tool :bash [_ inputs]
+(defmethod tool-system/execute-tool :bash [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [command working-directory timeout-ms]} inputs]
-    (core/execute-bash-command inputs)))
+    (core/execute-bash-command nrepl-client-atom inputs)))
 
 (defmethod tool-system/format-results :bash [_ result]
   (let [{:keys [stdout stderr exit-code timed-out error]} result
