@@ -19,9 +19,6 @@ This tool is intended to execute Clojure code. This is very helpful for verifyin
 If you send multiple expressions they will all be evaluated individually and their output will be clearly partitioned.
 If the returned value is too long it will be truncated.
 
-You can optionally specify a namespace to evaluate the code in by providing the :ns parameter.
-Eval: (str *ns*) to see the current namespace
-
 REPL helper functions are automatically loaded in the 'clj-mcp.repl-tools' namespace, providing convenient namespace and symbol exploration:
 
 Namespace/Symbol inspection functions:
@@ -32,10 +29,6 @@ Namespace/Symbol inspection functions:
   clj-mcp.repl-tools/find-symbols      - Find symbols matching pattern
   clj-mcp.repl-tools/complete          - Find completions for prefix
   clj-mcp.repl-tools/help              - Show this help message
-
-For convenience, you can require the namespace with an alias:
-  (require '[clj-mcp.repl-tools :as rt])
-  (rt/help)
 
 Examples:
   (clj-mcp.repl-tools/list-ns)                     ; List all namespaces

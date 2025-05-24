@@ -100,10 +100,12 @@ on in the `claude_desktop_config.json`. You could set it up like
     :nrepl {:extra-paths ["test"] 
             :extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}
                          ch.qos.logback/logback-classic {:mvn/version "1.4.14"}}
+            ;; See https://nrepl.org/nrepl/installation.html#jvmti
+            :jvm-opts ["-Djdk.attach.allowAttachSelf"]						 
             :main-opts ["-m" "nrepl.cmdline" "--port" "7888"]}
-	:mcp   {;; required or the stdio server output gets corrupted
-	        deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
-			      clojure-mcp/clojure-mcp {:local/root "<path to clojure-mcp cloned repo>"}}
+    :mcp   {;; required or the stdio server output gets corrupted
+            deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
+            clojure-mcp/clojure-mcp {:local/root "<path to clojure-mcp cloned repo>"}}
             :exec-fn clojure-mcp.main/start-mcp-server
             ;; it needs an nrepl port to talk to
             :exec-args {:port 7888}}
@@ -312,7 +314,6 @@ The default tools included in `main.clj` are organized by category to support di
 - **REPL Integration**: Executes in the connected nREPL session
 - **Helper Functions**: Built-in namespace and symbol exploration tools
 - **Multiple Expressions**: Evaluates and partitions multiple expressions
-- **Namespace Support**: Optional namespace parameter for context switching
 
 #### Agent System (`dispatch_agent`)
 - **Autonomous Search**: Handles complex, multi-step exploration tasks
