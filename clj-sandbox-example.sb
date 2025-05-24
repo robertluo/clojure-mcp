@@ -1,3 +1,65 @@
+;; =============================================================================
+;; MACOS SANDBOX-EXEC PROFILE FOR CLOJURE AI CODING ASSISTANT
+;; =============================================================================
+;;
+;; ⚠️  MACOS ONLY: This is a sandbox profile for macOS's sandbox-exec tool
+;; ⚠️  NOT compatible with Linux containers, firejail, or other sandboxing systems
+;;
+;; This sandbox profile creates a secure environment for running Clojure code
+;; evaluation through AI assistants while protecting sensitive system areas.
+;;
+;; REQUIRES: macOS with sandbox-exec command (built-in but deprecated)
+;;
+;; SUBPROCESS INHERITANCE:
+;;   ✓ All child processes inherit these sandbox restrictions
+;;   ✓ Java ProcessBuilder, shell commands, etc. are all sandboxed
+;;   ✓ No way for sandboxed code to escape restrictions via subprocesses
+;;
+;; USAGE:
+;;   sandbox-exec -f clj-sandbox-example.sb your-command
+;;
+;; EXAMPLES:
+;;   # Run a Clojure REPL in sandbox
+;;   sandbox-exec -f clj-sandbox-example.sb clojure
+;;
+;;   # Start nREPL server in sandbox
+;;   sandbox-exec -f clj-sandbox-example.sb clojure -M:nrepl
+;;
+;;   # Run any Java command in sandbox
+;;   sandbox-exec -f clj-sandbox-example.sb java -version
+;;
+;;   # Run bash shell in sandbox (for testing)
+;;   sandbox-exec -f clj-sandbox-example.sb bash
+;;
+;; SECURITY FEATURES:
+;;   ✓ Network access restricted to localhost only
+;;   ✓ File writes limited to project directories and temp folders
+;;   ✓ Sensitive directories blocked (Desktop, Documents, .ssh, etc.)
+;;   ✓ Process execution limited to development tools only
+;;   ✓ System files and credentials protected
+;;
+;; CUSTOMIZATION:
+;;   This is just a rough start that you can use to button down your own env 
+;;
+;;   1. Update the subpath entries under file-write* to match your projects:
+;;      (subpath "/Users/bruce/workspace/your-project")
+;;
+;;   2. Modify the username paths from "bruce" to your username
+;;
+;;   3. Add/remove binaries in the process-exec* section as needed
+;;
+;; DEBUGGING:
+;;   - Denials are logged with (debug deny) - check Console.app
+;;   - Search for "Sandbox:" and your process name
+;;   - Add allowed operations incrementally based on denials
+;;
+;; WARNING:
+;;   - sandbox-exec is deprecated but still functional
+;;   - Test thoroughly before using with production code
+;;   - This profile prioritizes functionality over maximum security
+;;
+;; =============================================================================
+
 (version 1)
 (allow default)
 
