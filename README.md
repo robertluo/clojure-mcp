@@ -119,15 +119,15 @@ Edit your Claude Desktop configuration file:
 
 #### Starting a new conversation
 
-In Claude Desktop click the `+` tools and I add
- * resource `PROJECT_SUMMARY.md`  - see below
- * resource `Clojure Project Info` - which introspects the repl and the project
- * resource `LLM_CODE_STYLE.md` - Which is your personal coding style instructions
- * prompt `clojure_repl_system_prompt` - instructions on how to code - cribbed a bit from Clod Code
+In Claude Desktop click the `+` tools and optionally add
+ * resource `PROJECT_SUMMARY.md`  - (have the LLM create this) see below
+ * resource `Clojure Project Info` - which introspects the nREPL connected project
+ * resource `LLM_CODE_STYLE.md` - Which is your personal coding style instructions (copy the one in this repo)
+ * prompt `clojure_repl_system_prompt` - instructions on how to code - cribbed a bunch from Clod Code
 
 Then start the chat.
 
-I would start by having giving it a problem then chat with the LLM and interactively design a solution. You can ask Claude to propose a solution to a problem.
+I would start by having giving it a problem then chat with the LLM and interactively design a solution. You can ask Claude to "propose" a solution to a problem.
 
 Iterate on that a bit then have it either
 
@@ -136,10 +136,10 @@ A. code and validate the idea in the REPL.
 > Don't underestimate LLMs abilities to use the REPL! Current LLMs are
 > absolutely fantastic at using the Clojure REPL. 
 
-B. ask to make the changes to the source code and then have it validate the code in the REPL after file editing.
+B. ask the LLM to make the changes to the source code and then have it validate the code in the REPL after file editing.
 
-C. ask it to run the tests.
-D. ask it to commit the changes.
+C. ask to run the tests.
+D. ask to commit the changes.
 
 > Make a branch and have the LLM commit often so that it doesn't blow your work away by going in a bad direction.
 
@@ -595,24 +595,29 @@ The core philosophy of this project is that:
 
 ## 📝 License
 
-MIT License
+GNU Affero General Public License v3.0
 
 Copyright (c) 2025 Bruce Hauman
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+### License Summary
+
+- ✅ **Use freely** for personal projects, internal business tools, and development
+- ✅ **Modify and distribute** - improvements and forks are welcome  
+- ✅ **Commercial use** - businesses can use this internally without restrictions
+- ⚠️ **Network copyleft** - if you offer this as a service to others, you must open source your entire service stack
+- 📤 **Share improvements** - modifications must be shared under the same license
+
+This license ensures the project remains open source while preventing commercial exploitation without contribution back to the community.
