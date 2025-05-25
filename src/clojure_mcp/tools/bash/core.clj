@@ -14,8 +14,9 @@
 ;; TODO this should go into the config.
 (def ^:private default-timeout-ms 180000)
 
+;; this is pretty useless
 (def ^:private disallowed-commands
-  #{;; System modification commands
+  #{ ;; System modification commands
     "rm -rf" "rm -r" "rmdir" "dd" "mkfs" "format"
     ;; Network attack tools
     "nmap" "netcat" "nc"

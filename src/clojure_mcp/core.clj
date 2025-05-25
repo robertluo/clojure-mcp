@@ -34,7 +34,7 @@
 
 (def nrepl-client-atom (atom nil))
 
-(defn ensure-service-atom
+#_(defn ensure-service-atom
   "Ensures the service-atom is not nil and returns a tuple of [valid? error-message]
    where valid? is true if the atom exists and error-message is nil in that case.
    If the atom is nil, valid? is false and error-message contains an error description."
@@ -85,17 +85,11 @@
   [{:keys [name description schema tool-fn]}]
   (let [schema-json (json/write-str schema)
         mono-fn (create-mono-from-callback
-                 (fn [exchange arg-map mono-fill-k] ;; The mono wrapper still gets exchange and args
-                   (let [[service-valid? service-error] (ensure-service-atom nrepl-client-atom)]
-                     (if-not service-valid?
-                       ;; If service is invalid, immediately fill the Mono with an error result
-                       (mono-fill-k (adapt-result [service-error] true))
-                       ;; If service is valid, proceed with the actual tool function
-                       (let [nrepl-client @nrepl-client-atom ;; Dereference the validated atom
-                             clj-result-k (fn [res-list error?] ;; Define the final continuation
-                                            (mono-fill-k (adapt-result res-list error?)))]
-                         ;; Call the tool's function with the nrepl-client and the continuation
-                         (tool-fn exchange arg-map clj-result-k))))))]
+                 (fn [exchange arg-map mono-fill-k]
+                   (let [clj-result-k
+                         (fn [res-list error?]
+                           (mono-fill-k (adapt-result res-list error?)))]
+                     (tool-fn exchange arg-map clj-result-k))))]
     (McpServerFeatures$AsyncToolSpecification.
      (McpSchema$Tool. name description schema-json)
      (reify java.util.function.BiFunction
@@ -291,6 +285,7 @@
       (log/error e "Failed to create nREPL connection")
       (throw e))))
 
+;; TODO change this so that it takes the nrepl-client-atom
 (defn close-servers
   "Convenience higher-level API function to gracefully shut down MCP and nREPL servers.
    

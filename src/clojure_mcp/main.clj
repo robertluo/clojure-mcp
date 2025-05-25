@@ -100,23 +100,27 @@
    ;; experimental 
    (code-critique-tool/code-critique-tool nrepl-client-atom)])
 
+;; not sure if this is even needed
+(def nrepl-client-atom (atom nil))
+
 ;; start the server
 (defn start-mcp-server [nrepl-args]
   ;; the nrepl-args are a map with :port :host :tls-keys-file]
   (let [nrepl-client-map (core/create-and-start-nrepl-connection nrepl-args)
         working-dir (config/get-nrepl-user-dir nrepl-client-map)
+        resources (my-resources nrepl-client-map working-dir)
+        _ (reset! nrepl-client-atom nrepl-client-map)
+        tools (my-tools nrepl-client-atom)
+        prompts (my-prompts working-dir)
         mcp (core/mcp-server)]
-
-    (reset! core/nrepl-client-atom (assoc nrepl-client-map ::mcp-server mcp))
-
-    (doseq [resource (my-resources nrepl-client-map working-dir)]
-      (core/add-resource mcp resource))
-
-    (doseq [tool (my-tools core/nrepl-client-atom)]
+    (doseq [tool tools]
       (core/add-tool mcp tool))
-
-    (doseq [prompt (my-prompts working-dir)]
-      (core/add-prompt mcp prompt))))
+    (doseq [resource resources]
+      (core/add-resource mcp resource))
+    (doseq [prompt prompts]
+      (core/add-prompt mcp prompt))
+    (swap! core/nrepl-client-atom assoc ::mcp-server mcp)
+    nil))
 
 ;; -Djdk.attach.allowAttachSelf is needed on the nrepl server if you want the mcp-server eval tool
 ;; to be able to interrupt long running evals
