@@ -337,9 +337,8 @@ The default tools included in `main.clj` are organized by category to support di
 
 #### Agent System (`dispatch_agent`)
 - **Autonomous Search**: Handles complex, multi-step exploration tasks
-- **Read-only Access**: Agents have safe, limited tool access
-- **Concurrent Execution**: Launch multiple agents for parallel processing
-- **Detailed Results**: Returns comprehensive analysis and findings
+- **Read-only Access**: Agents have read only tool access
+- **Detailed Results**: Returns analysis and findings
 
 ## 🎛️ Customization
 
