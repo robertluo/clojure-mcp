@@ -10,7 +10,9 @@
    (java.util.concurrent TimeUnit TimeoutException)
    (java.io InputStreamReader BufferedReader)))
 
-(def ^:private default-timeout-ms 90000)
+;; 3 minutes? some test suites take much longer.
+;; TODO this should go into the config.
+(def ^:private default-timeout-ms 180000)
 
 (def ^:private disallowed-commands
   #{;; System modification commands
@@ -104,13 +106,10 @@
       (throw (ex-info "Command not allowed due to security restrictions"
                       {:command command
                        :error-details "The command contains restricted operations"})))
-    (log/debug "Executing bash command" command args)
     (let [clj-shell-code (str (edn/read-string
                                (generate-shell-eval-code command
                                                          working-directory
                                                          timeout-ms)))
-          _ (log/debug "executing bash call " (prn-str {:command command :timeout-ms timeout-ms
-                                                        :working-dir working-directory}) )
           result (eval-core/evaluate-code
                   @nrepl-client-atom
                   {:code clj-shell-code
@@ -118,11 +117,25 @@
                    :timeout-ms (+ 200 timeout-ms)})
           inner-value (:value (into {} (:outputs result)))]
       (if (not (:error result))
-        (edn/read-string inner-value)
+        (try
+          (edn/read-string inner-value)
+          (catch Exception e
+            (log/debug e)
+            ;; as last ditch effort just return the response
+            ;; as this is better feedback than no response
+            {:stdout inner-value
+             :stderr "ERROR: reading returning raw result"
+             :timed-out false
+             :exit-code -1}))
         (if-let [val (try (edn/read-string inner-value)
                           (catch Exception e
                             (log/debug e)
-                            nil))]
+                            ;; as last ditch effort just return the response
+                            ;; as this is better feedback than no response
+                            {:stdout inner-value
+                             :stderr "ERROR: reading returning raw result"
+                             :timed-out false
+                             :exit-code -1}))]
           val
           {:stdout "ERROR: reading results of Bash call."
            :stderr (pr-str result)
@@ -137,12 +150,22 @@
   #_(config/set-config! client-atom :allowed-directories [(System/getProperty "user.dir")])
   (clojure-mcp.nrepl/start-polling @client-atom)
 
-  (execute-bash-command client-atom {:command "ls -al"
-                                     :working-directory (System/getProperty "user.dir")})
+  (execute-bash-command-nrepl client-atom {:command "clojure -X:test"
+                                           :working-directory (System/getProperty "user.dir")})
   
-  (eval-core/evaluate-code @client-atom {:code (generate-shell-eval-code "ls -al" (System/getProperty "user.dir")
-                                                                         5000)
-                                         } )
+  (->> (eval-core/evaluate-code
+   @client-atom
+   {:code (generate-shell-eval-code
+           "clojure -X:test"
+           (System/getProperty "user.dir")
+           100000)
+    :timeout-ms 100000
+    } )
+       :outputs
+       (into {})
+       :value
+       edn/read-string
+       )
 
 
   

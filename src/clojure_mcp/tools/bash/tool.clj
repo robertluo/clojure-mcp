@@ -34,6 +34,8 @@ Examples:
 4. With timeout: bash(command: \"sleep 10\", timeout_ms: 5000)
 5. Git commands 
 
+For long running processes like running tests increase the timeout_ms so that the process can complete.
+
 Note: Non-zero exit codes are NOT treated as tool errors - check exit_code
 in the response to determine command success.")
 
@@ -91,7 +93,7 @@ in the response to determine command success.")
 
                            ;; Always include command output details
                            :always (conj (str "Exit code: " exit-code
-                                              (when timed-out " (timed out)")))
+                                              (when timed-out " (operation timed out, if this is a long running process like tests increase the timeout_ms)")))
 
                            ;; Include stdout if present
                            (not (str/blank? stdout)) (conj (str "Standard output:\n" stdout))
