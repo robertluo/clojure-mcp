@@ -80,6 +80,16 @@
      (log/debug (str "PIPELINE " message ": ") (pr-str ctx)))
    ctx))
 
+(defn file-path->lang
+  "Extract language type from file path extension.
+   Returns :clj if file-path is nil."
+  [file-path]
+  (if file-path
+    (cond
+      (.endsWith file-path ".cljc") :cljc
+      (.endsWith file-path ".cljs") :cljs
+      :else :clj)
+    :clj))
 ;; Common pipeline steps
 
 (defn load-source
@@ -133,7 +143,8 @@
   ([ctx]
    (lint-code ctx ::new-source-code))
   ([ctx ky]
-   (let [lint-result (linting/lint (get ctx ky))]
+   (let [lang (file-path->lang (::file-path ctx))
+         lint-result (linting/lint (get ctx ky) {:lang lang})]
      (if (and lint-result (:error? lint-result))
        {::error :lint-failure
         ::lint-report (:report lint-result)
@@ -150,7 +161,8 @@
    (lint-repair-code ctx ::new-source-code))
   ([ctx ky]
    (let [original-code (get ctx ky)
-         lint-result (linting/lint original-code)]
+         lang (file-path->lang (::file-path ctx))
+         lint-result (linting/lint original-code {:lang lang})]
      (if (and lint-result (:error? lint-result))
        (if (paren-utils/has-delimiter-errors? lint-result)
          (if-let [repaired-code (paren-utils/parinfer-repair original-code)]
