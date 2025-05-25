@@ -10,7 +10,7 @@
    (java.util.concurrent TimeUnit TimeoutException)
    (java.io InputStreamReader BufferedReader)))
 
-(def ^:private default-timeout-ms 30000)
+(def ^:private default-timeout-ms 90000)
 
 (def ^:private disallowed-commands
   #{;; System modification commands
@@ -32,8 +32,8 @@
   (with-open [reader (BufferedReader. (InputStreamReader. stream))]
     (str/join "\n" (line-seq reader))))
 
-#_(defn execute-bash-command-old
-  [{:keys [command working-directory timeout-ms] :as args}]
+(defn execute-bash-command
+  [_ {:keys [command working-directory timeout-ms] :as args}]
   (let [timeout-ms (or timeout-ms default-timeout-ms)]
     (when-not (command-allowed? command)
       (throw (ex-info "Command not allowed due to security restrictions"
@@ -96,9 +96,10 @@
           (if working-directory (pr-str working-directory) (pr-str ""))
           (or timeout-ms default-timeout-ms)))
 
-(defn execute-bash-command
+(defn execute-bash-command-nrepl
   [nrepl-client-atom {:keys [command working-directory timeout-ms] :as args}]
   (let [timeout-ms (or timeout-ms default-timeout-ms)]
+    
     (when-not (command-allowed? command)
       (throw (ex-info "Command not allowed due to security restrictions"
                       {:command command
@@ -108,6 +109,8 @@
                                (generate-shell-eval-code command
                                                          working-directory
                                                          timeout-ms)))
+          _ (log/debug "executing bash call " (prn-str {:command command :timeout-ms timeout-ms
+                                                        :working-dir working-directory}) )
           result (eval-core/evaluate-code
                   @nrepl-client-atom
                   {:code clj-shell-code
@@ -116,10 +119,13 @@
           inner-value (:value (into {} (:outputs result)))]
       (if (not (:error result))
         (edn/read-string inner-value)
-        (if-let [val (try (edn/read-string inner-value) (catch Exception e nil))]
+        (if-let [val (try (edn/read-string inner-value)
+                          (catch Exception e
+                            (log/debug e)
+                            nil))]
           val
           {:stdout "ERROR: reading results of Bash call."
-           :stderr ""
+           :stderr (pr-str result)
            :timed-out false
            :exit-code -1})))))
 
