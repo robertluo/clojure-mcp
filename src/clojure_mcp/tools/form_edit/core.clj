@@ -100,39 +100,65 @@
    - zloc: The zipper location to start searching from
    - tag: The tag name as a string (e.g., \"defn\", \"def\", \"ns\")
    - dname: The name of the definition as a string
+   - max-depth: Optional maximum depth to search (defaults to 0 for backward compatibility)
+                0 = only immediate siblings, 1 = one level deeper, etc.
    
    Returns a map with:
    - :zloc - the zipper location of the matched form, or nil if not found
    - :similar-matches - a vector of maps with {:form-name, :qualified-name, :tag} for potential namespace-qualified matches"
-  [zloc tag dname]
-  (let [similar-matches (atom [])]
-    (loop [loc zloc]
-      (cond
-        (nil? loc) {:zloc nil :similar-matches @similar-matches}
+  ([zloc tag dname] (find-top-level-form zloc tag dname 0))
+  ([zloc tag dname max-depth]
+   (let [similar-matches (atom [])
+         queue (atom [[zloc 0]])] ; [location, depth] pairs
 
-        (is-top-level-form? loc tag dname)
-        {:zloc loc :similar-matches @similar-matches}
+     (letfn [(collect-similar-match [loc]
+               ;; Check for namespace-qualified form with matching unqualified name
+               (try
+                 (let [sexpr (z/sexpr loc)]
+                   (when (and (list? sexpr) (> (count sexpr) 1))
+                     (let [form-tag (first sexpr)
+                           form-name (second sexpr)]
+                       ;; Check for forms where the tag's unqualified name matches our tag
+                       (when (and (symbol? form-tag)
+                                  (symbol? form-name)
+                                  (= (name form-tag) tag) ;; Tag's name part matches our tag
+                                  (= (name form-name) dname)) ;; Form name's name part matches our name
+                         (swap! similar-matches conj
+                                {:form-name dname
+                                 :qualified-name form-name
+                                 :tag form-tag})))))
+                 (catch Exception _ nil)))]
 
-        :else
-        (do
-          ;; Check for namespace-qualified form with matching unqualified name
-          (try
-            (let [sexpr (z/sexpr loc)]
-              (when (and (list? sexpr) (> (count sexpr) 1))
-                (let [form-tag (first sexpr)
-                      form-name (second sexpr)]
-                  ;; Check for forms where the tag's unqualified name matches our tag
-                  (when (and (symbol? form-tag)
-                             (symbol? form-name)
-                             (= (name form-tag) tag) ;; Tag's name part matches our tag
-                             (= (name form-name) dname)) ;; Form name's name part matches our name
-                    (swap! similar-matches conj
-                           {:form-name dname
-                            :qualified-name form-name
-                            :tag form-tag})))))
-            (catch Exception _ nil))
+       (loop []
+         (if-let [[current-loc current-depth] (first @queue)]
+           (do
+             (swap! queue rest) ; remove first item from queue
 
-          (recur (z/right loc)))))))
+             (cond
+               ;; Found our target form
+               (is-top-level-form? current-loc tag dname)
+               {:zloc current-loc :similar-matches @similar-matches}
+
+               ;; Continue searching
+               :else
+               (do
+                 (collect-similar-match current-loc)
+
+                 ;; Add right sibling at same depth to queue
+                 (when-let [right-sibling (z/right current-loc)]
+                   (swap! queue conj [right-sibling current-depth]))
+
+                 ;; Add ALL children at next depth if within limit
+                 (when (< current-depth max-depth)
+                   (loop [child (z/down current-loc)]
+                     (when child
+                       (swap! queue conj [child (inc current-depth)])
+                       (recur (z/right child)))))
+
+                 (recur))))
+
+           ;; Queue empty, form not found
+           {:zloc nil :similar-matches @similar-matches}))))))
 
 ;; Form editing operations
 
@@ -145,31 +171,33 @@
    - name: The name of the form
    - content-str: The string to insert or replace with (can contain multiple forms)
    - edit-type: Keyword indicating the edit type (:replace, :before, or :after)
+   - max-depth: Optional maximum depth to search (defaults to 0 for backward compatibility)
    
    Returns a map with:
    - :zloc - the updated zipper (or nil if form not found)
    - :similar-matches - a vector of potential namespace-qualified matches"
-  [zloc tag name content-str edit-type]
-  (let [find-result (find-top-level-form zloc tag name)
-        form-zloc (:zloc find-result)]
-    (if-not form-zloc
-      find-result ;; Return the result with nil :zloc and any similar-matches
-      (let [updated-zloc
-            (case edit-type
-              :replace (z/replace form-zloc (p/parse-string-all content-str))
-              ;; it would be nice if this handled comments immediately preceeding the form
-              :before (-> form-zloc
-                          (z/insert-left (p/parse-string-all "\n\n"))
-                          z/left
-                          (z/insert-left (p/parse-string-all content-str))
-                          z/left)
-              :after (-> form-zloc
-                         (z/insert-right (p/parse-string-all "\n\n"))
-                         z/right
-                         (z/insert-right (p/parse-string-all content-str))
-                         z/right))]
-        {:zloc updated-zloc
-         :similar-matches (:similar-matches find-result)}))))
+  ([zloc tag name content-str edit-type] (edit-top-level-form zloc tag name content-str edit-type 3))
+  ([zloc tag name content-str edit-type max-depth]
+   (let [find-result (find-top-level-form zloc tag name max-depth)
+         form-zloc (:zloc find-result)]
+     (if-not form-zloc
+       find-result ;; Return the result with nil :zloc and any similar-matches
+       (let [updated-zloc
+             (case edit-type
+               :replace (z/replace form-zloc (p/parse-string-all content-str))
+               ;; it would be nice if this handled comments immediately preceeding the form
+               :before (-> form-zloc
+                           (z/insert-left (p/parse-string-all "\n\n"))
+                           z/left
+                           (z/insert-left (p/parse-string-all content-str))
+                           z/left)
+               :after (-> form-zloc
+                          (z/insert-right (p/parse-string-all "\n\n"))
+                          z/right
+                          (z/insert-right (p/parse-string-all content-str))
+                          z/right))]
+         {:zloc updated-zloc
+          :similar-matches (:similar-matches find-result)})))))
 
 ;; Offset calculation functions for highlighting modified code
 

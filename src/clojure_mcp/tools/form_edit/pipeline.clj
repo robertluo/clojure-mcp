@@ -269,7 +269,9 @@
   (let [result (core/find-top-level-form
                 (::zloc ctx)
                 (::top-level-def-type ctx)
-                (::top-level-def-name ctx))
+                (::top-level-def-name ctx)
+                ;; provide a depth to catch forms inside reader conditionals
+                3)
         form-zloc (:zloc result)
         similar-matches (:similar-matches result)]
     (if form-zloc
