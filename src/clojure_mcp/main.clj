@@ -68,8 +68,8 @@
     :prompt-fn (prompts/simple-content-prompt-fn
                 "System Prompt: Clojure REPL"
                 (str
-                 (prompts/load-prompt-from-resource "prompts/system/clojure_repl_form_edit.md")
-                 (prompts/load-prompt-from-resource "prompts/system/clojure_form_edit.md")))}
+                 (prompts/load-prompt-from-resource "clojure-mcp/prompts/system/clojure_repl_form_edit.md")
+                 (prompts/load-prompt-from-resource "clojure-mcp/prompts/system/clojure_form_edit.md")))}
    (prompts/create-project-summary working-dir)])
 
 (defn my-tools [nrepl-client-atom]

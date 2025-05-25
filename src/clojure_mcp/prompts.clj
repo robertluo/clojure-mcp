@@ -36,7 +36,7 @@
                    {:description (str "Create project summary for: " working-dir)
                     :messages [{:role :user
                                 :content
-                                (pg/render-resource "prompts/create_project_summary.md"
+                                (pg/render-resource "clojure-mcp/prompts/create_project_summary.md"
                                                     {:root-directory
                                                      working-dir})}]})
                   (clj-result-k
@@ -44,7 +44,6 @@
                     :messages [{:role :user
                                 :content
                                 (str "Root directory not provided So this will not be a prompt." "::" working-dir "::")}]})))})
-
 
 ;; this is just scratch work for now
 
@@ -54,7 +53,7 @@
    :arguments [] ;; No arguments needed for this prompt
    :prompt-fn (simple-content-prompt-fn
                "System Prompt: Clojure REPL Flex"
-               (load-prompt-from-resource "prompts/system/clojure_flex.md"))})
+               (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_flex.md"))})
 
 (def clojure-system-repl
   {:name "clojure_repl_system_prompt"
@@ -63,8 +62,8 @@
    :prompt-fn (simple-content-prompt-fn
                "System Prompt: Clojure REPL"
                (str
-                (load-prompt-from-resource "prompts/system/clojure_repl.md")
-                (load-prompt-from-resource "prompts/system/clojure_clojure_edit_tool_inst.md")))})
+                (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_repl.md")
+                (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_clojure_edit_tool_inst.md")))})
 
 (def clojure-system-repl-pattern-edit
   {:name "clojure_repl_system_prompt"
@@ -73,8 +72,8 @@
    :prompt-fn (simple-content-prompt-fn
                "System Prompt: Clojure REPL"
                (str
-                (load-prompt-from-resource "prompts/system/clojure_repl_pattern_edit.md")
-                (load-prompt-from-resource "prompts/system/clojure_pattern_edit.md")))})
+                (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_repl_pattern_edit.md")
+                (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_pattern_edit.md")))})
 
 (def clojure-system-repl-form-edit
   {:name "clojure_repl_system_prompt"
@@ -83,8 +82,8 @@
    :prompt-fn (simple-content-prompt-fn
                "System Prompt: Clojure REPL"
                (str
-                (load-prompt-from-resource "prompts/system/clojure_repl_form_edit.md")
-                (load-prompt-from-resource "prompts/system/clojure_form_edit.md")))})
+                (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_repl_form_edit.md")
+                (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_form_edit.md")))})
 
 (def clojure-spec-driven-modifier
   {:name "clj-spec-driven-modifier"
@@ -92,7 +91,7 @@
    :arguments [] ;; No arguments needed
    :prompt-fn (simple-content-prompt-fn
                "Spec-Driven-Development Modifier for Clojure"
-               (load-prompt-from-resource "prompts/spec_modifier.md"))})
+               (load-prompt-from-resource "clojure-mcp/prompts/spec_modifier.md"))})
 
 (def clojure-test-driven-modifier
   {:name "clj-test-driven-modifier"
@@ -100,7 +99,7 @@
    :arguments [] ;; No arguments needed
    :prompt-fn (simple-content-prompt-fn
                "Test-Driven-Development Modifier for Clojure"
-               (load-prompt-from-resource "prompts/test_modifier.md"))})
+               (load-prompt-from-resource "clojure-mcp/prompts/test_modifier.md"))})
 
 (defn sync-namespace-workflow-prompt [namesp]
   (format "I'm currently working on a Clojure namespace `%s`  
@@ -129,8 +128,6 @@ If the file get's *edited* outside and must be read to see the changes, you shou
                     :messages [{:role :user
                                 :content (sync-namespace-workflow-prompt namespace-arg)}]})))})
 
-
-
 ;; Function to get all prompts for registration with the MCP server
 (def clojure-edit-guide
   {:name "clojure_edit_guide"
@@ -138,7 +135,7 @@ If the file get's *edited* outside and must be read to see the changes, you shou
    :arguments [] ;; No arguments needed for this prompt
    :prompt-fn (simple-content-prompt-fn
                "Clojure Structure-Aware Editing Guide"
-               (load-prompt-from-resource "prompts/system/clojure_edit.md"))})
+               (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_edit.md"))})
 
 (def incremental-file-creation
   {:name "incremental_file_creation"
@@ -146,4 +143,4 @@ If the file get's *edited* outside and must be read to see the changes, you shou
    :arguments [] ;; No arguments needed for this prompt
    :prompt-fn (simple-content-prompt-fn
                "Incremental File Creation for Clojure"
-               (load-prompt-from-resource "prompts/system/incremental_file_creation.md"))})
+               (load-prompt-from-resource "clojure-mcp/prompts/system/incremental_file_creation.md"))})

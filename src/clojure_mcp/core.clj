@@ -267,7 +267,7 @@
                         "(require 'clojure.repl)"
                         "(require 'nrepl.util.print)")
                        identity)
-      (nrepl/tool-eval-code nrepl-client-map (slurp (io/resource "repl_helpers.clj")))
+      (nrepl/tool-eval-code nrepl-client-map (slurp (io/resource "clojure-mcp/repl_helpers.clj")))
       (nrepl/tool-eval-code nrepl-client-map "(in-ns 'user)")
       (log/debug "Required namespaces loaded")
 
