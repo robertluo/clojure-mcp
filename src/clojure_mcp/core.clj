@@ -5,8 +5,9 @@
             [clojure.tools.logging :as log]
             [clojure-mcp.nrepl :as nrepl]
             [clojure-mcp.config :as config])
-  (:gen-class)
-  (:import [io.modelcontextprotocol.server.transport StdioServerTransportProvider]
+  (:import [io.modelcontextprotocol.server.transport
+            StdioServerTransportProvider
+            HttpServletSseServerTransportProvider]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
             McpServerFeatures$AsyncToolSpecification
             McpServerFeatures$AsyncResourceSpecification]
@@ -234,6 +235,28 @@
     (catch Exception e
       (log/error e "Failed to initialize MCP server")
       (throw e))))
+
+(defn mcp-sse-server []
+  (log/info "Starting MCP server")
+  (try
+    (let [transport-provider (HttpServletSseServerTransportProvider. (ObjectMapper.) "/message")
+          server (-> (McpServer/async transport-provider)
+                     (.serverInfo "clojure-server" "0.1.0")
+                     (.capabilities (-> (McpSchema$ServerCapabilities/builder)
+                                        (.tools true)
+                                        (.prompts true)
+                                        (.resources true true) ;; resources method takes two boolean parameters
+                                        #_(.logging)
+                                        (.build)))
+                     (.build))]
+
+      (log/info "MCP server initialized successfully")
+      server)
+    (catch Exception e
+      (log/error e "Failed to initialize MCP server")
+      (throw e)))
+
+  )
 
 (defn create-and-start-nrepl-connection
   "Convenience higher-level API function to create and initialize an nREPL connection.
