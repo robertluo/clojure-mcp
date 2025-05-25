@@ -13,17 +13,28 @@
 > 
 > Your feedback and contributions will help make this tool better for the entire Clojure community!
 
-A Model Context Protocol (MCP) server for Clojure that enables AI assistants (like Claude) to interact directly with a Clojure REPL, providing a collaborative, REPL-driven development workflow between humans and LLMs.
+A Model Context Protocol (MCP) server for Clojure that provides a
+complete set of tools to aid in the development of Clojure projects.
 
 ## 🚀 Overview
 
-This project implements an MCP server that connects AI models to a Clojure nREPL, enabling a powerful REPL-driven development workflow.
+This project implements an MCP server that connects AI models to a
+Clojure nREPL, and Specialized Clojure editing tools enabling a unique
+Clojure develop experience.
+
+Clojure MCP provides a superset of the tools that Claude Code uses,
+so you can use it to work on Clojure **without any other tools**.  I
+highly recommend using it with Claude Desktop to start.  It's
+prettier and there are **no api charges!** Claude Desktop also let's you
+have quick access to **your own prompts** and other resources provided
+by the clojure-mcp server. Having a stack of your own prompts
+available in a UI menu is pretty nice.
 
 ## Main Features
 
 - **Clojure REPL Connection**
 - **Clojure Aware editing** - Using clj-kondo, parinfer, cljfmt, and clj-rewrite
-- **Optimized set of tools for Clojure Development**
+- **Optimized set of tools for Clojure Development** superset of Claude Code
 - **Emacs edit highlighting** - alpha
 
 ### Why REPL-Driven Development with AI?
