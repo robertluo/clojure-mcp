@@ -81,6 +81,14 @@ In the Clojure project where you want AI assistance, add MCP server configuratio
 
 **Important**: Replace `/path/to/clojure-mcp` with the actual path to your cloned repository.
 
+> IMPORTANT NOTE: the mcp server can run in any directory and DOES NOT
+> have to run in your project.  The mcp server looks to the nREPL
+> connection for context.  The root directory of the project that is
+> running the nREPL server becomes the root directory of all the mcp
+> tool invocations. Currently the nREPL must run on the same machine
+> as the MCP server as there is an assumption of a shared file system
+> between the nREPL server and the MCP server.
+
 #### Step 3: Configure Claude Desktop
 
 Edit your Claude Desktop configuration file:
@@ -127,9 +135,11 @@ In Claude Desktop click the `+` tools and optionally add
 
 Then start the chat.
 
-I would start by having giving it a problem then chat with the LLM and interactively design a solution. You can ask Claude to "propose" a solution to a problem.
+I would start by stating a problem and then chatting with the LLM to
+interactively design a solution. You can ask Claude to "propose" a
+solution to a problem.
 
-Iterate on that a bit then have it either
+Iterate on that a bit then have it either:
 
 A. code and validate the idea in the REPL.
 
@@ -141,7 +151,7 @@ B. ask the LLM to make the changes to the source code and then have it validate 
 C. ask to run the tests.
 D. ask to commit the changes.
 
-> Make a branch and have the LLM commit often so that it doesn't blow your work away by going in a bad direction.
+> Make a branch and have the LLM commit often so that it doesn't ruin good work by going in a bad direction.
 
 ## Project Summary Management
 
@@ -235,7 +245,7 @@ Personally I `source` them right in bash command:
             "command": "/bin/sh",
             "args": [
                 "-c",
-                "source ~/.api_credentials.sh && cd /path/to/your/workspace/project && PATH=/your/bin/path:$PATH && clojure -X:mcp :port 7888"
+                "source ~/.api_credentials.sh && cd /path/to/your/mcp-server/home && PATH=/your/bin/path:$PATH && clojure -X:mcp :port 7888"
             ]
         }
     }
@@ -579,19 +589,6 @@ The core philosophy of this project is that:
 1. **Tiny steps with rich feedback** lead to better quality code
 2. **REPL-driven development** provides the highest quality feedback loop
 3. **Keeping humans in the loop** ensures discernment and maintainable code
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-#### File Editing Issues
-
-**Problem**: Claude is unable to edit or create files.
-**Solution**:
-- Verify the filesystem MCP server is properly configured
-- Check file paths are correct and within the allowed directories
-- Ensure proper permissions on directories
-- Try using the specialized Clojure editing tools rather than direct file editing
 
 ## 📝 License
 
