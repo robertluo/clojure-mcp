@@ -45,9 +45,6 @@
       [false "REPL client not initialized"]
       [true nil])))
 
-#_(add-tap (fn [x]
-             (spit "mcp.log" (prn-str x) :append true)))
-
 (defn create-mono-from-callback
   "Creates a function that takes the exchange and the arguments map and
   returns a Mono promise The callback function should take three
