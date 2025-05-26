@@ -66,8 +66,8 @@ git clone https://github.com/bhauman/clojure-mcp.git
 or use it as git dep in your `deps.edn`
 
 ```clojure
-{:deps {:git/url "https://github.com/bhauman/clojure-mcp.git"
-        :latest-sha "main"}}
+{:deps {bhauman/clojure-mcp {:git/url "https://github.com/bhauman/clojure-mcp.git"
+                             :git/sha "latest-main-branch-sha"}}
 ```
 
 #### Step 2: Configure Your Target Project
