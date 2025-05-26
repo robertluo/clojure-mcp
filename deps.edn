@@ -21,7 +21,6 @@
         dev.langchain4j/langchain4j-anthropic {:mvn/version "1.0.0-beta3"}        
         dev.langchain4j/langchain4j-google-ai-gemini {:mvn/version "1.0.0-beta3"}
 
-        jakarta.servlet/jakarta.servlet-api {:mvn/version "6.1.0"}
         ;; in order to use the stdio server you have to handle logging somehow
         ;; org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
         }
@@ -39,6 +38,18 @@
    ;; it needs an nrepl port to talk to
    :exec-args {:port 7888}}
 
+  :mcp-sse
+  {:extra-deps {;; optional
+                ;; org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
+                jakarta.servlet/jakarta.servlet-api {:mvn/version "6.1.0"}
+                org.eclipse.jetty/jetty-server {:mvn/version "11.0.20"}
+                org.eclipse.jetty/jetty-servlet {:mvn/version "11.0.20"}}
+   :exec-fn clojure-mcp.sse-main/start-sse-mcp-server
+
+   :exec-args {:port 7888 ;; the nrepl port to connect to
+               ;; specify the :mcp-sse-port to listen on
+               :mcp-sse-port 8078}}
+  
   :nrepl {:extra-paths ["test" "dev" "resources"]
           :extra-deps {ch.qos.logback/logback-classic {:mvn/version "1.4.14"}}
           ;; See https://nrepl.org/nrepl/installation.html#jvmti

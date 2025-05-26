@@ -119,7 +119,7 @@
       (core/add-resource mcp resource))
     (doseq [prompt prompts]
       (core/add-prompt mcp prompt))
-    (swap! core/nrepl-client-atom assoc ::mcp-server mcp)
+    (swap! nrepl-client-atom assoc :mcp-server mcp)
     nil))
 
 ;; -Djdk.attach.allowAttachSelf is needed on the nrepl server if you want the mcp-server eval tool

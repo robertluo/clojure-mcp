@@ -6,8 +6,7 @@
             [clojure-mcp.nrepl :as nrepl]
             [clojure-mcp.config :as config])
   (:import [io.modelcontextprotocol.server.transport
-            StdioServerTransportProvider
-            HttpServletSseServerTransportProvider]
+            StdioServerTransportProvider]
            [io.modelcontextprotocol.server McpServer McpServerFeatures
             McpServerFeatures$AsyncToolSpecification
             McpServerFeatures$AsyncResourceSpecification]
@@ -32,19 +31,6 @@
             McpServerFeatures$AsyncPromptSpecification]
            [reactor.core.publisher Mono]
            [com.fasterxml.jackson.databind ObjectMapper]))
-
-(def nrepl-client-atom (atom nil))
-
-#_(defn ensure-service-atom
-  "Ensures the service-atom is not nil and returns a tuple of [valid? error-message]
-   where valid? is true if the atom exists and error-message is nil in that case.
-   If the atom is nil, valid? is false and error-message contains an error description."
-  [service-atom]
-  (if (nil? service-atom)
-    [false "REPL service connection is not available"]
-    (if (nil? @service-atom)
-      [false "REPL client not initialized"]
-      [true nil])))
 
 (defn create-mono-from-callback
   "Creates a function that takes the exchange and the arguments map and
@@ -236,28 +222,6 @@
       (log/error e "Failed to initialize MCP server")
       (throw e))))
 
-(defn mcp-sse-server []
-  (log/info "Starting MCP server")
-  (try
-    (let [transport-provider (HttpServletSseServerTransportProvider. (ObjectMapper.) "/message")
-          server (-> (McpServer/async transport-provider)
-                     (.serverInfo "clojure-server" "0.1.0")
-                     (.capabilities (-> (McpSchema$ServerCapabilities/builder)
-                                        (.tools true)
-                                        (.prompts true)
-                                        (.resources true true) ;; resources method takes two boolean parameters
-                                        #_(.logging)
-                                        (.build)))
-                     (.build))]
-
-      (log/info "MCP server initialized successfully")
-      server)
-    (catch Exception e
-      (log/error e "Failed to initialize MCP server")
-      (throw e)))
-
-  )
-
 (defn create-and-start-nrepl-connection
   "Convenience higher-level API function to create and initialize an nREPL connection.
    
@@ -308,25 +272,22 @@
       (log/error e "Failed to create nREPL connection")
       (throw e))))
 
-;; TODO change this so that it takes the nrepl-client-atom
 (defn close-servers
   "Convenience higher-level API function to gracefully shut down MCP and nREPL servers.
    
    This function handles the complete shutdown process including:
    - Stopping nREPL polling if a client exists in nrepl-client-atom
    - Gracefully closing the MCP server
-   - Proper error handling and logging
-   
-   Takes the MCP server instance to close."
-  [mcp]
+   - Proper error handling and logging"
+  [nrepl-client-atom]
   (log/info "Shutting down servers")
   (try
     (when-let [client @nrepl-client-atom]
       (log/info "Stopping nREPL polling")
-      (nrepl/stop-polling client))
-    (log/info "Closing MCP server gracefully")
-    (.closeGracefully mcp)
-    (log/info "Servers shut down successfully")
+      (nrepl/stop-polling client)
+      (log/info "Closing MCP server gracefully")
+      (.closeGracefully (:mcp-server client))
+      (log/info "Servers shut down successfully"))
     (catch Exception e
       (log/error e "Error during server shutdown")
       (throw e))))
