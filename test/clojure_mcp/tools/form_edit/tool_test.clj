@@ -457,7 +457,7 @@
             invalid-file-path (test-utils/create-and-register-test-file
                                client-atom
                                test-dir
-                               "invalid_clojure.xyz"
+                               "invalid_clojure.clj"
                                invalid-file-content)
             inputs {:file_path invalid-file-path}
             validated (tool-system/validate-inputs structure-tool inputs)

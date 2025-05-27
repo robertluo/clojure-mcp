@@ -78,3 +78,21 @@
                       {:client-keys (keys nrepl-client)})))
 
     (validate-path path current-dir allowed-dirs)))
+
+(defn clojure-file?
+  "Checks if a file path has a Clojure-related extension.
+   
+   Supported extensions:
+   - .clj (Clojure)
+   - .cljs (ClojureScript)
+   - .cljc (Clojure/ClojureScript shared)
+   - .bb (Babashka)
+   - .edn (Extensible Data Notation)"
+  [file-path]
+  (when file-path
+    (let [lower-path (str/lower-case file-path)]
+      (or (str/ends-with? lower-path ".clj")
+          (str/ends-with? lower-path ".cljs")
+          (str/ends-with? lower-path ".cljc")
+          (str/ends-with? lower-path ".bb")
+          (str/ends-with? lower-path ".edn")))))
