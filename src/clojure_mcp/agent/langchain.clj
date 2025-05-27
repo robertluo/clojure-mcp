@@ -18,7 +18,6 @@
    [dev.langchain4j.model.chat.request ChatRequest ToolChoice]
 
    ;; LangChain4j Model classes (using Anthropic as an example)
-   [dev.langchain4j.model.chat ChatLanguageModel]
    [dev.langchain4j.model.anthropic
     AnthropicChatModel
     AnthropicStreamingChatModel
@@ -199,7 +198,7 @@
 
 (defn create-service [klass {:keys [model memory tools system-message]}]
   (-> (AiServices/builder klass) ; Use the interface defined above
-      (.chatLanguageModel model)
+      (.chatModel model)
       (.systemMessageProvider
        (reify Function
          (apply [this mem-id]
@@ -220,7 +219,8 @@
                      :required [:nm]})
      :tool-fn (fn [_ {:keys [nm]} callback]
                 (callback [(str "Hello " nm "!")] false))})
-
+  #_(create-service AiService {})
+  
   (let [exec (registration-map->tool-executor test-tool)]
     (.execute exec (-> (ToolExecutionRequest/builder)
                        (.name "hello")

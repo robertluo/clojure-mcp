@@ -94,8 +94,7 @@
   (let [user-dir (System/getProperty "user.dir")
         client-atom (atom {:clojure-mcp.config/config
                            {:nrepl-user-dir user-dir
-                            :allowed-directories [user-dir]
-                            :emacs-notify true}})
+                            :allowed-directories [user-dir]}})
         ai (create-ai-service client-atom)]
     (.chat (:service ai) "hey I'm looking for the langchain integration code where can I find it")))
 

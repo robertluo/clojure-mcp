@@ -13,13 +13,15 @@
         clj-kondo/clj-kondo {:mvn/version "2024.03.13"}
         org.clojars.oakes/parinfer {:mvn/version "0.4.0"}
 
+        
         ;; llm ecosystem java libs
-        io.modelcontextprotocol.sdk/mcp {:mvn/version "0.10.0"}
-        dev.langchain4j/langchain4j {:mvn/version "1.0.0-beta3"}
-        dev.langchain4j/langchain4j-open-ai {:mvn/version "1.0.0-beta3"}
         com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.15.2"}
-        dev.langchain4j/langchain4j-anthropic {:mvn/version "1.0.0-beta3"}        
-        dev.langchain4j/langchain4j-google-ai-gemini {:mvn/version "1.0.0-beta3"}
+        io.modelcontextprotocol.sdk/mcp {:mvn/version "0.10.0"}
+        
+        dev.langchain4j/langchain4j {:mvn/version "1.0.1"}
+        dev.langchain4j/langchain4j-open-ai {:mvn/version "1.0.1"}
+        dev.langchain4j/langchain4j-anthropic {:mvn/version "1.0.1-beta6"}      
+        dev.langchain4j/langchain4j-google-ai-gemini {:mvn/version "1.0.1-beta6"}
 
         ;; in order to use the stdio server you have to handle logging somehow
         ;; org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
