@@ -13,13 +13,16 @@
    [rewrite-clj.node :as n]))
 
 (defn validate-file-path
-  "Validates that a file path is provided and within allowed directories"
+  "Validates that a file path is provided, within allowed directories, and is a Clojure file"
   [inputs nrepl-client-atom]
   (let [{:keys [file_path]} inputs
         nrepl-client @nrepl-client-atom]
     (when-not file_path
       (throw (ex-info "Missing required parameter: file_path"
                       {:inputs inputs})))
+    (when-not (valid-paths/clojure-file? file_path)
+      (throw (ex-info "File must have a Clojure extension (.clj, .cljs, .cljc, .bb, .edn)"
+                      {:file_path file_path})))
     ;; Use the utils/validate-path-with-client function to ensure path is valid
     (valid-paths/validate-path-with-client file_path nrepl-client)))
 
