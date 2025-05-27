@@ -51,7 +51,7 @@ This approach enables:
 
 - [Clojure](https://clojure.org/guides/install_clojure) (1.11 or later)
 - [Java](https://openjdk.org/) (JDK 11 or later)
-- [Claude Desktop](https://claude.ai/desktop) (for the best experience)
+- [Claude Desktop](https://claude.ai/download) (for the best experience)
 
 ### Setting up the project
 
