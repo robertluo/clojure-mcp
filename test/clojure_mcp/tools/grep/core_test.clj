@@ -72,7 +72,7 @@
 
 (deftest grep-files-with-project-directory
   (testing "grep-files with the actual project directory"
-    (let [project-dir "/Users/bruce/workspace/llempty/clojure-mcp"]
+    (let [project-dir (System/getProperty "user.dir")]
 
       (testing "find tool-system multimethod usage"
         (let [result (sut/grep-files project-dir "defmethod tool-system" :include "*.clj")]
