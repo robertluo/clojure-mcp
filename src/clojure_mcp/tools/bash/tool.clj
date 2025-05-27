@@ -83,7 +83,7 @@ in the response to determine command success.")
 
 (defmethod tool-system/execute-tool :bash [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [command working-directory timeout-ms]} inputs]
-    (core/execute-bash-command nrepl-client-atom inputs)))
+    (core/execute-bash-command-nrepl nrepl-client-atom inputs)))
 
 (defmethod tool-system/format-results :bash [_ result]
   (let [{:keys [stdout stderr exit-code timed-out error]} result

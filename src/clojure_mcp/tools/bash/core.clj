@@ -16,7 +16,7 @@
 
 ;; this is pretty useless
 (def ^:private disallowed-commands
-  #{ ;; System modification commands
+  #{;; System modification commands
     "rm -rf" "rm -r" "rmdir" "dd" "mkfs" "format"
     ;; Network attack tools
     "nmap" "netcat" "nc"
@@ -67,23 +67,35 @@
   [command working-directory timeout-ms]
   (format "(try 
              (let [pb (ProcessBuilder. (into-array [\"bash\" \"-c\" %s]))
-                   _ (when %s
-                       (.directory pb (java.io.File. %s)))
+                   _ %s
                    process (.start pb)
                    timeout-ms %s
                    completed (.waitFor process timeout-ms java.util.concurrent.TimeUnit/MILLISECONDS)]
                (if completed
                  (let [exit-code (.exitValue process)
-                       stdout (slurp (.getInputStream process))
-                       stderr (slurp (.getErrorStream process))]
+                       ;; Use consistent stream reading approach with direct version
+                       stdout (with-open [reader (java.io.BufferedReader. 
+                                                  (java.io.InputStreamReader. (.getInputStream process)))]
+                                (clojure.string/join \"\\n\" (line-seq reader)))
+                       stderr (with-open [reader (java.io.BufferedReader. 
+                                                  (java.io.InputStreamReader. (.getErrorStream process)))]
+                                (clojure.string/join \"\\n\" (line-seq reader)))]
                    {:exit-code exit-code
                     :stdout stdout
                     :stderr stderr
                     :timed-out false})
                  (do
                    (.destroyForcibly process)
-                   (let [stdout (try (slurp (.getInputStream process)) (catch Exception _ \"\"))
-                         stderr (try (slurp (.getErrorStream process)) (catch Exception _ \"\"))]
+                   (let [stdout (try 
+                                  (with-open [reader (java.io.BufferedReader. 
+                                                     (java.io.InputStreamReader. (.getInputStream process)))]
+                                    (clojure.string/join \"\\n\" (line-seq reader)))
+                                  (catch Exception _ \"\"))
+                         stderr (try 
+                                  (with-open [reader (java.io.BufferedReader. 
+                                                     (java.io.InputStreamReader. (.getErrorStream process)))]
+                                    (clojure.string/join \"\\n\" (line-seq reader)))
+                                  (catch Exception _ \"\"))]
                      {:exit-code -1
                       :stdout stdout
                       :stderr stderr
@@ -95,14 +107,17 @@
                 :timed-out false
                 :error (.getMessage e)}))"
           (pr-str command)
-          (if working-directory (pr-str working-directory) (pr-str nil))
-          (if working-directory (pr-str working-directory) (pr-str ""))
+          ;; Fix working directory handling - only set if not nil
+          (if working-directory
+            (format "(when %s (.directory pb (java.io.File. %s)))"
+                    (pr-str working-directory) (pr-str working-directory))
+            "nil  ;; no working directory specified")
           (or timeout-ms default-timeout-ms)))
 
 (defn execute-bash-command-nrepl
   [nrepl-client-atom {:keys [command working-directory timeout-ms] :as args}]
   (let [timeout-ms (or timeout-ms default-timeout-ms)]
-    
+
     (when-not (command-allowed? command)
       (throw (ex-info "Command not allowed due to security restrictions"
                       {:command command
@@ -111,41 +126,58 @@
                                (generate-shell-eval-code command
                                                          working-directory
                                                          timeout-ms)))
+          ;; Increase timeout buffer from 200ms to 5000ms for more reliability
+          eval-timeout-ms (+ 5000 timeout-ms)
           result (eval-core/evaluate-code
                   @nrepl-client-atom
                   {:code clj-shell-code
-                   ;; make this timeout a little longer than the inner timeout
-                   :timeout-ms (+ 200 timeout-ms)})
+                   :timeout-ms eval-timeout-ms})
           inner-value (:value (into {} (:outputs result)))]
+
+      ;; Add logging for debugging intermittent failures
+      (when (:error result)
+        (log/warn "REPL evaluation failed for bash command"
+                  {:command command
+                   :working-directory working-directory
+                   :timeout-ms timeout-ms
+                   :eval-timeout-ms eval-timeout-ms
+                   :error result}))
+
       (if (not (:error result))
         (try
           (edn/read-string inner-value)
           (catch Exception e
-            (log/debug e)
-            ;; as last ditch effort just return the response
-            ;; as this is better feedback than no response
-            {:stdout inner-value
-             :stderr "ERROR: reading returning raw result"
+            (log/error e "Failed to parse bash command result as EDN"
+                       {:command command
+                        :inner-value inner-value
+                        :result result})
+            ;; Return more informative error response
+            {:stdout ""
+             :stderr (format "EDN parsing failed: %s\nRaw result: %s"
+                             (.getMessage e) inner-value)
              :timed-out false
-             :exit-code -1}))
+             :exit-code -1
+             :error "edn-parse-failure"}))
         (if-let [val (try (edn/read-string inner-value)
                           (catch Exception e
-                            (log/debug e)
-                            ;; as last ditch effort just return the response
-                            ;; as this is better feedback than no response
-                            {:stdout inner-value
-                             :stderr "ERROR: reading returning raw result"
-                             :timed-out false
-                             :exit-code -1}))]
+                            (log/warn e "Secondary EDN parse attempt failed"
+                                      {:command command
+                                       :inner-value inner-value})
+                            nil))]
           val
-          {:stdout "ERROR: reading results of Bash call."
-           :stderr (pr-str result)
-           :timed-out false
-           :exit-code -1})))))
+          (do
+            (log/error "Bash command evaluation failed completely"
+                       {:command command
+                        :result result})
+            {:stdout ""
+             :stderr (format "Command evaluation failed: %s" (pr-str result))
+             :timed-out false
+             :exit-code -1
+             :error "eval-failure"}))))))
 
 (comment
   (require '[clojure-mcp.config :as config])
-  
+
   (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
   #_(config/set-config! client-atom :nrepl-user-dir (System/getProperty "user.dir"))
   #_(config/set-config! client-atom :allowed-directories [(System/getProperty "user.dir")])
@@ -153,27 +185,22 @@
 
   (execute-bash-command-nrepl client-atom {:command "clojure -X:test"
                                            :working-directory (System/getProperty "user.dir")})
-  
+
   (->> (eval-core/evaluate-code
-   @client-atom
-   {:code (generate-shell-eval-code
-           "clojure -X:test"
-           (System/getProperty "user.dir")
-           100000)
-    :timeout-ms 100000
-    } )
+        @client-atom
+        {:code (generate-shell-eval-code
+                "clojure -X:test"
+                (System/getProperty "user.dir")
+                100000)
+         :timeout-ms 100000})
        :outputs
        (into {})
        :value
-       edn/read-string
-       )
+       edn/read-string)
 
-
-  
-  (clojure-mcp.nrepl/stop-polling @client-atom)
-  )
-
+  (clojure-mcp.nrepl/stop-polling @client-atom))
 
 #_(execute-bash-command
    {:command "ls -al"
     :working-directory (System/getProperty "user.dir") :timeout-ms nil})
+
