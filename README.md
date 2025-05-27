@@ -66,8 +66,8 @@ git clone https://github.com/bhauman/clojure-mcp.git
 or use it as git dep in your `deps.edn`
 
 ```clojure
-{:deps {bhauman/clojure-mcp {:git/url "https://github.com/bhauman/clojure-mcp.git"
-                             :git/sha "latest-main-branch-sha"}}
+{:deps {com.bhauman/clojure-mcp {:git/url "https://github.com/bhauman/clojure-mcp.git"
+                                 :git/sha "latest-main-branch-sha"}}
 ```
 
 #### Step 2: Configure Your Target Project
@@ -85,7 +85,7 @@ In the Clojure project where you want AI assistance, add MCP server configuratio
   
   ;; MCP server configuration (for reference)
   :mcp {:extra-deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
-                     clojure-mcp/clojure-mcp {:local/root "/path/to/clojure-mcp"}}
+                     com.bhauman/clojure-mcp {:local/root "/path/to/clojure-mcp"}}
         :exec-fn clojure-mcp.main/start-mcp-server
         :exec-args {:port 7888}}}}
 ```
