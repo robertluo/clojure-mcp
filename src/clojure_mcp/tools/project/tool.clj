@@ -38,8 +38,10 @@ clojure_inspect_project()")
 
 (defmethod tool-system/tool-schema :clojure-inspect-project [_]
   {:type :object
-   :properties {}
-   :required []})
+   ;; this is for the anthropic api sdk which currently fails when there are no args ... sigh
+   :properties {:explanation {:type :string
+                              :description "Short explanation why you chose this tool"}}
+   :required [:explanation]})
 
 (defmethod tool-system/validate-inputs :clojure-inspect-project [_ inputs]
   ;; No inputs required for this tool
