@@ -51,7 +51,7 @@
                     canonical-allowed-dirs))
         normalized-path
         (throw (ex-info (str "Your path:\n" normalized-path
-                             "is outside the allowed directories:\n" (str/join "\n" allowed-directories))
+                             " is outside the allowed directories:\n" (str/join "\n" allowed-directories))
                         {:path normalized-path
                          :allowed-dirs allowed-directories}))))))
 
@@ -96,3 +96,133 @@
           (str/ends-with? lower-path ".cljc")
           (str/ends-with? lower-path ".bb")
           (str/ends-with? lower-path ".edn")))))
+
+(defn extract-paths-from-bash-command
+  "Extract file/directory paths from a bash command string.
+   
+   Returns a set of path strings that the command might access.
+   Only extracts paths that look like filesystem paths:
+   - Absolute paths: /path/to/file
+   - Relative paths: ./file, ../dir/file  
+   - Home directory: ~/file
+   - Current/parent directory: . or ..
+   - Quoted paths with spaces: '/path with spaces'
+   
+   Avoids false positives like search patterns in quotes, 
+   regex patterns, URLs, etc.
+   
+   Examples:
+     (extract-paths-from-bash-command \"ls /usr/bin\")
+     => #{\"usr/bin\"}
+     
+     (extract-paths-from-bash-command \"find . -name '*.clj'\")
+     => #{\".\"}
+     
+     (extract-paths-from-bash-command \"echo 'not/a/path'\")
+     => #{}"
+  [command]
+  (when-not (str/blank? command)
+    (let [;; Regex patterns for different path types  
+          absolute-pattern #"(?<=\s|^)/[^\s\"'`;<>|&]+(?=\s|$)" ; /path/to/file
+          relative-pattern #"(?<=\s|^)\.{1,2}/[^\s\"'`;<>|&]*(?=\s|$)" ; ./file ../dir
+          home-pattern #"(?<=\s|^)~/[^\s\"'`;<>|&]*(?=\s|$)" ; ~/file
+          current-parent #"(?<=\s|^)\.{1,2}(?=\s|$)" ; . or ..
+          quoted-pattern #"[\"']([^\"']+)[\"']" ; "quoted content"
+
+          ;; Extract all matches
+          absolute-paths (re-seq absolute-pattern command)
+          relative-paths (re-seq relative-pattern command)
+          home-paths (re-seq home-pattern command)
+          dot-paths (re-seq current-parent command)
+
+          ;; For quoted strings, only include if they look like filesystem paths
+          quoted-paths (->> (re-seq quoted-pattern command)
+                            (map second) ; Get capture group content
+                            (filter #(and (str/includes? % "/")
+                                          (or (str/starts-with? % "/")
+                                              (str/starts-with? % "./")
+                                              (str/starts-with? % "../")
+                                              (str/starts-with? % "~/")))))]
+      (->> (concat absolute-paths relative-paths home-paths dot-paths quoted-paths)
+           (remove str/blank?)
+           set))))
+
+(defn preprocess-path
+  "Preprocess a path extracted from a bash command for validation.
+   
+   Handles:
+   - Home directory expansion: ~/file -> /home/user/file  
+   - Leaves other paths unchanged for validate-path to handle
+   
+   Examples:
+     (preprocess-path \"~/config\") => \"/home/user/config\"
+     (preprocess-path \"./file\") => \"./file\""
+  [path]
+  (cond
+    ;; Expand home directory paths
+    (str/starts-with? path "~/")
+    (str (System/getProperty "user.home") (subs path 1))
+
+    ;; Handle bare ~ (home directory itself)
+    (= path "~")
+    (System/getProperty "user.home")
+
+    ;; All other paths pass through unchanged
+    :else path))
+
+(defn validate-bash-command-paths
+  "Extract and validate all filesystem paths from a bash command.
+   
+   This function combines path extraction, preprocessing, and validation
+   to ensure a bash command only accesses allowed directories.
+   
+   Parameters:
+   - command: The bash command string to analyze  
+   - current-working-directory: The current working directory (absolute path)
+   - allowed-directories: Sequence of allowed directory paths
+   
+   Returns:
+   - Set of normalized absolute paths if all paths are valid
+   - Empty set if no paths found in command (command is safe)
+   
+   Throws:
+   - Exception if any path is invalid, with details about failed paths
+   
+   Examples:
+     (validate-bash-command-paths \"ls ./src /tmp\" \"/home/user\" [\"/home/user\" \"/tmp\"])
+     => #{absolute-path-to-src absolute-path-to-tmp}"
+  [command current-working-directory allowed-directories]
+  (if-let [extracted-paths (extract-paths-from-bash-command command)]
+    (let [;; Preprocess all paths (expand ~ etc.)
+          preprocessed-paths (map preprocess-path extracted-paths)
+
+          ;; Validate each path and collect results
+          validation-results (for [path preprocessed-paths]
+                               (try
+                                 {:path path
+                                  :original (first (filter #(= (preprocess-path %) path) extracted-paths))
+                                  :status :valid
+                                  :normalized (validate-path path current-working-directory allowed-directories)}
+                                 (catch Exception e
+                                   {:path path
+                                    :original (first (filter #(= (preprocess-path %) path) extracted-paths))
+                                    :status :invalid
+                                    :error (.getMessage e)})))
+
+          ;; Separate valid and invalid results
+          valid-results (filter #(= (:status %) :valid) validation-results)
+          invalid-results (filter #(= (:status %) :invalid) validation-results)]
+
+      (if (empty? invalid-results)
+        ;; All paths valid - return normalized paths
+        (set (map :normalized valid-results))
+        ;; Some paths invalid - throw with details
+        (let [error-details (->> invalid-results
+                                 (map #(str "'" (:original %) "' -> " (:error %)))
+                                 (str/join "\n"))]
+          (throw (ex-info (str "Invalid paths in bash command:\n" error-details)
+                          {:command command
+                           :invalid-paths invalid-results
+                           :valid-paths valid-results})))))
+    ;; No paths found - return empty set (command is safe)
+    #{}))

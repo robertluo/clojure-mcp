@@ -76,6 +76,17 @@ in the response to determine command success.")
                         {:inputs inputs
                          :error-details "Timeout must be a positive number"})))
 
+      ;; Validate all filesystem paths in the bash command
+      (let [allowed-dirs (config/get-allowed-directories nrepl-client)]
+        (try
+          (valid-paths/validate-bash-command-paths command validated-dir allowed-dirs)
+          (catch Exception e
+            (throw (ex-info (str "Bash command contains invalid paths: " (.getMessage e))
+                            {:inputs inputs
+                             :command command
+                             :error-details (.getMessage e)
+                             :caused-by (.getData e)})))))
+
       ;; Return validated and normalized inputs
       (cond-> {:command command}
         working_directory (assoc :working-directory validated-dir)
