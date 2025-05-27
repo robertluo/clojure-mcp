@@ -45,6 +45,47 @@ This approach enables:
 - **Human oversight** - Keep the programmer in the loop for guidance
 - **Functional approach** - Encourage pure functions that are easier to understand and test
 
+## Cohesive Clojure Toolbox
+
+### Why These Tools Work as a Complete System
+
+The Clojure MCP tools are intentionally designed as a **cohesive "action space"** for Clojure development, rather than a collection of independent utilities. This design approach offers several key advantages:
+
+#### Enhanced Clojure Integration
+- **Smart file editing** with automatic parenthesis balancing, linting, and formatting
+- **Structure-aware operations** that understand Clojure syntax and semantics  
+- **REPL-integrated development** with stateful namespace management
+
+#### Stateful File Tracking
+The tools maintain state about file read/write operations to ensure safety:
+- Tracks when files were last read vs. modified externally
+- Prevents editing conflicts by validating file state before modifications
+- Enables multiple sequential edits after a single read operation
+- Uses canonical path resolution for reliable file identification
+
+#### Optimized Tool Interactions
+When tools work together as a system, they can:
+- Share context and state for more intelligent behavior
+- Provide consistent interfaces and error handling
+- Optimize the overall development workflow
+
+### Using with Claude Code and Other Code Assistants
+
+While you *can* use these tools alongside Claude Code and other code assistants with their own tooling, we recommend **trying the Clojure MCP tools independently first** to experience their full capabilities. Here's why:
+
+**Potential Conflicts:**
+- Both systems track file read/write state independently, which can cause confusion
+- Overlapping tool functionality may lead to inconsistent behavior
+- Mixed toolsets can dilute the optimized workflow experience
+
+**Getting the Full Benefits:**
+- Experience the curated Clojure development workflow as intended
+- Understand how the tools complement each other
+- Appreciate the Clojure-specific enhancements and safety features
+- Develop familiarity with the integrated approach before mixing systems
+
+Once you're comfortable with the Clojure MCP toolset, you can make informed decisions about whether to use it exclusively or integrate it with other code assistants and development tools based on your specific workflow needs.
+
 ## 📋 Installation
 
 ### Prerequisites
