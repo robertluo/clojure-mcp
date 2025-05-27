@@ -45,6 +45,18 @@ This approach enables:
 - **Human oversight** - Keep the programmer in the loop for guidance
 - **Functional approach** - Encourage pure functions that are easier to understand and test
 
+## 🧠 Model Compatibility
+
+These tools are designed to work with the latest LLM models. For the best experience with sexp editing and Clojure-specific tooling, we recommend:
+
+- **Anthropic Claude 3.7** and **Claude 4 (sonnet or opus)** (especially **Claude 4** for best results)
+- **Gemini 2.5**
+- **OpenAI o4-mini** or **o3**
+
+I highly recommend **Claude 4** if you want to see long autonomous agentic action chains ...
+
+The pattern-based structural editing tools require high model performance, so using one of these recommended models will significantly improve your experience.
+
 ## Cohesive Clojure Toolbox
 
 ### Why These Tools Work as a Complete System
