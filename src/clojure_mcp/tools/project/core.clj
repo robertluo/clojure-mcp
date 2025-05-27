@@ -16,6 +16,13 @@
                        (-> "project.clj" slurp read-string))
          lein-project? (boolean project-clj)
          deps-project? (boolean deps)
+         ;; Parse Leiningen project.clj structure
+         lein-config (when lein-project?
+                       (->> project-clj
+                            (drop 3) ; skip defproject, name, version
+                            (partition 2)
+                            (map (fn [[k v]] [k v]))
+                            (into {})))
          source-files (fn [dir]
                         (when (.exists (clojure.java.io/file dir))
                           (->> (clojure.java.io/file dir)
@@ -27,15 +34,11 @@
          ;; Extract paths from deps.edn or project.clj
          source-paths (cond
                         deps (or (:paths deps) ["src"])
-                        lein-project? (->> project-clj
-                                           (drop-while #(not= :source-paths %))
-                                           second)
+                        lein-project? (or (:source-paths lein-config) ["src"])
                         :else ["src"])
          test-paths (cond
                       deps (get-in deps [:aliases :test :extra-paths] ["test"])
-                      lein-project? (->> project-clj
-                                         (drop-while #(not= :test-paths %))
-                                         second)
+                      lein-project? (or (:test-paths lein-config) ["test"])
                       :else ["test"])
          all-paths (concat source-paths test-paths)
          sources (mapcat source-files all-paths)
@@ -56,10 +59,10 @@
       :clj-version clojure-version-info
       :deps deps
       :project-clj (when lein-project?
-                     (let [version (->> project-clj (drop-while #(not= :version %)) second)
-                           name (->> project-clj (drop-while #(not= :name %)) second)]
-                       {:name name
-                        :version version}))
+                     {:name (nth project-clj 1)
+                      :version (nth project-clj 2)
+                      :dependencies (:dependencies lein-config)
+                      :profiles (:profiles lein-config)})
       :source-paths source-paths
       :test-paths test-paths
       :namespaces namespaces
@@ -67,11 +70,11 @@
 
 (defn format-project-info
   "Formats the project information into a readable string.
-   
+
    Arguments:
    - insp-data: The project inspection data as an EDN string
    - allowed-directories: Optional list of allowed directories
-   
+
    Returns a formatted string with project details"
   [insp-data & [allowed-directories]]
   (when insp-data
@@ -126,7 +129,15 @@
         (when project-clj
           (println "\nLeiningen Project:")
           (println "• Name:" (:name project-clj))
-          (println "• Version:" (:version project-clj)))
+          (println "• Version:" (:version project-clj))
+          (when-let [deps (:dependencies project-clj)]
+            (println "\nLeiningen Dependencies:")
+            (doseq [[dep version] deps]
+              (println "•" dep "=>" version)))
+          (when-let [profiles (:profiles project-clj)]
+            (println "\nLeiningen Profiles:")
+            (doseq [[profile config] (sort-by key profiles)]
+              (println "•" profile ":" (pr-str config)))))
 
         (let [limit 25]
           (println "\nNamespaces (" (count namespaces) "):")
@@ -143,10 +154,10 @@
 
 (defn inspect-project
   "Core function to inspect a Clojure project and return formatted information.
-   
+
    Arguments:
    - nrepl-client: The nREPL client connection
-   
+
    Returns a map with :outputs (containing the formatted project info) and :error (boolean)"
   [nrepl-client]
   (let [insp-code (str (inspect-project-code))
