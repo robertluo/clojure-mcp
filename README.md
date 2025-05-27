@@ -502,6 +502,11 @@ Controls which directories the MCP tools can access for security. Paths can be r
 #### `emacs-notify` 
 Boolean flag to enable Emacs integration notifications.
 
+**Prerequisites for Emacs Integration:**
+- `emacsclient` must be available in your system PATH
+- Emacs server must be running (start with `M-x server-start` or add `(server-start)` to your init file)
+- The integration allows the MCP server to communicate with your Emacs editor for enhanced development workflows
+
 ### Example Configuration
 
 ```edn
