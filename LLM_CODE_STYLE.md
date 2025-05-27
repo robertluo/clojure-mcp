@@ -39,6 +39,15 @@
 - smaller functions make edits faster and reduce the number of tokens
 - reducing tokens makes me happy
 
+### Library Preferences
+- Prefer `clojure.string` functions over Java interop for string operations
+  - Use `str/ends-with?` instead of `.endsWith`
+  - Use `str/starts-with?` instead of `.startsWith`  
+  - Use `str/includes?` instead of `.contains`
+  - Use `str/blank?` instead of checking `.isEmpty` or `.trim`
+- Follow Clojure naming conventions (predicates end with `?`)
+- Favor built-in Clojure functions that are more expressive and idiomatic
+
 ### REPL best pratices
 - Always reload namespaces with `:reload` flag: `(require '[namespace] :reload)`
 - Always change into namespaces that you are working on
