@@ -22,7 +22,7 @@
      (str "=> " v (if (<= nrepl/truncation-length (count v))
                     " ... RESULT TRUNCATED"
                     ""))
-     v)))
+     (str v))))
 
 (defn format-eval-outputs [outputs]
   (->> outputs
