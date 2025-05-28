@@ -7,10 +7,13 @@
 ;; Factory function to create the tool configuration
 (defn create-eval-tool
   "Creates the evaluation tool configuration"
-  [nrepl-client-atom]
-  {:tool-type :clojure-eval
-   :nrepl-client-atom nrepl-client-atom
-   :timeout 30000})
+  ([nrepl-client-atom]
+   (create-eval-tool nrepl-client-atom {}))
+  ([nrepl-client-atom {:keys [nrepl-session] :as config}]
+   (cond-> {:tool-type :clojure-eval
+            :nrepl-client-atom nrepl-client-atom
+            :timeout 30000}
+     nrepl-session (assoc :session nrepl-session))))
 
 ;; Implement the required multimethods for the eval tool
 (defmethod tool-system/tool-description :clojure-eval [_]
@@ -54,9 +57,10 @@ Examples:
     ;; Return validated inputs (could do more validation/coercion here)
     inputs))
 
-(defmethod tool-system/execute-tool :clojure-eval [{:keys [nrepl-client-atom]} inputs]
+(defmethod tool-system/execute-tool :clojure-eval [{:keys [nrepl-client-atom session]} inputs]
   ;; Delegate to core implementation with repair
-  (core/evaluate-with-repair @nrepl-client-atom inputs))
+  (core/evaluate-with-repair @nrepl-client-atom (cond-> inputs
+                                                  session (assoc :session session))))
 
 (defmethod tool-system/format-results :clojure-eval [_ {:keys [outputs error repaired] :as eval-result}]
   ;; The core implementation now returns a map with :outputs (raw outputs), :error (boolean), and :repaired (boolean)

@@ -52,7 +52,7 @@
    Returns:
    - A map with :outputs (raw outputs), :error (boolean flag)"
   [nrepl-client opts]
-  (let [{:keys [code ns timeout-ms]} opts
+  (let [{:keys [code ns timeout-ms session]} opts
         timeout-ms (or timeout-ms 5000)
         outputs (atom [])
         error-occurred (atom false)
@@ -79,22 +79,28 @@
           (swap! state update :clojure-mcp.repl-tools/eval-history conj form-str))
 
         ;; Evaluate the code, using the namespace parameter if provided
-        (nrepl/eval-code-help nrepl-client form-str ns
-                              (->> identity
-                                   (nrepl/out-err
-                                    #(add-output! :out %)
-                                    #(add-output! :err %))
-                                   (nrepl/value #(add-output! :value %))
-                                   (nrepl/done (fn [_]
-                                                 (deliver result-promise
-                                                          {:outputs @outputs
-                                                           :error @error-occurred})))
-                                   (nrepl/error (fn [_]
-                                                  (reset! error-occurred true)
-                                                  (add-output! :err "Evaluation failed")
-                                                  (deliver result-promise
-                                                           {:outputs @outputs
-                                                            :error true})))))
+        (nrepl/eval-code-msg
+         nrepl-client form-str
+         (cond
+           session {:session session}
+           ns {:ns ns
+               :session (nrepl/ns-session nrepl-client)}
+           :else {})
+         (->> identity
+              (nrepl/out-err
+               #(add-output! :out %)
+               #(add-output! :err %))
+              (nrepl/value #(add-output! :value %))
+              (nrepl/done (fn [_]
+                            (deliver result-promise
+                                     {:outputs @outputs
+                                      :error @error-occurred})))
+              (nrepl/error (fn [_]
+                             (reset! error-occurred true)
+                             (add-output! :err "Evaluation failed")
+                             (deliver result-promise
+                                      {:outputs @outputs
+                                       :error true})))))
 
         ;; Wait for the result and return it
         (let [tmb (Object.)

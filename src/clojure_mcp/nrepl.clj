@@ -108,32 +108,39 @@
 
 (def truncation-length 5000)
 
+(defn eval-code-msg
+  [{:keys [::state] :as service} code-str msg' k]
+  (let [msg (merge
+             msg'
+             {:op "eval"
+              :code code-str
+              :nrepl.middleware.print/print "nrepl.util.print/pprint"
+              ;; need to be able to set this magic number
+              :nrepl.middleware.print/quota truncation-length})
+        {:keys [id] :as message} (new-message service msg)
+        prom (promise)
+        finish (fn [_]
+                 (deliver prom ::done)
+                 (remove-current-eval-id! service))]
+    (set-current-eval-id! service id)
+    (send-msg! service
+               message
+               (cond->> k
+                 (not (:ns msg)) (on-key :ns #(swap! state assoc :current-ns %))
+                 true (done finish)
+                 true (error finish)))
+    prom))
+
 (defn eval-code-help
   ([service code-str k]
    (eval-code-help service code-str nil k))
   ([{:keys [::state] :as service} code-str ns k]
-   (let [msg {:op "eval"
-              :code code-str
-              :nrepl.middleware.print/print "nrepl.util.print/pprint"
-              ;; need to be able to set this magic number
-              :nrepl.middleware.print/quota truncation-length}
-         {:keys [id] :as message}
-         (new-message service (cond-> msg
-                                ns (assoc :ns ns
-                                          :session (ns-session service))))
-         prom (promise)
-         finish (fn [_]
-                  (deliver prom ::done)
-                  (remove-current-eval-id! service))]
-     (set-current-eval-id! service id)
-     (send-msg! service
-                message
-                (cond->> k
-                  (not ns) (on-key :ns #(swap! state assoc :current-ns %))
-                  true (done finish)
-                  true (error finish)))
-     prom)))
-
+   (eval-code-msg service code-str
+                  (cond-> {}
+                    ns (assoc
+                        :ns ns
+                        :session (ns-session service)))
+                  k)))
 
 (defn eval-code [service code-str k]
   @(eval-code-help service code-str k))
