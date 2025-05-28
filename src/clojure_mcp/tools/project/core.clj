@@ -42,11 +42,6 @@
                       :else ["test"])
          all-paths (concat source-paths test-paths)
          sources (mapcat source-files all-paths)
-         namespaces (mapv #(-> %
-                               (.replace "/" ".")
-                               (.replace "_" "-")
-                               (.replace ".clj" ""))
-                          (filter #(.endsWith % ".clj") sources))
          java-version (System/getProperty "java.version")
          clojure-version-info (clojure-version)]
      {:working-dir (System/getProperty "user.dir")
@@ -65,7 +60,6 @@
                       :profiles (:profiles lein-config)})
       :source-paths source-paths
       :test-paths test-paths
-      :namespaces namespaces
       :sources sources}))
 
 (defn format-project-info
@@ -86,7 +80,6 @@
                        project-clj
                        source-paths
                        test-paths
-                       namespaces
                        sources]}
                (try
                  (edn/read-string insp-data)
@@ -139,12 +132,29 @@
             (doseq [[profile config] (sort-by key profiles)]
               (println "•" profile ":" (pr-str config)))))
 
-        (let [limit 25]
-          (println "\nNamespaces (" (count namespaces) "):")
-          (doseq [ns-name (take limit namespaces)]
+        (let [limit 25
+              all-paths (concat source-paths test-paths)
+              ;; Process raw file paths into proper namespace names
+              processed-namespaces (->> sources
+                                        (filter #(.endsWith % ".clj"))
+                                        (map (fn [file-path]
+                                               ;; Remove source path prefix from file path
+                                               (let [relative-path (reduce (fn [path src-path]
+                                                                             (if (.startsWith path (str src-path "/"))
+                                                                               (.substring path (inc (count src-path)))
+                                                                               path))
+                                                                           file-path
+                                                                           all-paths)]
+                                                 (-> relative-path
+                                                     (.replace "/" ".")
+                                                     (.replace "_" "-")
+                                                     (.replace ".clj" "")))))
+                                        (into []))]
+          (println "\nNamespaces (" (count processed-namespaces) "):")
+          (doseq [ns-name (take limit processed-namespaces)]
             (println "•" ns-name))
-          (when (> (count namespaces) limit)
-            (println "• ... and" (- (count namespaces) limit) "more"))
+          (when (> (count processed-namespaces) limit)
+            (println "• ... and" (- (count processed-namespaces) limit) "more"))
 
           (println "\nProject Structure (" (count sources) " files):")
           (doseq [source-file (take limit sources)]
