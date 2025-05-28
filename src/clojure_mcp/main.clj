@@ -110,7 +110,8 @@
 ;; start the server
 (defn start-mcp-server [nrepl-args]
   ;; the nrepl-args are a map with :port :host :tls-keys-file]
-  (let [nrepl-client-map (core/create-and-start-nrepl-connection nrepl-args)
+  (let [nrepl-client-map (core/create-and-start-nrepl-connection 
+                          (update nrepl-args :port #(or % (-> (slurp ".nrepl-port") read-string))))
         working-dir (config/get-nrepl-user-dir nrepl-client-map)
         resources (my-resources nrepl-client-map working-dir)
         _ (reset! nrepl-client-atom nrepl-client-map)

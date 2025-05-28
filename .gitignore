@@ -45,3 +45,4 @@ src/user.clj
 NOTES.md
 *.log
 *.tmp
+.clj-kondo/*/
