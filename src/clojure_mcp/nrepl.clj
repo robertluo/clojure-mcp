@@ -93,11 +93,20 @@
   [{:keys [::state]}]
   (get @state :ns-session))
 
+(defn current-ns
+  ([{:keys [::state] :as service} session]
+   (get-in @state [:current-ns session]))
+  ([{:keys [::state] :as service} session new-ns]
+   (swap! state assoc-in [:current-ns session] new-ns)))
+
+(defn new-session [{:keys [::state] :as service}]
+  (when-let [client (:client @state)]
+    (nrepl/new-session client)))
+
 (defn new-message [{:keys [::state] :as service} msg]
   (merge
    {:session (eval-session service)
-    :id (new-id)
-    :ns (:current-ns @state)}
+    :id (new-id)}
    msg))
 
 (defn new-tool-message [service msg]
@@ -117,7 +126,7 @@
               :nrepl.middleware.print/print "nrepl.util.print/pprint"
               ;; need to be able to set this magic number
               :nrepl.middleware.print/quota truncation-length})
-        {:keys [id] :as message} (new-message service msg)
+        {:keys [id session] :as message} (new-message service msg)
         prom (promise)
         finish (fn [_]
                  (deliver prom ::done)
@@ -125,22 +134,14 @@
     (set-current-eval-id! service id)
     (send-msg! service
                message
-               (cond->> k
-                 (not (:ns msg)) (on-key :ns #(swap! state assoc :current-ns %))
-                 true (done finish)
-                 true (error finish)))
+               (->> k
+                 (on-key :ns #(current-ns service session %))
+                 (done finish)
+                 (error finish)))
     prom))
 
-(defn eval-code-help
-  ([service code-str k]
-   (eval-code-help service code-str nil k))
-  ([{:keys [::state] :as service} code-str ns k]
-   (eval-code-msg service code-str
-                  (cond-> {}
-                    ns (assoc
-                        :ns ns
-                        :session (ns-session service)))
-                  k)))
+(defn eval-code-help [service code-str k]
+  (eval-code-msg service code-str {} k))
 
 (defn eval-code [service code-str k]
   @(eval-code-help service code-str k))
@@ -266,7 +267,6 @@
               :session session
               :ns-session ns-session
               :tool-session tool-session)
-       (swap! state update :current-ns (fnil identity "user"))
        (assoc config
               :repl/error (atom nil)
               ::state state)))))

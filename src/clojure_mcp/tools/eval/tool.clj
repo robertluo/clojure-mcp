@@ -70,8 +70,11 @@ Examples:
    :repaired repaired})
 
 ;; Backward compatibility function that returns the registration map
-(defn eval-code [nrepl-client-atom]
-  (tool-system/registration-map (create-eval-tool nrepl-client-atom)))
+(defn eval-code
+  ([nrepl-client-atom]
+   (tool-system/registration-map (create-eval-tool nrepl-client-atom)))
+  ([nrepl-client-atom config]
+   (tool-system/registration-map (create-eval-tool nrepl-client-atom config))))
 
 (comment
   ;; === Examples of using the eval tool ===

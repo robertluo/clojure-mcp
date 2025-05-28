@@ -143,12 +143,7 @@
                       (str/includes? (second %) "Can't parse"))
                 (:outputs result)))
       ;; Should not have evaluation output on linting error
-      (is (not-any? #(= (first %) :value) (:outputs result)))))
-
-  (testing "Evaluating with ns parameter"
-    (let [result (eval-core/evaluate-code *nrepl-client* {:code "(str *ns*)" :ns "clojure.string"})]
-      (is (false? (:error result)))
-      (is (some #(= [:value "\"clojure.string\""] %) (:outputs result))))))
+      (is (not-any? #(= (first %) :value) (:outputs result))))))
 
 (deftest repair-code-test
   (testing "Repair of missing closing paren"
@@ -197,11 +192,4 @@
     (let [result (eval-core/evaluate-with-repair *nrepl-client* {:code "(+ 1 2)"})]
       (is (false? (:error result)))
       (is (false? (:repaired result)))
-      (is (some #(= [:value "3"] %) (:outputs result)))))
-
-  (testing "Evaluation with ns parameter"
-    (let [result (eval-core/evaluate-with-repair *nrepl-client*
-                                                 {:code "(join \", \" [\"a\" \"b\" \"c\"])"
-                                                  :ns "clojure.string"})]
-      (is (false? (:error result)))
-      (is (some #(= [:value "\"a, b, c\""] %) (:outputs result))))))
+      (is (some #(= [:value "3"] %) (:outputs result))))))

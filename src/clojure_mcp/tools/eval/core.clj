@@ -81,11 +81,7 @@
         ;; Evaluate the code, using the namespace parameter if provided
         (nrepl/eval-code-msg
          nrepl-client form-str
-         (cond
-           session {:session session}
-           ns {:ns ns
-               :session (nrepl/ns-session nrepl-client)}
-           :else {})
+         (if session {:session session} {})
          (->> identity
               (nrepl/out-err
                #(add-output! :out %)
@@ -123,7 +119,7 @@
    - opts: A map of options:
      - :code The Clojure code to evaluate as a string
      - :ns Optional namespace to evaluate in. If nil, uses current namespace.
-   
+     - :session Optional session
    Returns:
    - A map with :outputs (raw outputs), :error (boolean flag), :repaired (boolean flag)"
   [nrepl-client opts]

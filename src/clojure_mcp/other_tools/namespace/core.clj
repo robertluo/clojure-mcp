@@ -2,7 +2,8 @@
   "Core implementation for namespace-related tools.
    This namespace contains the pure functionality without any MCP-specific code."
   (:require
-   [clojure.string :as string]))
+   [clojure.string :as string]
+   [clojure-mcp.nrepl :as nrepl]))
 
 (defn get-current-namespace
   "Returns the current namespace from the nREPL client's state.
@@ -14,7 +15,9 @@
    - :namespace - The current namespace as a string, or nil if not available
    - :error - Set to true if no current namespace was found"
   [nrepl-client]
-  (let [current-ns (some-> nrepl-client :clojure-mcp.nrepl/state deref :current-ns)]
+  (let [current-ns (some-> nrepl-client
+                           (nrepl/current-ns
+                            (nrepl/eval-session nrepl-client)))]
     (if current-ns
       {:namespace current-ns :error false}
       {:error true :message "No current namespace found"})))
