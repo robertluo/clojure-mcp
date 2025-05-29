@@ -26,11 +26,13 @@
   {:type :object
    :properties {:path {:type :string}
                 :max_depth {:type :integer
-                            :description "Maximum depth to traverse (optional)"}}
+                            :description "Maximum depth to traverse (optional)"}
+                :limit {:type :integer
+                        :description "Maximum number of entries to show (default: 100)"}}
    :required [:path]})
 
 (defmethod tool-system/validate-inputs :directory-tree [{:keys [nrepl-client-atom]} inputs]
-  (let [{:keys [path max_depth]} inputs
+  (let [{:keys [path max_depth limit]} inputs
         nrepl-client @nrepl-client-atom]
     (when-not path
       (throw (ex-info "Missing required parameter: path" {:inputs inputs})))
@@ -40,12 +42,14 @@
       ;; Return validated inputs with normalized path
       (cond-> {:path validated-path}
         ;; Only include max_depth if provided
-        max_depth (assoc :max_depth max_depth)))))
+        max_depth (assoc :max_depth max_depth)
+        ;; Only include limit if provided
+        limit (assoc :limit limit)))))
 
 (defmethod tool-system/execute-tool :directory-tree [_ inputs]
-  (let [{:keys [path max_depth]} inputs]
+  (let [{:keys [path max_depth limit]} inputs]
     ;; We call our own implementation now, not fs-core
-    (core/directory-tree path :max-depth max_depth)))
+    (core/directory-tree path :max-depth max_depth :limit limit)))
 
 (defmethod tool-system/format-results :directory-tree [_ result]
   (if (and (map? result) (:error result))
