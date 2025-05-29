@@ -6,28 +6,31 @@
    [clojure.string :as str]))
 
 (defn ignored-file?
-  "Checks if a file should be ignored based on common .gitignore patterns."
+  "Checks if a file should be completely ignored (temp files, backups, etc.)."
   [file]
   (let [name (.getName file)]
     (or (.endsWith name "~") ; Emacs backup
-        (.startsWith name ".") ; Hidden files
         (.startsWith name "#") ; Emacs auto-save
         (.contains name ".#") ; Emacs lock files
-        (= name "node_modules")
-        (= name "target")
-        (= name "out")
-        (= name ".git")
-        (= name ".svn")
-        (= name ".hg")
-        (= name "build")
-        (= name "dist")
-        (= name ".cache")
-        (= name ".tmp")
-        (= name "temp")
-        (= name "tmp")        
-        (= name "logs")
         (= name ".DS_Store")
         (.endsWith name ".log"))))
+
+(defn no-recurse-directory?
+  "Checks if a directory should be shown but not recursed into (build/temp directories)."
+  [file]
+  (and (.isDirectory file)
+       (let [name (.getName file)]
+         (or (.startsWith name ".") ; Hidden directories like .git
+             (= name "node_modules")
+             (= name "target")
+             (= name "out")
+             (= name "build")
+             (= name "dist")
+             (= name ".cache")
+             (= name ".tmp")
+             (= name "temp")
+             (= name "tmp")
+             (= name "logs")))))
 
 (defn format-entry
   "Formats a single file or directory entry with proper indentation."
@@ -66,7 +69,7 @@
    - entry-count: Current count of entries shown (used internally)
    
    Returns a string representation of the directory tree with proper indentation.
-   Filters out temporary files and common ignore patterns.
+   Shows build/temp directories but doesn't recurse into them.
    Adds truncation indicators when limits are reached."
   [path & {:keys [depth max-depth limit entry-count]
            :or {depth 0 max-depth nil limit 100 entry-count (atom 0)}}]
@@ -89,7 +92,7 @@
         (when (zero? depth)
           (.append result (str (.getAbsolutePath dir) "\n")))
 
-        ;; Process directories with recursion
+        ;; Process directories with special handling for no-recurse directories
         (let [remaining-dirs (loop [remaining dirs]
                                (if (or (empty? remaining) (>= @entry-count limit))
                                  (count remaining)
@@ -98,9 +101,13 @@
                                    (.append result (format-entry d indent true))
 
                                    (cond
+                                     ;; If it's a no-recurse directory, show note and don't recurse
+                                     (no-recurse-directory? d)
+                                     (.append result (str indent "    (not expanded)\n"))
+
                                      ;; If max-depth is set and we're at the limit
                                      (and max-depth (= depth max-depth))
-                                     (.append result (str indent "  - ...\n"))
+                                     (.append result (str indent "    ...\n"))
 
                                      ;; Otherwise process subdirectory if we should continue
                                      continue?
