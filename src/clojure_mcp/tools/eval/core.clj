@@ -105,8 +105,8 @@
             res
             (do
               (nrepl/interrupt nrepl-client)
-              {:outputs [(str "Eval timed out after " timeout-ms "ms.")
-                         "Perhaps, you had an infinite loop or an eval that ran too long."]
+              {:outputs [[:err (str "Eval timed out after " timeout-ms "ms.")]
+                         [:err "Perhaps, you had an infinite loop or an eval that ran too long."]]
                :error true})))))))
 
 (defn evaluate-with-repair

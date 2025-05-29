@@ -25,7 +25,7 @@
 
 (defn my-tools [nrepl-client-atom figwheel-build]
   (conj (main/my-tools nrepl-client-atom)
-        (figwheel-tool/clojurescript-eval nrepl-client-atom figwheel-build)))
+        (figwheel-tool/figwheel-eval nrepl-client-atom {:figwheel-build figwheel-build})))
 
 ;; not sure if this is even needed
 (def nrepl-client-atom (atom nil))
