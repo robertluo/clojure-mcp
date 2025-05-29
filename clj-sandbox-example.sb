@@ -60,15 +60,28 @@
 ;;
 ;; =============================================================================
 
+;; learn more about the sb syntax by grepping `/System/Library/Sandbox/Profiles/*`
+
 (version 1)
 (allow default)
 
 (debug deny)
 
+;; local internet only
 (deny network*)
-(allow network* (local ip "localhost:*"))
-(allow network* (remote ip "localhost:*"))
-(allow network* (remote unix-socket))
+(allow network-bind
+  (local ip))
+(allow network-inbound
+  (local ip))
+(allow network-outbound
+  (local ip)
+  (to unix-socket))
+
+;; internet access 
+;; (allow network-outbound
+;;   (remote ip "*:80" "*:443")
+;;   remote nrepl or database ports etc
+;;   (remote tcp "*:3283" "*:3284" "*:3285"))
 
 (deny file-write*)
 (allow file-write* 
@@ -77,28 +90,28 @@
   (subpath "/private/tmp")
   (subpath "/private/var/tmp")
   (regex "^/private/var/folders/.*/T")
-  (subpath "/Users/bruce/Library/Caches")
-  (subpath "/Users/bruce/Library/Logs")
+  (subpath "~/Library/Caches")
+  (subpath "~/Library/Logs")
 
-  (subpath "/Users/bruce/.clojure")
+  (subpath "~/.clojure")
   (subpath "/dev/dtracehelper")
   
   ;; (literal "/dev/tty")
   ;; (regex "^/dev/ttys[0-9]+$")
-  ;; Your project directories (customize these)
+  ;; CUSTOMIZE THESE 
   (subpath "/Users/bruce/workspace/llempty/clojure-mcp")
   (subpath "/Users/bruce/workspace/llempty/sandboxed")
   ;; Add other allowed project paths here
   )
 
 (deny file-read* file-write*
-  (subpath "/Users/bruce/Desktop")
-  (subpath "/Users/bruce/Documents") 
-  (subpath "/Users/bruce/Downloads")
-  (subpath "/Users/bruce/.ssh")
-  (subpath "/Users/bruce/.aws")
-  (regex "^/Users/bruce/.*\\.key$")
-  (regex "^/Users/bruce/.*\\.pem$")
+  (subpath "~/Desktop")
+  (subpath "~/Documents") 
+  (subpath "~/Downloads")
+  (subpath "~/.ssh")
+  (subpath "~/.aws")
+  (regex "^.*\\.key$")
+  (regex "^.*\\.pem$")
 
   (literal "/etc/passwd")
   (literal "/etc/shadow") 
