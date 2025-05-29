@@ -3,15 +3,49 @@
             [clojure-mcp.tools.dispatch-agent.core :as core]))
 
 (defn create-dispatch-agent-tool
-  "Creates the dispatch agent tool configuration"
-  [nrepl-client-atom]
-  {:tool-type :dispatch-agent
-   :nrepl-client-atom nrepl-client-atom})
+  "Creates the dispatch agent tool configuration.
+   
+   Args:
+   - nrepl-client-atom: Required nREPL client atom
+   - model: Optional pre-built langchain model to use instead of auto-detection"
+  ([nrepl-client-atom]
+   (create-dispatch-agent-tool nrepl-client-atom nil))
+  ([nrepl-client-atom model]
+   {:tool-type :dispatch-agent
+    :nrepl-client-atom nrepl-client-atom
+    :model model}))
 
 (defn dispatch-agent-tool
-  "Returns a tool registration for the dispatch-agent tool compatible with the MCP system."
-  [nrepl-client-atom]
-  (tool-system/registration-map (create-dispatch-agent-tool nrepl-client-atom)))
+  "Returns a tool registration for the dispatch-agent tool compatible with the MCP system.
+   
+   Usage:
+   
+   Basic usage with auto-detected model:
+   (dispatch-agent-tool nrepl-client-atom)
+   
+   With custom model configuration:
+   (dispatch-agent-tool nrepl-client-atom {:model my-custom-model})
+   
+   Where:
+   - nrepl-client-atom: Required nREPL client atom
+   - config: Optional config map with keys:
+     - :model - Pre-built langchain model to use instead of auto-detection
+   
+   Examples:
+   ;; Default model
+   (def my-agent (dispatch-agent-tool nrepl-client-atom))
+   
+   ;; Custom Anthropic model
+   (def fast-model (-> (chain/create-anthropic-model \"claude-3-haiku-20240307\") (.build)))
+   (def fast-agent (dispatch-agent-tool nrepl-client-atom {:model fast-model}))
+   
+   ;; Custom OpenAI model
+   (def reasoning-model (-> (chain/create-openai-model \"o1-preview\") (.build)))
+   (def reasoning-agent (dispatch-agent-tool nrepl-client-atom {:model reasoning-model}))"
+  ([nrepl-client-atom]
+   (dispatch-agent-tool nrepl-client-atom nil))
+  ([nrepl-client-atom {:keys [model]}]
+   (tool-system/registration-map (create-dispatch-agent-tool nrepl-client-atom model))))
 
 (defmethod tool-system/tool-name :dispatch-agent [_]
   "dispatch_agent")
@@ -38,10 +72,8 @@ Usage notes:
 (defmethod tool-system/validate-inputs :dispatch-agent [_ inputs]
   (core/validate-dispatch-agent-inputs inputs))
 
-(defmethod tool-system/execute-tool :dispatch-agent [{:keys [nrepl-client-atom]} inputs]
-  (let [prompt (:prompt inputs)
-        result (core/dispatch-agent {:nrepl-client-atom nrepl-client-atom} prompt)]
-    result))
+(defmethod tool-system/execute-tool :dispatch-agent [tool {:keys [prompt]}]
+  (core/dispatch-agent tool prompt))
 
 (defmethod tool-system/format-results :dispatch-agent [_ {:keys [result error] :as results}]
   {:result [result]
