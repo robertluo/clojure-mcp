@@ -138,7 +138,7 @@
             (doseq [[profile config] (sort-by key profiles)]
               (println "•" profile ":" (pr-str config)))))
 
-        (let [limit 25
+        (let [limit 50
               all-paths (concat source-paths test-paths)
               ;; Process raw file paths into proper namespace names
               processed-namespaces (->> sources
