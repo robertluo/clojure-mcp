@@ -272,6 +272,26 @@
       (log/error e "Failed to create nREPL connection")
       (throw e))))
 
+(defn create-additional-connection
+  ([nrepl-client-atom initial-config]
+   (create-additional-connection nrepl-client-atom initial-config identity))
+  ([nrepl-client-atom initial-config initialize-fn]
+   (log/info "Creating additional nREPL connection" initial-config)
+   (try
+     (let [nrepl-client-map (nrepl/create initial-config)]
+       (nrepl/start-polling nrepl-client-map)
+       ;; copy config
+       ;; maybe we should create this just like the normal nrelp connection?
+       ;; we should introspect the project and get a working directory
+       ;; and maybe add it to allowed directories for both
+       (when initialize-fn (initialize-fn nrepl-client-map))
+       (assert (::config/config @nrepl-client-atom))
+       ;; copy config over for now
+       (assoc nrepl-client-map ::config/config (::config/config @nrepl-client-atom)))
+     (catch Exception e
+       (log/error e "Failed to create additional nREPL connection")
+       (throw e)))))
+
 (defn close-servers
   "Convenience higher-level API function to gracefully shut down MCP and nREPL servers.
    

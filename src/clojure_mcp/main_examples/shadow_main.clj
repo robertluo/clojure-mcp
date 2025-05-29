@@ -20,26 +20,6 @@ JavaScript interop is fully supported including `js/console.log`, `js/setTimeout
 
 **IMPORTANT**: This repl is intended for CLOJURESCRIPT CODE only.")
 
-(defn create-and-start-secondary-connection
-  ([nrepl-client-atom initial-config]
-   (create-and-start-secondary-connection nrepl-client-atom initial-config identity))
-  ([nrepl-client-atom initial-config initialize-fn]
-   (log/info "Creating Shadow nREPL connection with config:" initial-config)
-   (try
-     (let [nrepl-client-map (nrepl/create initial-config)]
-       (nrepl/start-polling nrepl-client-map)
-       ;; copy config
-       ;; maybe we should create this just like the normal nrelp connection?
-       ;; we should introspect the project and get a working directory
-       ;; and maybe add it to allowed directories for both
-       (when initialize-fn (initialize-fn nrepl-client-map))
-       (assert (::config/config @nrepl-client-atom))
-       ;; copy config over for now
-       (assoc nrepl-client-map ::config/config (::config/config @nrepl-client-atom)))
-     (catch Exception e
-       (log/error e "Failed to create Shadow nREPL connection")
-       (throw e)))))
-
 (defn start-shadow-repl [nrepl-client-atom cljs-session {:keys [shadow-build shadow-watch]}]
   (let [start-code (format
                     ;; TODO we need to check if its already running
@@ -62,7 +42,7 @@ JavaScript interop is fully supported including `js/console.log`, `js/setTimeout
 
 ;; when having a completely different connection for cljs
 (defn shadow-eval-tool-secondary-connection-tool [nrepl-client-atom {:keys [shadow-port shadow-build shadow-watch] :as config}]
-  (let [cljs-nrepl-client-map (create-and-start-secondary-connection nrepl-client-atom {:port shadow-port})
+  (let [cljs-nrepl-client-map (core/create-additional-connection nrepl-client-atom {:port shadow-port})
         cljs-nrepl-client-atom (atom cljs-nrepl-client-map)]
     (start-shadow-repl
      cljs-nrepl-client-atom
