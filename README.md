@@ -108,50 +108,57 @@ Once you're comfortable with the Clojure MCP toolset, you can make informed deci
 
 ### Setting up the project
 
-#### Step 1: Get the Clojure MCP Server
+#### Step 1: Setup a home for the Clojure MCP server
 
-Clone this repository to your development machine
-
-```bash
-git clone https://github.com/bhauman/clojure-mcp.git
-```
-
-or use it as git dep in your `deps.edn`
+Set it up as git dep in a local `deps.edn` or global `.clojure/deps.edn` like:
 
 ```clojure
-{:deps {com.bhauman/clojure-mcp {:git/url "https://github.com/bhauman/clojure-mcp.git"
-                                 :git/sha "latest-main-branch-sha"}}
+{:aliases 
+  {:mcp 
+    {:deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
+            com.bhauman/clojure-mcp {:git/url "https://github.com/bhauman/clojure-mcp.git"
+                                     :git/sha "latest-main-branch-sha"}}
+     :exec-fn clojure-mcp.main/start-mcp-server
+     :exec-args {:port 7888}}}}
 ```
+
+or from a local clone of `clojure-mcp`
+
+```clojure
+{:aliases 
+  {:mcp 
+    {:deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
+            com.bhauman/clojure-mcp {:local/root "/path/to/clojure-mcp"}}
+     :exec-fn clojure-mcp.main/start-mcp-server
+     :exec-args {:port 7888}}}}
+```
+
+> IMPORTANT NOTE: the mcp server can run in any directory and DOES NOT
+> have to run from your project directory.  The mcp server looks to
+> the nREPL connection for context.  The root directory of the project
+> that is running the nREPL server becomes the root directory of all
+> the mcp tool invocations. Currently the nREPL must run on the same
+> machine as the MCP server as there is an assumption of a shared file
+> system between the nREPL server and the MCP server.
+
+> ANOTHER IMPORTANT NOTE: `clojure-mcp` should not run as part of your
+> project and your project dependencies should not mingle with
+> clojure-mcp. It should run separately, with its own set of deps. So
+> if you include it in your projects `deps.edn` it should not use
+> `:extra-deps` in its alias is should always use `:deps`
 
 #### Step 2: Configure Your Target Project
 
-In the Clojure project where you want AI assistance, add MCP server configuration to your `deps.edn`:
+In the Clojure project where you want AI assistance, add an nREPL connection.
 
 ```clojure
 {:aliases {
   ;; nREPL server for AI to connect to
   :nrepl {:extra-paths ["test"] 
-          :extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}
-                       ch.qos.logback/logback-classic {:mvn/version "1.4.14"}}
+          :extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}}
           :jvm-opts ["-Djdk.attach.allowAttachSelf"]						 
-          :main-opts ["-m" "nrepl.cmdline" "--port" "7888"]}
-  
-  ;; MCP server configuration (for reference)
-  :mcp {:extra-deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
-                     com.bhauman/clojure-mcp {:local/root "/path/to/clojure-mcp"}}
-        :exec-fn clojure-mcp.main/start-mcp-server
-        :exec-args {:port 7888}}}}
+          :main-opts ["-m" "nrepl.cmdline" "--port" "7888"]}}}
 ```
-
-**Important**: Replace `/path/to/clojure-mcp` with the actual path to your cloned repository.
-
-> IMPORTANT NOTE: the mcp server can run in any directory and DOES NOT
-> have to run in your project.  The mcp server looks to the nREPL
-> connection for context.  The root directory of the project that is
-> running the nREPL server becomes the root directory of all the mcp
-> tool invocations. Currently the nREPL must run on the same machine
-> as the MCP server as there is an assumption of a shared file system
-> between the nREPL server and the MCP server.
 
 #### Step 3: Configure Claude Desktop
 
@@ -165,7 +172,7 @@ Edit your Claude Desktop configuration file:
             "command": "/bin/sh",
             "args": [
                 "-c",
-                "cd /path/to/your/clojure/project && PATH=/your/bin-or-nix/path:$PATH && clojure -X:mcp :port 7888"
+                "cd /path/to/clojure-mcp && PATH=/your/bin-or-nix/path:$PATH && clojure -X:mcp :port 7888"
             ]
         }
     }
