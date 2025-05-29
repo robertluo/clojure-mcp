@@ -47,9 +47,12 @@
         limit (assoc :limit limit)))))
 
 (defmethod tool-system/execute-tool :directory-tree [_ inputs]
-  (let [{:keys [path max_depth limit]} inputs]
-    ;; We call our own implementation now, not fs-core
-    (core/directory-tree path :max-depth max_depth :limit limit)))
+  (let [{:keys [path max_depth limit]} inputs
+        args (concat [path]
+                     (when max_depth [:max-depth max_depth])
+                     (when limit [:limit limit]))]
+    ;; Only pass non-nil parameters to avoid overriding defaults
+    (apply core/directory-tree args)))
 
 (defmethod tool-system/format-results :directory-tree [_ result]
   (if (and (map? result) (:error result))
