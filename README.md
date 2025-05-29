@@ -122,16 +122,20 @@ Set it up as git dep in a local `deps.edn` or global `.clojure/deps.edn` like:
      :exec-args {:port 7888}}}}
 ```
 
+> **Finding the latest SHA**: Visit [https://github.com/bhauman/clojure-mcp/commits/main](https://github.com/bhauman/clojure-mcp/commits/main) to get the latest commit SHA, or clone the repo and run `git log --oneline -1` to see the latest commit.
+
 or from a local clone of `clojure-mcp`
 
 ```clojure
 {:aliases 
   {:mcp 
     {:deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
-            com.bhauman/clojure-mcp {:local/root "/path/to/clojure-mcp"}}
+            com.bhauman/clojure-mcp {:local/root "~/workspace/clojure-mcp"}}
      :exec-fn clojure-mcp.main/start-mcp-server
      :exec-args {:port 7888}}}}
 ```
+
+> **Local clone path**: Replace `~/workspace/clojure-mcp` with the actual path where you cloned the repository (e.g., `~/dev/clojure-mcp`, `/Users/username/projects/clojure-mcp`, etc.)
 
 > IMPORTANT NOTE: the mcp server can run in any directory and DOES NOT
 > have to run from your project directory.  The mcp server looks to
@@ -172,7 +176,7 @@ Edit your Claude Desktop configuration file:
             "command": "/bin/sh",
             "args": [
                 "-c",
-                "cd /path/to/clojure-mcp && PATH=/your/bin-or-nix/path:$PATH && clojure -X:mcp :port 7888"
+                "cd ~/workspace/clojure-mcp && PATH=/opt/homebrew/bin:$PATH && clojure -X:mcp :port 7888"
             ]
         }
     }
@@ -180,8 +184,12 @@ Edit your Claude Desktop configuration file:
 ```
 
 **Replace these paths**:
-- `/path/to/clojure-mcp` → Your cloned repository location
-- `/your/bin/path` → Your system's binary path (e.g., `/Users/username/.nix-profile/bin`)
+- `~/workspace/clojure-mcp` → Your clojure-mcp location (same as Step 1)
+- `/opt/homebrew/bin` → Your system's binary path:
+  - **Homebrew (Intel Mac)**: `/usr/local/bin`
+  - **Homebrew (Apple Silicon)**: `/opt/homebrew/bin`  
+  - **Nix**: `/home/username/.nix-profile/bin` or `/nix/var/nix/profiles/default/bin`
+  - **System default**: Often `/usr/bin:/usr/local/bin` works
 
 #### Step 4: Test the Setup
 
@@ -192,7 +200,7 @@ Edit your Claude Desktop configuration file:
    ```
    You should see: `nREPL server started on port 7888...`
 
-2. **Restart Claude Desktop** (required after config changes)
+2. **Start or Restart Claude Desktop** (required after config changes)
 
 3. **Verify connection**: In Claude Desktop, click the `+` button in the chat area. You should see "Add from clojure-mcp" in the menu.
 
