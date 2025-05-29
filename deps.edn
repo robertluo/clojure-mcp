@@ -39,7 +39,19 @@
    :exec-fn clojure-mcp.main/start-mcp-server
    ;; it needs an nrepl port to talk to
    :exec-args {:port 7888}}
+  
+  :dev-mcp-figwheel
+  {:extra-deps {ch.qos.logback/logback-classic {:mvn/version "1.4.14"}}
+   :extra-paths ["dev" "test"]
+   :exec-fn clojure-mcp.main-examples.figwheel-main/start-mcp-server
+   ;; it needs an nrepl port to talk to
+   :exec-args {:port 7888 :figwheel-build "dev"}}
 
+  :mcp-figwheel
+  {:extra-deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"}}
+   :exec-fn clojure-mcp.main-examples.figwheel-main/start-mcp-server
+   :exec-args {:port 7888 :figwheel-build "dev"}}
+  
   :mcp-sse
   {:extra-deps {;; optional
                 ;; org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
