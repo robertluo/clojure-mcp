@@ -17,58 +17,67 @@
 (declare system-message)
 
 (defn create-ai-service
-  "Creates an AI service for architecture-related tasks"
-  [nrepl-client-atom]
-  (try
-    (when-let [model (some-> (chain/reasoning-agent-model)
-                    (chain/default-request-parameters
-                     #(chain/reasoning-effort % :medium))
-                    (.build))]
-      (let [memory (chain/chat-memory 300)
-            ai-service-data {:memory memory
-                             :model model
-                             :tools
-                             (mapv
-                              #(% nrepl-client-atom)
-                              [read-file-tool/unified-read-file-tool
-                               directory-tree-tool/directory-tree-tool
-                               grep-tool/grep-tool
-                               glob-files-tool/glob-files-tool
-                               project-tool/inspect-project-tool
-                               think-tool/think-tool])
-                             :system-message system-message}
-            service (-> (chain/create-service AiService
-                                              ai-service-data)
-                        (.build))]
-        (log/info "AI service for architect successfully created")
-        (assoc ai-service-data
-               :service service)))
-    (catch Exception e
-      (log/error e "Failed to create AI service for architect")
-      (throw e))))
+  "Creates an AI service for architecture-related tasks.
+   
+   Args:
+   - nrepl-client-atom: Required nREPL client atom
+   - model: Optional pre-built langchain model. If nil, uses chain/reasoning-agent-model with medium reasoning effort"
+  ([nrepl-client-atom] (create-ai-service nrepl-client-atom nil))
+  ([nrepl-client-atom model]
+   (try
+     (when-let [selected-model (or model
+                                   (some-> (chain/reasoning-agent-model)
+                                           (chain/default-request-parameters
+                                            #(chain/reasoning-effort % :medium))
+                                           (.build)))]
+       (let [memory (chain/chat-memory 300)
+             ai-service-data {:memory memory
+                              :model selected-model
+                              :tools
+                              (mapv
+                               #(% nrepl-client-atom)
+                               [read-file-tool/unified-read-file-tool
+                                directory-tree-tool/directory-tree-tool
+                                grep-tool/grep-tool
+                                glob-files-tool/glob-files-tool
+                                project-tool/inspect-project-tool
+                                think-tool/think-tool])
+                              :system-message system-message}
+             service (-> (chain/create-service AiService
+                                               ai-service-data)
+                         (.build))]
+         (log/info "AI service for architect successfully created")
+         (assoc ai-service-data
+                :service service)))
+     (catch Exception e
+       (log/error e "Failed to create AI service for architect")
+       (throw e)))))
 
-(defn get-ai-service
-  [nrepl-client-atom]
+(defn get-ai-service [nrepl-client-atom model]
   (or (::ai-service @nrepl-client-atom)
-      (when-let [ai (create-ai-service nrepl-client-atom)]
+      (when-let [ai (create-ai-service nrepl-client-atom model)]
         (swap! nrepl-client-atom assoc ::ai-service ai)
         ai)))
 
 (defn architect
   "Dispatches an architect agent with the given prompt and optional context.
    The agent will only have access to read tools.
-   Returns a string response from the agent."
-  [{:keys [nrepl-client-atom]} {:keys [prompt context]}]
+   Returns a string response from the agent.
+   
+   Args:
+   - tool-map: Map containing :nrepl-client-atom and optional :model
+   - inputs: Map containing :prompt and optional :context"
+  [{:keys [nrepl-client-atom model]} {:keys [prompt context]}]
   (if (string/blank? prompt)
-    {:critique "Error: Cannot process empty prompt"
+    {:result "Error: Cannot process empty prompt"
      :error true}
-    (if-let [ai-service (get-ai-service nrepl-client-atom)]
+    (if-let [ai-service (get-ai-service nrepl-client-atom model)]
       (do
         (.clear (:memory ai-service))
         (let [result (.chat (:service ai-service)
                             (cond-> prompt
                               (not (string/blank? context))
-                              (str prompt  "\n\n```context\n" context "\n```\n")))]
+                              (str prompt "\n\n```context\n" context "\n```\n")))]
           {:result result
            :error false}))
       {:result "ERROR: No model configured for this agent."
