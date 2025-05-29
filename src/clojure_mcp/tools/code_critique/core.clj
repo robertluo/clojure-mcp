@@ -48,13 +48,16 @@
    
    Args:
    - tool-map: Map containing :nrepl-client-atom and optional :model
-   - code: String of Clojure code to critique"
-  [{:keys [nrepl-client-atom model]} code]
+   - inputs: Map containing :code and optional :context"
+  [{:keys [nrepl-client-atom model]} {:keys [code context]}]
   (if (string/blank? code)
     {:critique "Error: Cannot critique empty code"
      :error true}
     (if-let [ai-service (get-ai-service nrepl-client-atom model)]
-      (let [critique (.chat (:service ai-service) code)]
+      (let [message (cond-> code
+                      (not (string/blank? context))
+                      (str "\n\n```context\n" context "\n```\n"))
+            critique (.chat (:service ai-service) message)]
         {:critique critique
          :error false})
       {:result "ERROR: No model configured for this agent."

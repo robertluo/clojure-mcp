@@ -63,14 +63,21 @@
 (defmethod tool-system/tool-schema :code-critique [_]
   {:type :object
    :properties {:code {:type :string
-                       :description "The Clojure code to analyze and critique"}}
+                       :description "The Clojure code to analyze and critique"}
+                :context {:type :string
+                          :description "Optional context from previous conversation or system state"}}
    :required [:code]})
 
 (defmethod tool-system/validate-inputs :code-critique [_ inputs]
-  (let [{:keys [code]} inputs]
+  (let [{:keys [code context]} inputs]
     (when-not code
       (throw (ex-info "Missing required parameter: code"
                       {:inputs inputs})))
+
+    (when (and context (not (string? context)))
+      (throw (ex-info "Parameter 'context' must be a string when provided"
+                      {:inputs inputs
+                       :error-details [(str "Got: " (type context))]})))
 
     ;; First, try to repair code with delimiter errors
     (let [linted (linting/lint code)]
@@ -97,9 +104,8 @@
         ;; No lint errors, return inputs with original code
         inputs))))
 
-;; TODO we should add a context parameter
-(defmethod tool-system/execute-tool :code-critique [tool {:keys [code]}]
-  (core/critique-code tool code))
+(defmethod tool-system/execute-tool :code-critique [tool inputs]
+  (core/critique-code tool inputs))
 
 (defmethod tool-system/format-results :code-critique [_ {:keys [critique error]}]
   {:result [critique] :error error})
