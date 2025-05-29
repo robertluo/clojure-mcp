@@ -3,6 +3,7 @@
    This namespace provides the implementation details for analyzing project structure."
   (:require
    [clojure.edn :as edn]
+   [clojure.string :as str]
    [clojure-mcp.nrepl :as mcp-nrepl]
    [clojure-mcp.config :as config]))
 
@@ -28,7 +29,12 @@
                           (->> (clojure.java.io/file dir)
                                file-seq
                                (filter #(.isFile %))
-                               (filter #(.endsWith (.getName %) ".clj"))
+                               (filter #(let [name (.getName %)]
+                                          (or (.endsWith name ".clj")
+                                              (.endsWith name ".cljs")
+                                              (.endsWith name ".cljc")
+                                              (.endsWith name ".bb")
+                                              (.endsWith name ".edn"))))
                                (map #(.getPath %))
                                sort)))
          ;; Extract paths from deps.edn or project.clj
@@ -136,7 +142,9 @@
               all-paths (concat source-paths test-paths)
               ;; Process raw file paths into proper namespace names
               processed-namespaces (->> sources
-                                        (filter #(.endsWith % ".clj"))
+                                        (filter #(or (.endsWith % ".clj")
+                                                     (.endsWith % ".cljs")
+                                                     (.endsWith % ".cljc")))
                                         (map (fn [file-path]
                                                ;; Remove source path prefix from file path
                                                (let [relative-path (reduce (fn [path src-path]
@@ -148,7 +156,7 @@
                                                  (-> relative-path
                                                      (.replace "/" ".")
                                                      (.replace "_" "-")
-                                                     (.replace ".clj" "")))))
+                                                     (str/replace #"\.(clj|cljs|cljc)$" "")))))
                                         (into []))]
           (println "\nNamespaces (" (count processed-namespaces) "):")
           (doseq [ns-name (take limit processed-namespaces)]

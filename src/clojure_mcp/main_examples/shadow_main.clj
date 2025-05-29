@@ -20,7 +20,6 @@ JavaScript interop is fully supported including `js/console.log`, `js/setTimeout
 
 **IMPORTANT**: This repl is intended for CLOJURESCRIPT CODE only.")
 
-;; XXX not used yet
 (defn create-and-start-secondary-connection
   ([nrepl-client-atom initial-config]
    (create-and-start-secondary-connection nrepl-client-atom initial-config identity))
