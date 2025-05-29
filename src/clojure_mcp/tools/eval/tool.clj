@@ -10,13 +10,13 @@
   ([nrepl-client-atom]
    (create-eval-tool nrepl-client-atom {}))
   ([nrepl-client-atom {:keys [nrepl-session] :as config}]
-   (cond-> {:tool-type :clojure-eval
+   (cond-> {:tool-type ::clojure-eval
             :nrepl-client-atom nrepl-client-atom
             :timeout 30000}
      nrepl-session (assoc :session nrepl-session))))
 
 ;; Implement the required multimethods for the eval tool
-(defmethod tool-system/tool-description :clojure-eval [_]
+(defmethod tool-system/tool-description ::clojure-eval [_]
   "Takes a Clojure Expression and evaluates it in the current namespace. For example, providing \"(+ 1 2)\" will evaluate to 3.
 This tool is intended to execute Clojure code. This is very helpful for verifying that code is working as expected. It's also helpful for REPL driven development.
 If you send multiple expressions they will all be evaluated individually and their output will be clearly partitioned.
@@ -41,7 +41,7 @@ Examples:
   (clj-mcp.repl-tools/find-symbols \"seq\")          ; Find symbols containing \"seq\"
   (clj-mcp.repl-tools/complete \"clojure.string/j\") ; Find completions for prefix")
 
-(defmethod tool-system/tool-schema :clojure-eval [_]
+(defmethod tool-system/tool-schema ::clojure-eval [_]
   {:type :object
    :properties {:code {:type :string
                        :description "The Clojure code to evaluate."}
@@ -49,7 +49,7 @@ Examples:
                      :description "Optional namespace to evaluate the code in. If not provided, uses the current namespace."}}
    :required [:code]})
 
-(defmethod tool-system/validate-inputs :clojure-eval [_ inputs]
+(defmethod tool-system/validate-inputs ::clojure-eval [_ inputs]
   (let [{:keys [code]} inputs]
     (when-not code
       (throw (ex-info (str "Missing required parameter: code " (pr-str inputs))
@@ -57,12 +57,12 @@ Examples:
     ;; Return validated inputs (could do more validation/coercion here)
     inputs))
 
-(defmethod tool-system/execute-tool :clojure-eval [{:keys [nrepl-client-atom session]} inputs]
+(defmethod tool-system/execute-tool ::clojure-eval [{:keys [nrepl-client-atom session]} inputs]
   ;; Delegate to core implementation with repair
   (core/evaluate-with-repair @nrepl-client-atom (cond-> inputs
                                                   session (assoc :session session))))
 
-(defmethod tool-system/format-results :clojure-eval [_ {:keys [outputs error repaired] :as eval-result}]
+(defmethod tool-system/format-results ::clojure-eval [_ {:keys [outputs error repaired] :as eval-result}]
   ;; The core implementation now returns a map with :outputs (raw outputs), :error (boolean), and :repaired (boolean)
   ;; We need to format the outputs and return a map with :result, :error, and :repaired
   {:result (core/partition-and-format-outputs outputs)
