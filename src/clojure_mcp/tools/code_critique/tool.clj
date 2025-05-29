@@ -8,10 +8,17 @@
 
 ;; Factory function to create the tool configuration
 (defn create-code-critique-tool
-  "Creates the code critique tool configuration"
-  [nrepl-client-atom]
-  {:tool-type :code-critique
-   :nrepl-client-atom nrepl-client-atom})
+  "Creates the code critique tool configuration.
+   
+   Args:
+   - nrepl-client-atom: Required nREPL client atom
+   - model: Optional pre-built langchain model to use instead of auto-detection"
+  ([nrepl-client-atom]
+   (create-code-critique-tool nrepl-client-atom nil))
+  ([nrepl-client-atom model]
+   {:tool-type :code-critique
+    :nrepl-client-atom nrepl-client-atom
+    :model model}))
 
 #_(core/critique-code (create-code-critique-tool nil)
                       "(defn a a)")
@@ -90,6 +97,7 @@
         ;; No lint errors, return inputs with original code
         inputs))))
 
+;; TODO we should add a context parameter
 (defmethod tool-system/execute-tool :code-critique [tool {:keys [code]}]
   (core/critique-code tool code))
 
@@ -97,8 +105,37 @@
   {:result [critique] :error error})
 
 ;; Function that returns the registration map
-(defn code-critique-tool [nrepl-client-atom]
-  (tool-system/registration-map (create-code-critique-tool nrepl-client-atom)))
+(defn code-critique-tool
+  "Returns a tool registration for the code-critique tool compatible with the MCP system.
+   
+   Usage:
+   
+   Basic usage with auto-detected model:
+   (code-critique-tool nrepl-client-atom)
+   
+   With custom model configuration:
+   (code-critique-tool nrepl-client-atom {:model my-custom-model})
+   
+   Where:
+   - nrepl-client-atom: Required nREPL client atom
+   - config: Optional config map with keys:
+     - :model - Pre-built langchain model to use instead of auto-detection
+   
+   Examples:
+   ;; Default model (uses reasoning-agent-model)
+   (def my-critic (code-critique-tool nrepl-client-atom))
+   
+   ;; Custom Anthropic model
+   (def custom-model (-> (chain/create-anthropic-model \"claude-3-opus-20240229\") (.build)))
+   (def custom-critic (code-critique-tool nrepl-client-atom {:model custom-model}))
+   
+   ;; Custom OpenAI reasoning model
+   (def reasoning-model (-> (chain/create-openai-model \"o1-preview\") (.build)))
+   (def reasoning-critic (code-critique-tool nrepl-client-atom {:model reasoning-model}))"
+  ([nrepl-client-atom]
+   (code-critique-tool nrepl-client-atom nil))
+  ([nrepl-client-atom {:keys [model]}]
+   (tool-system/registration-map (create-code-critique-tool nrepl-client-atom model))))
 
 (comment
   ;; === Examples of using the code critique tool ===

@@ -11,40 +11,49 @@
 (declare system-message)
 
 (defn create-ai-service
-  "Creates an AI service for code critique."
-  []
-  (try
-    (when-let [model (some-> (chain/reasoning-agent-model)
-                             (chain/default-request-parameters
-                              #(chain/reasoning-effort % :low))
-                             (.build))]
-      (let [memory (chain/chat-memory 30)
-            ai-service-data {:memory memory
-                             :model model
-                             :system-message (system-message 2)}
-            service (-> (chain/create-service AiService
-                                              ai-service-data)
-                        (.build))]
-        (log/info "AI service for code critique successfully created")
-        (assoc ai-service-data
-               :service service)))
-    (catch Exception e
-      (log/error e "Failed to create AI service for code critique")
-      (throw e))))
+  "Creates an AI service for code critique.
+   
+   Args:
+   - model: Optional pre-built langchain model. If nil, uses chain/reasoning-agent-model"
+  ([] (create-ai-service nil))
+  ([model]
+   (try
+     (when-let [selected-model (or model
+                                   (some-> (chain/reasoning-agent-model)
+                                           (chain/default-request-parameters
+                                            #(chain/reasoning-effort % :low))
+                                           (.build)))]
+       (let [memory (chain/chat-memory 30)
+             ai-service-data {:memory memory
+                              :model selected-model
+                              :system-message (system-message 2)}
+             service (-> (chain/create-service AiService
+                                               ai-service-data)
+                         (.build))]
+         (log/info "AI service for code critique successfully created")
+         (assoc ai-service-data
+                :service service)))
+     (catch Exception e
+       (log/error e "Failed to create AI service for code critique")
+       (throw e)))))
 
-(defn get-ai-service
-  [nrepl-client-atom]
+(defn get-ai-service [nrepl-client-atom model]
   (or (::ai-service @nrepl-client-atom)
-      (when-let [ai (create-ai-service)]
+      (when-let [ai (create-ai-service model)]
         (swap! nrepl-client-atom assoc ::ai-service ai)
         ai)))
 
 (defn critique-code
-  [{:keys [nrepl-client-atom]} code]
+  "Critiques the given Clojure code using an AI service.
+   
+   Args:
+   - tool-map: Map containing :nrepl-client-atom and optional :model
+   - code: String of Clojure code to critique"
+  [{:keys [nrepl-client-atom model]} code]
   (if (string/blank? code)
     {:critique "Error: Cannot critique empty code"
      :error true}
-    (if-let [ai-service (get-ai-service nrepl-client-atom)]
+    (if-let [ai-service (get-ai-service nrepl-client-atom model)]
       (let [critique (.chat (:service ai-service) code)]
         {:critique critique
          :error false})
@@ -52,10 +61,20 @@
        :error true})))
 
 (comment
+  ;; Example usage with default model
   (def ai-service (create-ai-service))
   (.chat (:service ai-service) "(defn i [x] x)")
-  #_(critique-code (atom {})
-                 "(defn i [x] x)"))
+
+  ;; Example usage with custom model
+  (def custom-model (-> (chain/create-anthropic-model "claude-3-opus-20240229") (.build)))
+  (def custom-ai-service (create-ai-service custom-model))
+  (.chat (:service custom-ai-service) "(defn i [x] x)")
+
+  ;; Example critique with default model
+  (critique-code {:nrepl-client-atom (atom {})} "(defn i [x] x)")
+
+  ;; Example critique with custom model
+  (critique-code {:nrepl-client-atom (atom {}) :model custom-model} "(defn i [x] x)"))
 
 ;; beter to read this from an text file in resources
 (defn system-message [n]
