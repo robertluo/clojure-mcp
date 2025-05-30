@@ -686,12 +686,12 @@
 (defn replace-sexp
   [{:keys [::zloc ::match-form ::new-form ::replace-all ::whitespace-sensitive] :as ctx}]
   (try
-    (if-let [result (core/find-and-replace-sexp
+    (if-let [result (core/find-and-edit-multi-sexp
                      zloc
                      match-form
                      new-form
-                     :replace-all replace-all
-                     :whitespace-sensitive whitespace-sensitive)]
+                     (cond-> {:operation :replace}
+                       replace-all (assoc :all? true)))]
       (-> ctx
           (assoc ::zloc (:zloc result))
           ;; not used

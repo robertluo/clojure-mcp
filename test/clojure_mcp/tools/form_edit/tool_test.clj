@@ -294,16 +294,7 @@
       (let [validated (tool-system/validate-inputs sexp-tool valid-inputs)]
         (is (string? (:file_path validated)))
         (is (= "(+ x y)" (:match_form validated)))
-        (is (= "(+ x (* y 2))" (:new_form validated))))
-
-      ;; Test invalid inputs with multiple forms are rejected
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"must contain only a single s-expression"
-                            (tool-system/validate-inputs sexp-tool invalid-inputs))
-          "Should reject match_form with multiple forms")
-
-      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"must contain only a single s-expression"
-                            (tool-system/validate-inputs sexp-tool another-invalid))
-          "Should reject match_form with multiple def forms"))))
+        (is (= "(+ x (* y 2))" (:new_form validated)))))))
 
 ;; Integration tests for backward compatibility functions
 (deftest backward-compatibility-test

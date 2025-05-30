@@ -107,7 +107,7 @@
 (deftest sexp-replace-tool-test
   (let [client-atom *client-atom*
         sexp-tool (sut/create-edit-replace-sexp-tool client-atom)]
-
+    
     (testing "Basic S-Expression replacement"
       (let [file-path (get-file-path)
             _ (register-file-timestamp) ;; Register file before editing
@@ -158,34 +158,6 @@
         (is (not (str/includes? file-content "#(* % 2)"))
             "Original anonymous function should be replaced")))
 
-    (testing "Whitespace-sensitive matching"
-      (let [file-path (get-file-path)
-            ;; First modify the file to add expressions with different whitespace
-            _ (spit file-path (str/replace (slurp file-path)
-                                           "(+ x y)"
-                                           "(+ x y)\n  (+    x    y)"))
-            _ (register-file-timestamp) ;; Register file after modification
-            inputs {:file_path file-path
-                    :match_form "(+    x    y)"
-                    :new_form "(+ x 100)"
-                    :whitespace_sensitive true}
-            validated (tool-system/validate-inputs sexp-tool inputs)
-            result (tool-system/execute-tool sexp-tool validated)
-            formatted (tool-system/format-results sexp-tool result)
-            file-content (slurp file-path)]
-
-        ;; Skip detailed diff pattern validation since format has changed
-        (is (map? formatted) "Response should be a map")
-        (is (contains? formatted :result) "Response should contain :result key")
-        (is (contains? formatted :error) "Response should contain :error key")
-        (is (false? (:error formatted)) "Error flag should be false")
-
-        ;; Check specific content changes - should only replace the exact whitespace match
-        (is (str/includes? file-content "(+ x 100)")
-            "File should contain the replaced expression")
-        (is (str/includes? file-content "(+ x y)")
-            "Expression with different whitespace should remain unchanged")))
-
     (testing "Keyword replacement in data structures"
       (let [file-path (get-file-path)
             _ (register-file-timestamp) ;; Register file before editing
@@ -197,7 +169,7 @@
             result (tool-system/execute-tool sexp-tool validated)
             formatted (tool-system/format-results sexp-tool result)
             file-content (slurp file-path)]
-
+       
         ;; Skip detailed diff pattern validation since format has changed
         (is (map? formatted) "Response should be a map")
         (is (contains? formatted :result) "Response should contain :result key")

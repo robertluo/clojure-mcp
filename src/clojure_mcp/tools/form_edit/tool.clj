@@ -596,7 +596,6 @@ KEY BENEFITS:
 
 CONSTRAINTS:
 - match_form must contain only a SINGLE s-expression (error otherwise)
-- Setting whitespace_sensitive=true requires exact whitespace matching (rarely needed)
 - Requires syntactically valid Clojure expressions in both match_form and new_form
 
 WARNING: You will receive errors if the syntax is wrong. The most common error is an extra or missing parenthesis in either match_form or new_form, so count your parentheses carefully!
@@ -612,7 +611,7 @@ COMMON APPLICATIONS:
 
 Other Examples:
 - Replace a calculation: {\"match_form\": \"(+ x 2)\", \"new_form\": \"(+ x 10)\"}
-  * Will match regardless of spaces: (+ x 2), (+   x   2), etc. unless whitespace_sensitive=true
+  * Will match regardless of spaces: (+ x 2), (+   x   2), etc.
 - Delete an expression: {\"match_form\": \"(println debug-info)\", \"new_form\": \"\"}
 - Edit anonymous function: {\"match_form\": \"#(inc %)\", \"new_form\": \"#(+ % 2)\"}
 - Replace multiple occurrences: {\"match_form\": \"(inc x)\", \"new_form\": \"(+ x 1)\", \"replace_all\": true}
@@ -628,9 +627,7 @@ Returns a diff showing the changes made to the file.")
                 :new_form {:type :string
                            :description "The s-expression to replace with"}
                 :replace_all {:type :boolean
-                              :description "Whether to replace all occurrences (default: false)"}
-                :whitespace_sensitive {:type :boolean
-                                       :description "Whether to match forms exactly as written including whitespace (default: false)"}}
+                              :description "Whether to replace all occurrences (default: false)"}}
    :required [:file_path :match_form :new_form]})
 
 (defmethod tool-system/validate-inputs :clojure-edit-replace-sexp [{:keys [nrepl-client-atom]} inputs]
@@ -647,11 +644,7 @@ Returns a diff showing the changes made to the file.")
     (when-not (str/blank? match_form)
       ;; Validate that match_form is valid Clojure code and contains only one expression
       (try
-        (let [all-forms (p/parse-string-all match_form)
-              form-count (count (n/children all-forms))]
-          (when (> form-count 1)
-            (throw (ex-info (str "match_form must contain only a single s-expression. Found " form-count " forms. Use just one form like '(+ x y)'.")
-                            {:inputs inputs}))))
+        (p/parse-string-all match_form)
         (catch Exception e
           (throw (ex-info (str "Invalid Clojure code in match_form: " (.getMessage e))
                           {:inputs inputs})))))
