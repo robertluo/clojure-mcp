@@ -303,7 +303,7 @@ When setting up Claude Desktop, ensure it can access your environment variables 
             "command": "/bin/sh",
             "args": [
                 "-c",
-                "cd /path/to/your/workspace/project && PATH=/your/bin/path:$PATH && clojure -X:mcp :port 7888"
+                "cd /path/to/your/workspace/project && PATH=/your/bin/path:$PATH && clojure -X:mcp"
             ],
             "env": {
                 "ANTHROPIC_API_KEY": "$ANTHROPIC_API_KEY",
