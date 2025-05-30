@@ -742,6 +742,109 @@
             ;; No match, continue to the next node
             (recur (z/next loc) last-replaced count)))))))
 
+(defn all-sexprs [zloc]
+  (->> zloc
+      (iterate z/right)
+      (take-while #(not (z/end? %)))
+      (map z/sexpr)))
+
+(defn str-forms->sexps [str-forms]
+  (->> str-forms
+       p/parse-string-all
+       z/of-node
+       all-sexprs))
+
+(defn match-multi-sexp [match-sexprs zloc]
+  (let [len (count match-sexprs)
+        matched (map = match-sexprs (all-sexprs zloc))]
+    (and (every? identity matched)
+         (= (count matched)
+            len))))
+
+(defn remove-n-sexps [n zloc]
+  (first (drop n
+               (iterate
+                #(-> %
+                     z/remove
+                     z/next)
+                zloc))))
+
+(defn find-and-replace-multi-sexp
+  [zloc match-form new-form]
+  (let [is-blank-new? (str/blank? new-form)
+        new-node (when-not is-blank-new? (p/parse-string-all new-form))
+        match-sexprs (str-forms->sexps match-form)]
+    (loop [loc zloc]
+      (when-not (z/end? loc)
+        (if (match-multi-sexp match-sexprs loc)
+          (let [removed-zloc (remove-n-sexps (count match-sexprs) loc)]
+            (if is-blank-new?
+              removed-zloc
+              (-> removed-zloc
+                  (z/insert-left new-node)
+                  (z/left))))
+          (recur (z/next loc)))))))
+
+(comment
+  (remove-n-sexps
+   (count (str-forms->sexps "1 2 3"))
+   (z/of-node (p/parse-string-all "1 [2] [3] 4 5"))
+   )
+  
+  (z/root-string (z/insert-left (remove-n-sexps 3  (z/of-node (p/parse-string-all "1 [2] [3] 4 5")))
+                                (p/parse-string-all "9 8 7")))
+
+  (match-multi-sexp
+   (str-forms->sexps "1 2 3 4 5 6")
+   (p/parse-string-all "1 2 3 4 5"))
+  )
+
+
+(comment
+  (def ss
+    (str
+     "(let [x 1]
+   (prn (+ x 2))
+   (prn (+ x 3))
+   (+ x 1))"))
+
+  (z/root-string (find-and-replace-multi-sexp
+                  (z/of-node (p/parse-string-all "1 2 3 4 5"))
+                  "4 "
+                  ""
+                  ))
+
+  (str-forms->sexps "1 2 3 4 ")
+  
+  (def match ";; hey\n\n(prn (+ x 2))
+   ;; another comment
+   (prn (+ x 3))")
+  (def replacement1 "(prn (+ x 20))")
+  (def replacement2 "(prn (+ x 20))
+   ;; comment
+   (prn (+ x 30))")
+  (def replacement3 "(prn (+ x 20))
+   (prn (+ x 30))
+   (prn (+ x 40))")
+
+  
+  
+  (let [zloc (z/of-node (p/parse-string-all match))]
+    (z/sexpr zloc)
+    (z/sexpr (z/right zloc))
+    )
+
+  (take 5   (->> "1 2 3 4"
+                 p/parse-string-all
+                 z/of-node
+                 (iterate z/right)
+                 (take-while #(not (z/end? %)))
+                 (map z/sexpr)))
+
+  
+  )
+
+
 (comment
   ;; Examples of using the functions
   (def source "(ns example.core)\n\n(defn my-fn [x y]\n  (+ x y))\n\n(def a 1)")
@@ -758,7 +861,7 @@
     [(z/root-string (:zloc res))
      (z/position-span (:zloc res))])
 
-;; Find a function
+  ;; Find a function
   (def fn-zloc (find-top-level-form zloc "defn" "my-fn"))
 
   ;; Get function summary
