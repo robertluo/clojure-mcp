@@ -582,8 +582,8 @@
   (testing "Comments and discards with clean? true"
     (let [s1 "a ;; comment\n #_ ignored b"
           s2 "a b"
-          result1 (sut/zchild-match-exprs (z/of-string s1) :clean? true)
-          result2 (sut/zchild-match-exprs (z/of-string s2) :clean? true)]
+          result1 (sut/zchild-match-exprs (z/of-string s1) {:clean? true})
+          result2 (sut/zchild-match-exprs (z/of-string s2) {:clean? true})]
       (is (= result1 result2) "Comments and discards should be removed when clean? is true")))
 
   (testing "Nested reader macros"
@@ -624,8 +624,209 @@
   (testing "Mix of features - comments, discards, reader macros"
     (let [s1 "(defn process ;; main function\n  [data]\n  #_ (println \"debug\")\n  (map #(* % 2) data))"
           s2 "(defn   process\n[data]   (map   #(*   %   2)   data))"
-          result1-clean (sut/zchild-match-exprs (z/of-string s1) :clean? true)
-          result2-clean (sut/zchild-match-exprs (z/of-string s2) :clean? true)]
+          result1-clean (sut/zchild-match-exprs (z/of-string s1) {:clean? true})
+          result2-clean (sut/zchild-match-exprs (z/of-string s2) {:clean? true})]
       (is (= result1-clean result2-clean) "Mixed features should normalize when cleaned"))))
+
+(deftest find-and-edit-multi-sexp-replace-edge-cases-test
+  (testing "Whitespace variations"
+    (testing "Multi-line form matching"
+      (let [source "(defn test [x] (+ x\n                  1) (- x 2))"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "(+ x 1)" "(inc x)" {:operation :replace :all? false})
+            updated (z/root-string (:zloc result))]
+        (is (some? result) "Should match forms with different whitespace")
+        (is (str/includes? updated "(inc x)") "Should have replaced the form")
+        (is (not (str/includes? updated "(+ x\n                  1)")) "Original form should be gone")))
+
+    (testing "Tab and space mixing"
+      (let [source "(let [a\t\t1\n      b  2] (+ a b))"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "a 1 b 2" "x 10 y 20" {:operation :replace :all? false})
+            updated (z/root-string (:zloc result))]
+        (is (some? result) "Should match with mixed whitespace")
+        (is (str/includes? updated "x 10 y 20") "Should have replaced elements"))))
+
+  (testing "Comments and discards"
+    (testing "Discard forms (#_)"
+      (let [source "(defn test [x] (+ x 1) #_ (ignored form) (+ x 2))"
+            zloc (z/of-string source {:track-position? true})
+            ;; The discard form is part of the sequence, so we need to match it
+            result1 (sut/find-and-edit-multi-sexp zloc "(+ x 1) #_ (ignored form) (+ x 2)" "(inc x) #_ (ignored form) (dec x)" {:operation :replace :all? false})
+            ;; Or we can replace individual forms
+            result2 (sut/find-and-edit-multi-sexp zloc "(+ x 1)" "(inc x)" {:operation :replace :all? false})
+            result3 (sut/find-and-edit-multi-sexp zloc "(+ x 2)" "(dec x)" {:operation :replace :all? false})]
+        (is (or (some? result1) (and (some? result2) (some? result3))) "Should be able to match with or without discard forms")
+        (when result1
+          (let [updated (z/root-string (:zloc result1))]
+            (is (str/includes? updated "#_ (ignored form)") "Should preserve discarded forms")))))
+
+    (testing "Line comments between forms"
+      (let [source "(defn test [x] (+ x 1) ;; comment\n               (+ x 2))"
+            zloc (z/of-string source {:track-position? true})
+            ;; Due to how comments are handled, they might interrupt multi-form matching
+            result1 (sut/find-and-edit-multi-sexp zloc "(+ x 1)" "(inc x)" {:operation :replace :all? false})
+            result2 (sut/find-and-edit-multi-sexp zloc "(+ x 2)" "(dec x)" {:operation :replace :all? false})]
+        (is (some? result1) "Should be able to replace first form")
+        (is (some? result2) "Should be able to replace second form"))))
+
+  (testing "Reader macros"
+    (testing "Var quote (#')"
+      (let [source "(defn test [] #'user/foo #'bar/baz)"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "#'user/foo" "#'user/new-foo" {:operation :replace :all? false})
+            updated (z/root-string (:zloc result))]
+        (is (some? result) "Should match var-quoted symbols")
+        (is (str/includes? updated "#'user/new-foo") "Should have replaced var quote")))
+
+    (testing "Anonymous functions"
+      (let [source "(map #(+ % 1) [1 2 3])"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "#(+ % 1)" "#(* % 2)" {:operation :replace :all? false})
+            updated (z/root-string (:zloc result))]
+        (is (some? result) "Should match anonymous functions")
+        (is (str/includes? updated "#(* % 2)") "Should have replaced anon fn")))
+
+    (testing "Reader conditionals"
+      (let [source "#?(:clj (+ 1 2) :cljs (+ 3 4))"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc ":clj (+ 1 2)" ":clj (+ 10 20)" {:operation :replace :all? false})
+            updated (when result (z/root-string (:zloc result)))]
+        (is (some? result) "Should match inside reader conditionals")
+        (is (when result (str/includes? updated "(+ 10 20)")) "Should have replaced form"))))
+
+  (testing "Metadata"
+    (testing "Multiple metadata elements"
+      (let [source "(def ^:private ^{:doc \"test\"} ^String foo \"bar\")"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "^:private ^{:doc \"test\"} ^String foo" "^:public ^Long bar" {:operation :replace :all? false})
+            updated (when result (z/root-string (:zloc result)))]
+        (is (some? result) "Should match forms with metadata")
+        (is (when result (str/includes? updated "^:public ^Long bar")) "Should have replaced with new metadata")))
+
+    (testing "Metadata on collections"
+      (let [source "^{:a 1} [1 2 3]"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "^{:a 1} [1 2 3]" "^{:b 2} [4 5 6]" {:operation :replace :all? false})
+            updated (when result (z/root-string (:zloc result)))]
+        (is (some? result) "Should match metadata on collections")
+        (is (when result (str/includes? updated "^{:b 2} [4 5 6]")) "Should have replaced with new metadata"))))
+
+  (testing "Boundary cases"
+    (testing "Replacing entire content"
+      (let [source "(+ 1 2)"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "(+ 1 2)" "(* 3 4)" {:operation :replace :all? false})
+            updated (z/root-string (:zloc result))]
+        (is (some? result) "Should match entire content")
+        (is (= "(* 3 4)" updated) "Should replace entire content")))
+
+    (testing "Empty collections"
+      (let [source "(defn test [] [] {} #{})"
+            zloc (z/of-string source {:track-position? true})
+            result1 (sut/find-and-edit-multi-sexp zloc "[]" "[1 2 3]" {:operation :replace :all? true})
+            result2 (sut/find-and-edit-multi-sexp zloc "{}" "{:a 1}" {:operation :replace :all? true})
+            result3 (sut/find-and-edit-multi-sexp zloc "#{}" "#{:x :y}" {:operation :replace :all? true})]
+        (is (some? result1) "Should match empty vector")
+        (is (some? result2) "Should match empty map")
+        (is (some? result3) "Should match empty set"))))
+
+  (testing "Namespaced elements"
+    (testing "Auto-resolved keywords"
+      (let [source "(ns my.ns) [::keyword ::other/keyword :regular]"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "::keyword" "::new-keyword" {:operation :replace :all? false})
+            updated (when result (z/root-string (:zloc result)))]
+        (is (some? result) "Should match auto-resolved keywords")
+        (is (when result (str/includes? updated "::new-keyword")) "Should have replaced keyword")))
+
+    (testing "Fully qualified symbols"
+      (let [source "(require '[clojure.string :as str]) (str/join \",\" items)"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "str/join" "str/split" {:operation :replace :all? false})
+            updated (when result (z/root-string (:zloc result)))]
+        (is (some? result) "Should match namespaced symbols")
+        (is (when result (str/includes? updated "str/split")) "Should have replaced symbol"))))
+
+  (testing "Complex nested structures"
+    (testing "Deeply nested replacement"
+      (let [source "(let [a {:b {:c [1 2 {:d 3}]}}] a)"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "{:d 3}" "{:d 30 :e 40}" {:operation :replace :all? false})
+            updated (when result (z/root-string (:zloc result)))]
+        (is (some? result) "Should find deeply nested forms")
+        (is (when result (str/includes? updated "{:d 30 :e 40}")) "Should have replaced nested form")))
+
+    (testing "Matching across different nesting levels"
+      (let [source "(defn test [x] (if true (+ x 1) (+ x 1)))"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "(+ x 1)" "(inc x)" {:operation :replace :all? true})
+            updated (when result (z/root-string (:zloc result)))]
+        (is (some? result) "Should find forms at different nesting levels")
+        (is (when result (= 2 (count (re-seq #"\(inc x\)" updated)))) "Should replace all occurrences"))))
+
+  (testing "Special forms and syntax"
+    (testing "Let bindings"
+      (let [source "(let [x 1 y 2] (+ x y))"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "x 1 y 2" "a 10 b 20" {:operation :replace :all? false})
+            updated (when result (z/root-string (:zloc result)))]
+        (is (some? result) "Should match inside let bindings")
+        (is (when result (str/includes? updated "[a 10 b 20]")) "Should have replaced bindings")))
+
+    (testing "Destructuring"
+      (let [source "(let [{:keys [a b]} m] (+ a b))"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "{:keys [a b]}" "{:keys [x y z]}" {:operation :replace :all? false})
+            updated (when result (z/root-string (:zloc result)))]
+        (is (some? result) "Should match destructuring forms")
+        (is (when result (str/includes? updated "{:keys [x y z]}")) "Should have replaced destructuring")))
+
+    (testing "Syntax quote and unquote"
+      (let [source "`(list ~x ~@xs)"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "~x" "~y" {:operation :replace :all? false})
+            updated (when result (z/root-string (:zloc result)))]
+        (is (some? result) "Should match unquoted forms")
+        (is (when result (str/includes? updated "~y")) "Should have replaced unquoted form"))))
+
+  (testing "Pattern matching edge cases"
+    (testing "Overlapping patterns"
+      (let [source "(a b c d e)"
+            zloc (z/of-string source {:track-position? true})
+            ;; Pattern "b c" could match at different positions if there were multiple
+            result (sut/find-and-edit-multi-sexp zloc "b c" "x y" {:operation :replace :all? false})
+            updated (when result (z/root-string (:zloc result)))]
+        (is (some? result) "Should match pattern")
+        (is (when result (str/includes? updated "(a x y d e)")) "Should replace at first match")))
+
+    (testing "Single element multi-match"
+      (let [source "[a a a a]"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "a" "x" {:operation :replace :all? true})
+            updated (when result (z/root-string (:zloc result)))]
+        (is (some? result) "Should match single elements")
+        (is (when result (= "[x x x x]" updated)) "Should replace all occurrences"))))
+
+  (testing "Pattern not found"
+    (testing "No match returns nil"
+      (let [source "(defn test [x] (+ x 1) (- x 2))"
+            zloc (z/of-string source {:track-position? true})
+            result (sut/find-and-edit-multi-sexp zloc "(* x 3)" "(/ x 4)" {:operation :replace :all? false})]
+        (is (nil? result) "Should return nil when pattern is not found")))
+
+    (testing "Partial multi-form match"
+      (let [source "(a b c d)"
+            zloc (z/of-string source {:track-position? true})
+            ;; Looking for "b c e" which partially matches but not fully
+            result (sut/find-and-edit-multi-sexp zloc "b c e" "x y z" {:operation :replace :all? false})]
+        (is (nil? result) "Should return nil when multi-form pattern doesn't fully match")))
+
+    (testing "Match beyond available forms"
+      (let [source "[1 2 3]"
+            zloc (z/of-string source {:track-position? true})
+            ;; Looking for more elements than exist
+            result (sut/find-and-edit-multi-sexp zloc "1 2 3 4" "a b c d" {:operation :replace :all? false})]
+        (is (nil? result) "Should return nil when pattern extends beyond available forms")))))
 
 

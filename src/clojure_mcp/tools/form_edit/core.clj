@@ -792,6 +792,8 @@
     ;; Leaf nodes pass through
     :else node))
 
+(def ^:dynamic *match-clean* false)
+
 (defn zchild-match-exprs
   "Extract expressions for pattern matching.
 
@@ -807,44 +809,38 @@
    Example:
    (zchild-match-exprs (z/of-string* \";; TODO\\n(defn foo [x] x)\"))
    => (\";; TODO\\n\" \"(defn foo [x] x)\")"
-  [zloc & {:keys [clean?] :or {clean? false}}]
-  (let [nodes (if (= :forms (z/tag zloc))
-                ;; If at forms node, get children
-                (n/children (z/node zloc))
-                ;; Otherwise iterate through siblings
-                (->> (iterate z/right* zloc)
-                     (take-while some?)
-                     (map z/node)))]
-    (->> nodes
-         (filter (fn [node]
-                   (let [tag (n/tag node)]
-                     (or (semantic-nodes? node)
-                         (and (not clean?)
-                              (or (= :comment tag)
-                                  (= :uneval tag)))))))
-         (map (fn [node]
-                (if (semantic-nodes? node)
-                  (-> ((if clean?
-                         normalize-and-clean-node
-                         normalize-whitespace-node)
-                       node)
-                      n/string)
-                  (n/string node)))))))
-
-(def zchild-sexprs zchild-match-exprs)
-
-#_(defn zchild-sexprs [zloc]
-    (->> (iterate z/right zloc)
-         (take-while some?)
-         (filter z/sexpr-able?)
-         (map z/string)))
+  ([zloc]
+   (zchild-match-exprs zloc {:clean? *match-clean*}))
+  ([zloc {:keys [clean?] :or {clean? false}}]
+   (let [nodes (if (= :forms (z/tag zloc))
+                 ;; If at forms node, get children
+                 (n/children (z/node zloc))
+                 ;; Otherwise iterate through siblings
+                 (->> (iterate z/right* zloc)
+                      (take-while some?)
+                      (map z/node)))]
+     (->> nodes
+          (filter (fn [node]
+                    (let [tag (n/tag node)]
+                      (or (semantic-nodes? node)
+                          (and (not clean?)
+                               (or (= :comment tag)
+                                   (= :uneval tag)))))))
+          (map (fn [node]
+                 (if (semantic-nodes? node)
+                   (-> ((if clean?
+                          normalize-and-clean-node
+                          normalize-whitespace-node)
+                        node)
+                       n/string)
+                   (n/string node))))))))
 
 (defn str-forms->sexps [str-forms]
-  (zchild-sexprs (z/of-string str-forms)))
+  (zchild-match-exprs (z/of-node (p/parse-string-all str-forms))))
 
 (defn match-multi-sexp [match-sexprs zloc]
   (let [len (count match-sexprs)
-        zloc-sexprs (zchild-sexprs zloc)
+        zloc-sexprs (zchild-match-exprs zloc)
         matched (map = match-sexprs zloc-sexprs)]
     (and (every? identity matched)
          (= (count matched) len))))
@@ -934,7 +930,7 @@
           {:zloc loc
            :locations locations})))))
 
-(defn find-and-edit-multi-sexp [zloc match-form new-form {:keys [operation all?]}]
+(defn find-and-edit-multi-sexp* [zloc match-form new-form {:keys [operation all?]}]
   (if all?
     (find-and-edit-all-multi-sexp zloc operation match-form new-form)
     (when-let [{:keys [after-loc edit-span-loc]} (find-and-edit-one-multi-sexp zloc operation match-form new-form)]
@@ -942,6 +938,11 @@
       ;; z/root-string on this will produce the final edited form
       {:zloc after-loc
        :locations [edit-span-loc]})))
+
+(defn find-and-edit-multi-sexp [zloc match-form new-form opts]
+  (or (find-and-edit-multi-sexp* zloc match-form new-form opts)
+      (binding [*match-clean* true]
+        (find-and-edit-multi-sexp* zloc match-form new-form opts))))
 
 (comment
 
@@ -973,7 +974,7 @@
         ;;z/up
         ;;z/remove
         #_(z/subedit->
-           (z/replace (p/parse-string "x")))
+              (z/replace (p/parse-string "x")))
         ;; z/remove
         #_(replace-multi
            (str-forms->sexps "(+ x 1) (+ x 2)"))
