@@ -640,6 +640,9 @@ Returns a diff showing the changes made to the file.")
       (throw (ex-info "Missing required parameter: new_form"
                       {:inputs inputs})))
 
+    (when (str/blank? match_form)
+      (throw (ex-info "Bad parameter: match-form can not be a blank string."
+                      {:inputs inputs})))
     ;; Special handling for empty string
     (when-not (str/blank? match_form)
       ;; Validate that match_form is valid Clojure code and contains only one expression

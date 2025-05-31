@@ -698,52 +698,6 @@
           [method-name dispatch-str])))
     (catch Exception _ nil)))
 
-(defn find-and-replace-sexp
-  [zloc match-form new-form & {:keys [replace-all whitespace-sensitive]
-                               :or {replace-all false
-                                    whitespace-sensitive false}}]
-  (let [is-blank-new? (str/blank? new-form)
-        new-node (when-not is-blank-new? (p/parse-string-all new-form))
-        match-node (p/parse-string match-form) ;; must not be blank
-        match-str (n/string match-node)
-        match-sexpr (when (not whitespace-sensitive)
-                      (try (z/sexpr (z/of-node match-node))
-                           (catch Exception _ ::invalid)))]
-    (loop [loc zloc
-           last-replaced nil
-           count 0]
-      (if (z/end? loc)
-        (when last-replaced
-          {:zloc last-replaced
-           :count count})
-        ;; Check the current node
-        (let [curr-tag (z/tag loc)
-              node-str (try (n/string (z/node loc)) (catch Exception _ ""))
-
-              matched? (if (and
-                            (not whitespace-sensitive)
-                            (not= match-sexpr ::invalid)
-                            (not= curr-tag :fn)) ;; ??? Skip :fn nodes for sexpr comparison
-                         (try
-                           (= (z/sexpr loc) match-sexpr)
-                           (catch Exception _ false))
-                         (= node-str match-str))]
-          (if matched?
-            (let [updated-loc (if is-blank-new?
-                                (try
-                                  (z/remove loc)
-                                  (catch Exception _
-                                    (z/replace loc (n/whitespace-node " "))))
-                                (z/replace loc new-node))]
-              (if replace-all
-                ;; If replacing all, continue with the updated loc
-                (recur (z/next updated-loc) updated-loc (inc count))
-                ;; Otherwise, return immediately after the first replacement
-                {:zloc updated-loc
-                 :count 1}))
-            ;; No match, continue to the next node
-            (recur (z/next loc) last-replaced count)))))))
-
 ;; multi sexp editing
 
 (defn semantic-nodes?
@@ -857,7 +811,8 @@
       (z/insert-left (p/parse-string "(__clojure-mcp-edit-marker__)"))
       z/prev ;; inside added node
       ;; then slurp into the node
-      (as-> z (iterate-to-n par/slurp-forward z (inc n)))
+      (as-> z (nth (iterate par/slurp-forward z) n))
+      #_(as-> z (iterate-to-n par/slurp-forward z (inc n)))
       z/up
       z/remove-preserve-newline))
 
@@ -867,17 +822,35 @@
 (defn zright-n [zloc n]
   (iterate-to-n z/right zloc n))
 
+(defn count-forms-to-kill [start-zloc match-count]
+  (if *match-clean*
+    ;; Count non-whitespace forms until we've seen all semantic matches
+    (loop [loc start-zloc
+           semantic-seen 1
+           total-count 1]
+      (if (>= semantic-seen match-count)
+        total-count
+        (if-let [next-loc (z/right loc)]  ; z/right skips whitespace
+          (let [semantic? (and (z/sexpr-able? next-loc)
+                              (semantic-nodes? (z/node next-loc)))]
+            (recur next-loc
+                   (if semantic? (inc semantic-seen) semantic-seen)
+                   (inc total-count)))
+          total-count)))
+    match-count))
+
 ;; TODO probably dont need special handing for empty replacement
 (defn replace-multi [zloc match-sexprs replacement-node]
-  (if (nil? replacement-node)
-    (let [after-loc (kill-n-sexps (count match-sexprs) zloc)]
-      {:edit-span-loc after-loc
-       :after-loc after-loc})
-    (let [after-insert (z/insert-left zloc replacement-node)
-          after-loc (->> after-insert ;; could left and splice
-                         (kill-n-sexps (count match-sexprs)))]
-      {:edit-span-loc (-> after-insert z/left)
-       :after-loc after-loc})))
+  (let [kill-count (count-forms-to-kill zloc (count match-sexprs))]
+    (if (nil? replacement-node)
+      (let [after-loc (kill-n-sexps kill-count zloc)]
+        {:edit-span-loc after-loc
+         :after-loc after-loc})
+      (let [after-insert (z/insert-left zloc replacement-node)
+            after-loc (->> after-insert ;; could left and splice
+                           (kill-n-sexps kill-count))]
+        {:edit-span-loc (-> after-insert z/left)
+         :after-loc after-loc}))))
 
 (defn insert-before-multi [zloc match-sexprs replacement-node]
   (let [edit-loc (-> (z/insert-left zloc replacement-node)
