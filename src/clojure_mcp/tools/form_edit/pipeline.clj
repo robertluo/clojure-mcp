@@ -241,7 +241,7 @@
     (catch Exception e
       ;; Don't fail the pipeline if offsets can't be captured, just log it
       ;; This allows non-Emacs workflows to continue
-      (println "Warning: Failed to capture edit offsets -" (.getMessage e))
+      (log/error e "Warning: Failed to capture edit offsets -" (.getMessage e))
       ctx)))
 
 (defn validate-form-type
@@ -683,6 +683,19 @@
     ::config config}
    create-file-outline))
 
+(defn edit-locations->offsets [ctx]
+  (try
+    (let [zloc (::zloc ctx)
+          positions (last (::edit-locations ctx))
+          output-source (or (::output-source ctx) (z/root-string zloc))
+          offsets (core/zloc-offsets output-source positions)]
+      (assoc ctx ::offsets offsets))
+    (catch Exception e
+      ;; Don't fail the pipeline if offsets can't be captured, just log it
+      ;; This allows non-Emacs workflows to continue
+      (log/error e (str "Warning: Failed to capture edit offsets -" (ex-message e)))
+      ctx)))
+
 (defn replace-sexp
   [{:keys [::zloc ::match-form ::new-form ::replace-all ::whitespace-sensitive] :as ctx}]
   (try
@@ -695,7 +708,7 @@
       (-> ctx
           (assoc ::zloc (:zloc result))
           ;; not used
-          (assoc ::replace-count (:count result)))
+          (assoc ::edit-locations (:locations result)))
       {::error true
        ::message (str "Could not find form: " match-form)})
     (catch Exception e
@@ -733,8 +746,8 @@
      check-file-modified
      parse-source
      replace-sexp
-     capture-edit-offsets
      zloc->output-source
+     edit-locations->offsets
      format-source
      determine-file-type
      generate-diff

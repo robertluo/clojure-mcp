@@ -388,7 +388,7 @@
           result (sut/find-and-edit-multi-sexp zloc "(+ x 1)" "(+ x 10)" {:operation :replace :all? false})
           updated (z/root-string (:zloc result))]
       (is (some? result) "Should return a result when matches are found")
-      (is (= 1 (:count result)) "Should have made one replacement")
+      (is (= 1 (count (:locations result))) "Should have made one replacement")
       (is (str/includes? updated "(+ x 10)") "Should include the replacement")
       (is (str/includes? updated "(- x 2)") "Should preserve other forms")))
 
@@ -398,7 +398,7 @@
           result (sut/find-and-edit-multi-sexp zloc "(+ x 1)" "(+ x 10)" {:operation :replace :all? true})
           updated (z/root-string (:zloc result))]
       (is (some? result) "Should return a result when matches are found")
-      (is (= 3 (:count result)) "Should have made three replacements")
+      (is (= 3 (count (:locations result))) "Should have made three replacements")
       (is (= 0 (count (re-seq #"\(\+ x 1\)" updated))) "Should have no original forms left")
       (is (= 3 (count (re-seq #"\(\+ x 10\)" updated))) "Should have three replacements")))
 
@@ -408,7 +408,7 @@
           result (sut/find-and-edit-multi-sexp zloc "(+ x 1) (+ x 2)" "(inc x) (+ x 10)" {:operation :replace :all? false})
           updated (z/root-string (:zloc result))]
       (is (some? result) "Should return a result when matches are found")
-      (is (= 1 (:count result)) "Should have made one replacement")
+      (is (= 1 (count (:locations result))) "Should have made one replacement")
       (is (str/includes? updated "(inc x)") "Should include the first replacement")
       (is (str/includes? updated "(+ x 10)") "Should include the second replacement")
       (is (str/includes? updated "(- x 3)") "Should preserve other forms")
@@ -421,7 +421,7 @@
           result (sut/find-and-edit-multi-sexp zloc "(+ x 1) (+ x 2)" "(inc x) (+ x 10) (dec x)" {:operation :replace :all? false})
           updated (z/root-string (:zloc result))]
       (is (some? result) "Should return a result when matches are found")
-      (is (= 1 (:count result)) "Should have made one replacement")
+      (is (= 1 (count (:locations result))) "Should have made one replacement")
       (is (str/includes? updated "(inc x)") "Should include the first replacement")
       (is (str/includes? updated "(+ x 10)") "Should include the second replacement")
       (is (str/includes? updated "(dec x)") "Should include the third replacement")))
@@ -432,7 +432,7 @@
           result (sut/find-and-edit-multi-sexp zloc "(+ x 1) (+ x 2) (+ x 3)" "(+ x 6)" {:operation :replace :all? false})
           updated (z/root-string (:zloc result))]
       (is (some? result) "Should return a result when matches are found")
-      (is (= 1 (:count result)) "Should have made one replacement")
+      (is (= 1 (count (:locations result))) "Should have made one replacement")
       (is (str/includes? updated "(+ x 6)") "Should include the replacement")
       (is (str/includes? updated "(- x 4)") "Should preserve other forms")
       (is (not (str/includes? updated "(+ x 1)")) "Original forms should be gone")
@@ -557,7 +557,7 @@
           result (sut/find-and-edit-multi-sexp zloc "(+ x 1) (+ x 2)" "(inc x) (+ x 10)" {:operation :replace :all? true})
           updated (z/root-string (:zloc result))]
       (is (some? result) "Should return a result when matches are found")
-      (is (= 2 (:count result)) "Should have made two replacements")
+      (is (= 2 (count (:locations result))) "Should have made two replacements")
       (is (= 2 (count (re-seq #"\(inc x\)" updated))) "Should have two instances of first replacement")
       (is (= 2 (count (re-seq #"\(\+ x 10\)" updated))) "Should have two instances of second replacement")
       (is (str/includes? updated "(+ x 3)") "Should preserve non-matching forms")

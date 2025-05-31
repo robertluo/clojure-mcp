@@ -533,6 +533,7 @@
       ;; If we can't determine the type, skip it to be safe
       false)))
 
+;; TODO form name can be a keyword if its a spec 
 (defn extract-form-name
   "Extract the name of a form from its sexpr representation.
    For example, from (defn foo [x] ...) it extracts 'foo'.
@@ -871,29 +872,30 @@
 (defn replace-multi [zloc match-sexprs replacement-node]
   (if (nil? replacement-node)
     (let [after-loc (kill-n-sexps (count match-sexprs) zloc)]
-      {:edit-loc after-loc
+      {:edit-span-loc after-loc
        :after-loc after-loc})
-    (let [after-loc (->> (z/insert-left zloc replacement-node)
+    (let [after-insert (z/insert-left zloc replacement-node)
+          after-loc (->> after-insert ;; could left and splice
                          (kill-n-sexps (count match-sexprs)))]
-      {:edit-loc (zleft-n after-loc (count (n/child-sexprs replacement-node)))
+      {:edit-span-loc (-> after-insert z/left)
        :after-loc after-loc})))
 
 (defn insert-before-multi [zloc match-sexprs replacement-node]
   (let [edit-loc (-> (z/insert-left zloc replacement-node)
-                     z/left
-                     z/splice)]
-    {:edit-loc edit-loc
+                     z/left)]
+    {:edit-span-loc edit-loc
      :after-loc (-> edit-loc
+                    z/splice
                     (zright-n (count (n/child-sexprs replacement-node))))}))
 
 (defn insert-after-multi [zloc match-sexprs replacement-node]
   (let [edit-loc (-> (take (count match-sexprs) (iterate z/right zloc))
                      last
                      (z/insert-right replacement-node)
-                     z/right
-                     z/splice)]
-    {:edit-loc edit-loc
+                     z/right)]
+    {:edit-span-loc edit-loc
      :after-loc (-> edit-loc
+                    z/splice
                     (zright-n (count (n/child-sexprs replacement-node))))}))
 
 (defn find-multi-sexp [zloc match-sexprs]
@@ -920,22 +922,23 @@
   (when-not (and (str/blank? new-form) (#{:insert-before :insert-after} operation))
     (loop [loc zloc
            locations []]
-      (if-let [{:keys [after-loc edit-loc]}
+      (if-let [{:keys [after-loc edit-span-loc]}
                (find-and-edit-one-multi-sexp loc operation match-form new-form)]
-        (recur after-loc (conj locations edit-loc))
+        (recur after-loc (conj locations edit-span-loc))
         (when-not (empty? locations)
-          {:zloc (-> locations last)
-           :locations locations
-           :count (count locations)})))))
+          ;; this is a location after the last match
+          ;; z/root-string on this will produce the final edited form
+          {:zloc loc
+           :locations locations})))))
 
 (defn find-and-edit-multi-sexp [zloc match-form new-form {:keys [operation all?]}]
   (if all?
     (find-and-edit-all-multi-sexp zloc operation match-form new-form)
-    (when-let [{:keys [edit-loc]} (find-and-edit-one-multi-sexp zloc operation match-form new-form)]
-      {:zloc edit-loc
-       :count 1})))
-
-
+    (when-let [{:keys [after-loc edit-span-loc]} (find-and-edit-one-multi-sexp zloc operation match-form new-form)]
+      ;; this is a location after the last match
+      ;; z/root-string on this will produce the final edited form
+      {:zloc after-loc
+       :locations [edit-span-loc]})))
 
 (comment
 
@@ -949,7 +952,8 @@
        "(+ x 1) (+ x 2)"
        "(inc x) (+ x 10)"
        {:operation :replace})
-      :zloc)
+      :zloc
+      z/root-string)
 
   (-> (z/of-string "(+ x 1) (+ x 2)"))
 
