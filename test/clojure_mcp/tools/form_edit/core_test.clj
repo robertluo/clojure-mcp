@@ -381,66 +381,105 @@
       (is (nil? (sut/extract-dispatch-from-defmethod malformed-impl))
           "Should return nil for malformed defmethod"))))
 
-(deftest find-and-replace-sexp-test
-  (testing "Basic replacement"
+(deftest find-and-edit-multi-sexp-test
+  (testing "Basic single-form replacement"
     (let [source "(defn test-fn [x] (+ x 1) (- x 2))"
           zloc (z/of-string source {:track-position? true})
-          result (sut/find-and-replace-sexp zloc "(+ x 1)" "(+ x 10)" :replace-all false)
+          result (sut/find-and-edit-multi-sexp zloc "(+ x 1)" "(+ x 10)" {:operation :replace :all? false})
           updated (z/root-string (:zloc result))]
       (is (some? result) "Should return a result when matches are found")
       (is (= 1 (:count result)) "Should have made one replacement")
       (is (str/includes? updated "(+ x 10)") "Should include the replacement")
       (is (str/includes? updated "(- x 2)") "Should preserve other forms")))
 
-  (testing "Replace all occurrences"
+  (testing "Replace all occurrences of single form"
     (let [source "(defn test-fn [x] (+ x 1) (+ x 1) (+ x 1))"
           zloc (z/of-string source {:track-position? true})
-          result (sut/find-and-replace-sexp zloc "(+ x 1)" "(+ x 10)" :replace-all true)
+          result (sut/find-and-edit-multi-sexp zloc "(+ x 1)" "(+ x 10)" {:operation :replace :all? true})
           updated (z/root-string (:zloc result))]
       (is (some? result) "Should return a result when matches are found")
       (is (= 3 (:count result)) "Should have made three replacements")
       (is (= 0 (count (re-seq #"\(\+ x 1\)" updated))) "Should have no original forms left")
       (is (= 3 (count (re-seq #"\(\+ x 10\)" updated))) "Should have three replacements")))
 
-  (testing "Whitespace sensitivity"
-    (let [source "(defn test-fn [x] (+ x 1) (+ x  1) (+  x 1))"
-          zloc (z/of-string source {:track-position? true})]
-      (let [insensitive-result (sut/find-and-replace-sexp zloc "(+ x 1)" "(+ x 10)"
-                                                          :replace-all true
-                                                          :whitespace-sensitive false)
-            insensitive-updated (z/root-string (:zloc insensitive-result))]
-        (is (some? insensitive-result) "Should return a result when matches are found")
-        (is (= 3 (:count insensitive-result)) "Should have made three replacements with whitespace insensitivity")
-        (is (= 3 (count (re-seq #"\(\+ x 10\)" insensitive-updated))) "Should have three replacements"))
+  (testing "Multi-form replacement"
+    (let [source "(defn test-fn [x] (+ x 1) (+ x 2) (- x 3))"
+          zloc (z/of-string source {:track-position? true})
+          result (sut/find-and-edit-multi-sexp zloc "(+ x 1) (+ x 2)" "(inc x) (+ x 10)" {:operation :replace :all? false})
+          updated (z/root-string (:zloc result))]
+      (is (some? result) "Should return a result when matches are found")
+      (is (= 1 (:count result)) "Should have made one replacement")
+      (is (str/includes? updated "(inc x)") "Should include the first replacement")
+      (is (str/includes? updated "(+ x 10)") "Should include the second replacement")
+      (is (str/includes? updated "(- x 3)") "Should preserve other forms")
+      (is (not (str/includes? updated "(+ x 1)")) "Original first form should be gone")
+      (is (not (str/includes? updated "(+ x 2)")) "Original second form should be gone")))
 
-      (let [sensitive-result (sut/find-and-replace-sexp zloc "(+ x 1)" "(+ x 10)"
-                                                        :replace-all true
-                                                        :whitespace-sensitive true)
-            sensitive-updated (z/root-string (:zloc sensitive-result))]
-        (is (some? sensitive-result) "Should return a result when matches are found")
-        (is (= 1 (:count sensitive-result)) "Should have made only one replacement with whitespace sensitivity")
-        (is (= 1 (count (re-seq #"\(\+ x 10\)" sensitive-updated))) "Should have one replacement")
-        (is (= 2 (count (re-seq #"\(\+\s+x\s+1\)" sensitive-updated))) "Should have two original forms left"))))
+  (testing "Multi-form expansion (2 forms to 3 forms)"
+    (let [source "(defn test-fn [x] (+ x 1) (+ x 2))"
+          zloc (z/of-string source {:track-position? true})
+          result (sut/find-and-edit-multi-sexp zloc "(+ x 1) (+ x 2)" "(inc x) (+ x 10) (dec x)" {:operation :replace :all? false})
+          updated (z/root-string (:zloc result))]
+      (is (some? result) "Should return a result when matches are found")
+      (is (= 1 (:count result)) "Should have made one replacement")
+      (is (str/includes? updated "(inc x)") "Should include the first replacement")
+      (is (str/includes? updated "(+ x 10)") "Should include the second replacement")
+      (is (str/includes? updated "(dec x)") "Should include the third replacement")))
+
+  (testing "Multi-form contraction (3 forms to 1 form)"
+    (let [source "(defn test-fn [x] (+ x 1) (+ x 2) (+ x 3) (- x 4))"
+          zloc (z/of-string source {:track-position? true})
+          result (sut/find-and-edit-multi-sexp zloc "(+ x 1) (+ x 2) (+ x 3)" "(+ x 6)" {:operation :replace :all? false})
+          updated (z/root-string (:zloc result))]
+      (is (some? result) "Should return a result when matches are found")
+      (is (= 1 (:count result)) "Should have made one replacement")
+      (is (str/includes? updated "(+ x 6)") "Should include the replacement")
+      (is (str/includes? updated "(- x 4)") "Should preserve other forms")
+      (is (not (str/includes? updated "(+ x 1)")) "Original forms should be gone")
+      (is (not (str/includes? updated "(+ x 2)")) "Original forms should be gone")
+      (is (not (str/includes? updated "(+ x 3)")) "Original forms should be gone")))
 
   (testing "Different Clojure data types"
     (let [source "(defn test-data [x] {:key1 100 :key2 \"string\"} [1 2 3] #{:a :b :c})"
           zloc (z/of-string source {:track-position? true})]
-      (let [keyword-result (sut/find-and-replace-sexp zloc ":key1" ":new-key" :replace-all true)
+      (let [keyword-result (sut/find-and-edit-multi-sexp zloc ":key1" ":new-key" {:operation :replace :all? true})
             keyword-updated (z/root-string (:zloc keyword-result))]
         (is (some? keyword-result) "Should return a result when matches are found")
         (is (str/includes? keyword-updated ":new-key") "Should have replaced keyword")
         (is (not (str/includes? keyword-updated ":key1")) "Original keyword should be gone"))
 
-      (let [vector-result (sut/find-and-replace-sexp zloc "[1 2 3]" "[4 5 6]" :replace-all true)
+      (let [vector-result (sut/find-and-edit-multi-sexp zloc "[1 2 3]" "[4 5 6]" {:operation :replace :all? true})
             vector-updated (z/root-string (:zloc vector-result))]
         (is (some? vector-result) "Should return a result when matches are found")
         (is (str/includes? vector-updated "[4 5 6]") "Should have replaced vector")
         (is (not (str/includes? vector-updated "[1 2 3]")) "Original vector should be gone"))))
 
+  (testing "Multi-element vector replacement"
+    (let [source "[1 2 3 4 5 6 7 8 9 10]"
+          zloc (z/of-string source {:track-position? true})
+          result (sut/find-and-edit-multi-sexp zloc "3 4 5" "30 40 50 60" {:operation :replace :all? false})
+          updated (z/root-string (:zloc result))]
+      (is (some? result) "Should return a result when matches are found")
+      (is (str/includes? updated "30 40 50 60") "Should have replaced elements")
+      (is (str/includes? updated "[1 2 30 40 50 60 6 7 8 9 10]") "Should preserve vector structure")
+      (is (not (str/includes? updated "3 4 5")) "Original elements should be gone")))
+
+  (testing "Map key-value pair replacement"
+    (let [source "{:a 1 :b 2 :c 3 :d 4}"
+          zloc (z/of-string source {:track-position? true})
+          result (sut/find-and-edit-multi-sexp zloc ":b 2 :c 3" ":beta 20 :gamma 30 :delta 40" {:operation :replace :all? false})
+          updated (z/root-string (:zloc result))]
+      (is (some? result) "Should return a result when matches are found")
+      (is (str/includes? updated ":beta") "Should include new key")
+      (is (str/includes? updated "20") "Should include new value")
+      (is (str/includes? updated ":gamma 30 :delta 40") "Should include all new key-value pairs")
+      (is (str/includes? updated ":a 1") "Should preserve other pairs")
+      (is (str/includes? updated ":d 4") "Should preserve other pairs")))
+
   (testing "Anonymous functions"
     (let [source "(defn use-anon-fns [coll] (map #(+ % 1) coll) (filter #(> % 10) coll))"
           zloc (z/of-string source {:track-position? true})
-          result (sut/find-and-replace-sexp zloc "#(+ % 1)" "#(+ % 10)" :replace-all true)
+          result (sut/find-and-edit-multi-sexp zloc "#(+ % 1)" "#(+ % 10)" {:operation :replace :all? true})
           updated (z/root-string (:zloc result))]
       (is (some? result) "Should return a result when matches are found")
       (is (str/includes? updated "#(+ % 10)") "Should have replaced anonymous function")
@@ -450,19 +489,78 @@
   (testing "Deletion with empty string replacement"
     (let [source "(defn with-debug [x] (println \"debug:\" x) (+ x 1))"
           zloc (z/of-string source {:track-position? true})
-          result (sut/find-and-replace-sexp zloc "(println \"debug:\" x)" "" :replace-all true)
+          result (sut/find-and-edit-multi-sexp zloc "(println \"debug:\" x)" "" {:operation :replace :all? true})
           updated (z/root-string (:zloc result))]
       (is (some? result) "Should return a result when matches are found")
       (is (not (str/includes? updated "println")) "Debug statement should be gone")
       (is (str/includes? updated "(defn with-debug [x]") "Function signature should remain")
       (is (str/includes? updated "(+ x 1)") "Function body should remain")))
 
+  (testing "Multi-form deletion"
+    (let [source "(defn test-fn [x] (println \"start\") (+ x 1) (println \"end\") (- x 1))"
+          zloc (z/of-string source {:track-position? true})
+          result (sut/find-and-edit-multi-sexp zloc "(+ x 1) (println \"end\")" "" {:operation :replace :all? false})
+          updated (z/root-string (:zloc result))]
+      (is (some? result) "Should return a result when matches are found")
+      (is (str/includes? updated "(println \"start\")") "Should preserve forms before")
+      (is (str/includes? updated "(- x 1)") "Should preserve forms after")
+      (is (not (str/includes? updated "(+ x 1)")) "First deleted form should be gone")
+      (is (not (str/includes? updated "(println \"end\")")) "Second deleted form should be gone")))
+
+  (testing "Insert operations"
+    (let [source "(defn test-fn [x] (+ x 1) (+ x 2))"
+          zloc (z/of-string source {:track-position? true})]
+
+      (testing "Insert before single form"
+        (let [result (sut/find-and-edit-multi-sexp zloc "(+ x 1)" "(prn x)" {:operation :insert-before :all? false})
+              updated (z/root-string (:zloc result))]
+          (is (some? result) "Should return a result when matches are found")
+          (is (str/includes? updated "(prn x)") "Should include the inserted form")
+          (is (str/includes? updated "(+ x 1)") "Should preserve the original form")
+          (is (str/includes? updated "(+ x 2)") "Should preserve other forms")))
+
+      (testing "Insert after single form"
+        (let [result (sut/find-and-edit-multi-sexp zloc "(+ x 1)" "(prn x)" {:operation :insert-after :all? false})
+              updated (z/root-string (:zloc result))]
+          (is (some? result) "Should return a result when matches are found")
+          (is (str/includes? updated "(prn x)") "Should include the inserted form")
+          (is (str/includes? updated "(+ x 1)") "Should preserve the original form")
+          (is (str/includes? updated "(+ x 2)") "Should preserve other forms")))
+
+      (testing "Insert before multi-form"
+        (let [result (sut/find-and-edit-multi-sexp zloc "(+ x 1) (+ x 2)" "(prn \"before\") (prn x)" {:operation :insert-before :all? false})
+              updated (z/root-string (:zloc result))]
+          (is (some? result) "Should return a result when matches are found")
+          (is (str/includes? updated "(prn \"before\")") "Should include the first inserted form")
+          (is (str/includes? updated "(prn x)") "Should include the second inserted form")
+          (is (str/includes? updated "(+ x 1)") "Should preserve the original forms")
+          (is (str/includes? updated "(+ x 2)") "Should preserve the original forms")))
+
+      (testing "Insert after multi-form"
+        (let [result (sut/find-and-edit-multi-sexp zloc "(+ x 1) (+ x 2)" "(prn \"after\") (prn x)" {:operation :insert-after :all? false})
+              updated (z/root-string (:zloc result))]
+          (is (some? result) "Should return a result when matches are found")
+          (is (str/includes? updated "(prn \"after\")") "Should include the first inserted form")
+          (is (str/includes? updated "(prn x)") "Should include the second inserted form")
+          (is (str/includes? updated "(+ x 1)") "Should preserve the original forms")
+          (is (str/includes? updated "(+ x 2)") "Should preserve the original forms")))))
+
   (testing "No match found"
     (let [source "(defn test-fn [x] (+ x 1))"
           zloc (z/of-string source {:track-position? true})
-          result (sut/find-and-replace-sexp zloc "(- x 1)" "(- x 10)" :replace-all true)]
-      ;; The function implementation returns {:replaced false, :count 0} instead of nil
-      ;; so we check for this specifically
-      (is (nil? result)
-          "Should return a nil result"))))
+          result (sut/find-and-edit-multi-sexp zloc "(- x 1)" "(- x 10)" {:operation :replace :all? true})]
+      (is (nil? result) "Should return nil when no matches are found")))
+
+  (testing "Multi-form with all? true"
+    (let [source "(defn test-fn [x] (+ x 1) (+ x 2) (+ x 1) (+ x 2) (+ x 3))"
+          zloc (z/of-string source {:track-position? true})
+          result (sut/find-and-edit-multi-sexp zloc "(+ x 1) (+ x 2)" "(inc x) (+ x 10)" {:operation :replace :all? true})
+          updated (z/root-string (:zloc result))]
+      (is (some? result) "Should return a result when matches are found")
+      (is (= 2 (:count result)) "Should have made two replacements")
+      (is (= 2 (count (re-seq #"\(inc x\)" updated))) "Should have two instances of first replacement")
+      (is (= 2 (count (re-seq #"\(\+ x 10\)" updated))) "Should have two instances of second replacement")
+      (is (str/includes? updated "(+ x 3)") "Should preserve non-matching forms")
+      (is (= 0 (count (re-seq #"\(\+ x 1\)" updated))) "Should have no original first forms left")
+      (is (= 0 (count (re-seq #"\(\+ x 2\)" updated))) "Should have no original second forms left"))))
 

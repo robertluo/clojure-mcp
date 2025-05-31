@@ -53,7 +53,7 @@
    - A map with :outputs (raw outputs), :error (boolean flag)"
   [nrepl-client opts]
   (let [{:keys [code ns timeout-ms session]} opts
-        timeout-ms (or timeout-ms 5000)
+        timeout-ms (or timeout-ms 20000)
         outputs (atom [])
         error-occurred (atom false)
         form-str code
