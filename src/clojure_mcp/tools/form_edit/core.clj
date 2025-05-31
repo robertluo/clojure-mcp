@@ -761,19 +761,19 @@
          (= (count matched) len))))
 
 (defn remove-n-sexps [n zloc]
-  (first (drop n
-               (iterate
-                (fn [loc]
-                  (-> (try
-                        (z/remove loc)
-                        (catch Exception _
-                          (z/replace loc (n/whitespace-node " "))))
-                      z/next))
-                zloc))))
-
-;; replace multi repositions to the start of the replacement
-;; this will not work for replace-all strategy
-;; but does work for capturing the start location for highlighting
+  (cond
+    (zero? n) zloc
+    (= 1 n)
+    (try
+      (z/remove-preserve-newline zloc)
+      (catch Exception _
+        (z/replace zloc (n/whitespace-node " "))))
+    :else (recur (dec n)
+                 (-> (try
+                       (z/remove zloc)
+                       (catch Exception _
+                         (z/replace zloc (n/whitespace-node " "))))
+                     z/next))))
 
 (defn iterate-to-n [f x n]
   (->> (iterate f x)
@@ -818,6 +818,7 @@
 (defn find-multi-sexp [zloc match-sexprs]
   (->> (iterate z/next zloc)
        (take-while (complement z/end?))
+       (filter z/sexpr-able?)
        (filter #(match-multi-sexp match-sexprs %))
        first))
 
@@ -878,25 +879,61 @@
 
   (-> (find-and-edit-multi-sexp
        debug-zloc
-       "#(* % 2)"
-       ":new-key"
+       "(+ x y)"
+       "(+ xxx yyx)"
        {:operation :replace
-        :all? true
+        :all? false
         })
       :zloc
-      z/root-string)
+      z/root-string
+      println)
 
-  (z/root-string (find-and-edit-multi-sexp
-                  (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
-                  :insert-after
-                  "1 2 3 4 5 "
-                  "a b c d e"))
+  (-> (find-and-edit-multi-sexp
+       (z/of-string "#_1 2")
+       "2"
+       "3"
+       {:operation :replace
+        :all? false
+        })
+      :zloc
+      z/root-string
+      #_println)
 
-  (z/root-string (find-and-edit-multi-sexp
-                  (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
-                  :insert-before
-                  "1 2 3 4 5 "
-                  "a b c d e"))
+  (-> (find-and-edit-multi-sexp
+       (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
+       "1 2 3 4 5 "
+       "a b c d e"
+       {:operation :insert-after})
+      :zloc
+      z/root-string 
+      )
+
+    (-> (find-and-edit-multi-sexp
+       (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
+       "1 2 3 4 5 "
+       "a b c d e"
+       {:operation :insert-before})
+      :zloc
+      z/root-string 
+      )
+
+    (-> (find-and-edit-multi-sexp
+         (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
+         "1 2 3 4 5 "
+         "a b c d e"
+         {:operation :replace})
+        :zloc
+        z/root-string 
+        )
+
+    (-> (find-and-edit-multi-sexp
+         (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
+         "1"
+         "a"
+         {:operation :replace})
+        :zloc
+        z/root-string 
+        )
 
   (z/root-string (:zloc (find-and-edit-multi-sexp
                          (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
