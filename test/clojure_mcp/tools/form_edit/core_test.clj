@@ -564,3 +564,68 @@
       (is (= 0 (count (re-seq #"\(\+ x 1\)" updated))) "Should have no original first forms left")
       (is (= 0 (count (re-seq #"\(\+ x 2\)" updated))) "Should have no original second forms left"))))
 
+(deftest zchild-match-exprs-test
+  (testing "Basic whitespace normalization"
+    (let [s1 "a  b   c  (list\n  d)"
+          s2 "a b c (list d)"
+          result1 (sut/zchild-match-exprs (z/of-string s1))
+          result2 (sut/zchild-match-exprs (z/of-string s2))]
+      (is (= result1 result2) "Whitespace should be normalized")))
+
+  (testing "Comments and discards with clean? false (default)"
+    (let [s1 "a ;; comment\n #_ ignored b"
+          s2 "a b"
+          result1 (sut/zchild-match-exprs (z/of-string s1))
+          result2 (sut/zchild-match-exprs (z/of-string s2))]
+      (is (not= result1 result2) "Comments and discards should be preserved by default")))
+
+  (testing "Comments and discards with clean? true"
+    (let [s1 "a ;; comment\n #_ ignored b"
+          s2 "a b"
+          result1 (sut/zchild-match-exprs (z/of-string s1) :clean? true)
+          result2 (sut/zchild-match-exprs (z/of-string s2) :clean? true)]
+      (is (= result1 result2) "Comments and discards should be removed when clean? is true")))
+
+  (testing "Nested reader macros"
+    (let [s1 "(defn foo [x] (map #(+ % 1) x))"
+          s2 "(defn   foo\n  [x]\n  (map  #(+   %   1)  x))"
+          result1 (sut/zchild-match-exprs (z/of-string s1))
+          result2 (sut/zchild-match-exprs (z/of-string s2))]
+      (is (= result1 result2) "Reader macros should be preserved with normalized whitespace")))
+
+  (testing "Complex nested structure with reader macros"
+    (let [s1 "(let [f #(+ %1 %2)] (f 1 2))"
+          s2 "(let  [f   #(+  %1\n              %2)]\n  (f   1   2))"
+          result1 (sut/zchild-match-exprs (z/of-string s1))
+          result2 (sut/zchild-match-exprs (z/of-string s2))]
+      (is (= result1 result2) "Complex nesting with reader macros should normalize correctly")))
+
+  (testing "String literals preserve internal spaces"
+    (let [s1 "(str \"hello    world\")"
+          s2 "(str   \"hello    world\")"
+          result1 (sut/zchild-match-exprs (z/of-string s1))
+          result2 (sut/zchild-match-exprs (z/of-string s2))]
+      (is (= result1 result2) "String literal content should be preserved exactly")))
+
+  (testing "Multiple reader macros in sequence"
+    (let [s1 "#(+ % 1) #(* % 2) #(- % 3)"
+          s2 "#(+   %   1)\n#(*   %   2)\n#(-   %   3)"
+          result1 (sut/zchild-match-exprs (z/of-string s1))
+          result2 (sut/zchild-match-exprs (z/of-string s2))]
+      (is (= result1 result2) "Multiple reader macros should normalize independently")))
+
+  (testing "Reader conditionals"
+    (let [s1 "#?(:clj (+ 1 2) :cljs (+ 3 4))"
+          s2 "#?(:clj   (+   1   2)\n   :cljs   (+   3   4))"
+          result1 (sut/zchild-match-exprs (z/of-string s1))
+          result2 (sut/zchild-match-exprs (z/of-string s2))]
+      (is (= result1 result2) "Reader conditionals should normalize correctly")))
+
+  (testing "Mix of features - comments, discards, reader macros"
+    (let [s1 "(defn process ;; main function\n  [data]\n  #_ (println \"debug\")\n  (map #(* % 2) data))"
+          s2 "(defn   process\n[data]   (map   #(*   %   2)   data))"
+          result1-clean (sut/zchild-match-exprs (z/of-string s1) :clean? true)
+          result2-clean (sut/zchild-match-exprs (z/of-string s2) :clean? true)]
+      (is (= result1-clean result2-clean) "Mixed features should normalize when cleaned"))))
+
+

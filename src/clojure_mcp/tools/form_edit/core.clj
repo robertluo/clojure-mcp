@@ -766,28 +766,31 @@
         (n/replace-children node filtered))
       node)))
 
-(defn normalize-and-clean-node 
+(defn normalize-and-clean-node
   "Normalize whitespace and remove non-semantic forms"
   [node]
   (cond
     ;; Skip non-semantic nodes entirely
     (not (semantic-nodes? node)) nil
-    
+
     ;; For forms node, recursively process children
     (= :forms (n/tag node))
     (n/forms-node (->> (n/children node)
                        (map normalize-and-clean-node)
                        (filter some?)))
-    
+
     ;; For other container nodes
     (n/inner? node)
     (let [children (n/children node)
           cleaned (->> children
-                      (map normalize-and-clean-node)
-                      (filter some?)
-                      (interpose (n/spaces 1))
-                      vec)]
-      (n/replace-children node cleaned))))
+                       (map normalize-and-clean-node)
+                       (filter some?)
+                       (interpose (n/spaces 1))
+                       vec)]
+      (n/replace-children node cleaned))
+
+    ;; Leaf nodes pass through
+    :else node))
 
 (defn zchild-match-exprs
   "Extract expressions for pattern matching.
@@ -822,8 +825,8 @@
          (map (fn [node]
                 (if (semantic-nodes? node)
                   (-> ((if clean?
-                        normalize-and-clean-node
-                        normalize-whitespace-node)
+                         normalize-and-clean-node
+                         normalize-whitespace-node)
                        node)
                       n/string)
                   (n/string node)))))))
