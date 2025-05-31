@@ -6,6 +6,7 @@
    [rewrite-clj.zip :as z]
    [rewrite-clj.parser :as p]
    [rewrite-clj.node :as n]
+   [rewrite-clj.paredit :as par]
    [cljfmt.core :as fmt]
    [clojure.string :as str]
    [clojure.java.io :as io]))
@@ -760,25 +761,21 @@
     (and (every? identity matched)
          (= (count matched) len))))
 
-(defn remove-n-sexps [n zloc]
-  (cond
-    (zero? n) zloc
-    (= 1 n)
-    (try
-      (z/remove-preserve-newline zloc)
-      (catch Exception _
-        (z/replace zloc (n/whitespace-node " "))))
-    :else (recur (dec n)
-                 (-> (try
-                       (z/remove zloc)
-                       (catch Exception _
-                         (z/replace zloc (n/whitespace-node " "))))
-                     z/next))))
-
 (defn iterate-to-n [f x n]
   (->> (iterate f x)
        (take n)
        last))
+
+(defn kill-n-sexps [n zloc]
+  ;; zloc on first item to remove
+  ;; calling z/next after this should get you to the next position
+  (-> zloc 
+      (z/insert-left (p/parse-string "(__clojure-mcp-edit-marker__)"))
+      z/prev ;; inside added node
+      ;; then slurp into the node
+      (as-> z (iterate-to-n par/slurp-forward z (inc n)))
+      z/up
+      z/remove-preserve-newline))
 
 (defn zleft-n [zloc n]
   (iterate-to-n z/left zloc n))
@@ -789,11 +786,11 @@
 ;; TODO probably dont need special handing for empty replacement
 (defn replace-multi [zloc match-sexprs replacement-node]
   (if (nil? replacement-node)
-    (let [after-loc (remove-n-sexps (count match-sexprs) zloc)]
+    (let [after-loc (kill-n-sexps (count match-sexprs) zloc)]
       {:edit-loc after-loc
        :after-loc after-loc})
     (let [after-loc (->> (z/insert-left zloc replacement-node)
-                         (remove-n-sexps (count match-sexprs)))]
+                         (kill-n-sexps (count match-sexprs)))]
       {:edit-loc (zleft-n after-loc (count (n/child-sexprs replacement-node)))
        :after-loc after-loc})))
 
@@ -854,8 +851,52 @@
       {:zloc edit-loc
        :count 1})))
 
+
+
 (comment
 
+  (let [source "(defn test-fn [x] (+ x 1) (+ x 2))"
+        zloc 
+        result 
+        updated (z/root-string (:zloc result))])
+
+
+  
+  
+  (-> (find-and-edit-multi-sexp
+       (z/of-string "(defn test-fn [x] (+ x 1) (+ x 2))")
+       "(+ x 1) (+ x 2)"
+       "(inc x) (+ x 10)"
+       {:operation :replace})
+      :zloc
+
+      )
+
+  (-> (z/of-string "(+ x 1) (+ x 2)"))
+  
+  (let [new-node (p/parse-string-all "(inc x) (+ x 10)")]
+    (-> (find-multi-sexp
+         (z/of-string "(defn test-fn [x] (+ x 1) (+ x 2))")
+         (str-forms->sexps "(+ x 1) (+ x 2)"))
+        (z/insert-left new-node)
+        (remove-n-sexps-new 2)
+        ;;(z/insert-left (p/parse-string "(:edit-marker)"))
+        ;;z/prev
+        ;;(par/slurp-forward)
+        ;;(par/slurp-forward)
+        ;;z/up
+        ;;z/remove
+        #_(z/subedit->
+              (z/replace (p/parse-string "x")))
+        ;; z/remove
+        #_(replace-multi
+           (str-forms->sexps "(+ x 1) (+ x 2)")
+
+           )
+        z/root-string
+        ))
+
+  
   (def test-content (str "(ns test.core)\n\n"
                          "(defn example-fn [x y]\n"
                          "  #_(println \"debug value:\" x)\n"
@@ -908,7 +949,7 @@
       z/root-string 
       )
 
-    (-> (find-and-edit-multi-sexp
+  (-> (find-and-edit-multi-sexp
        (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
        "1 2 3 4 5 "
        "a b c d e"
@@ -917,23 +958,23 @@
       z/root-string 
       )
 
-    (-> (find-and-edit-multi-sexp
-         (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
-         "1 2 3 4 5 "
-         "a b c d e"
-         {:operation :replace})
-        :zloc
-        z/root-string 
-        )
+  (-> (find-and-edit-multi-sexp
+       (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
+       "1 2 3 4 5 "
+       "a b c d e"
+       {:operation :replace})
+      :zloc
+      z/root-string 
+      )
 
-    (-> (find-and-edit-multi-sexp
-         (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
-         "1"
-         "a"
-         {:operation :replace})
-        :zloc
-        z/root-string 
-        )
+  (-> (find-and-edit-multi-sexp
+       (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
+       "1"
+       "a"
+       {:operation :replace})
+      :zloc
+      z/root-string 
+      )
 
   (z/root-string (:zloc (find-and-edit-multi-sexp
                          (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
