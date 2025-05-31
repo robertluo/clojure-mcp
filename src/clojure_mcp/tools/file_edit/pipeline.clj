@@ -92,7 +92,7 @@
     (catch Exception e
       ;; Don't fail the pipeline if offsets can't be captured, just log it
       ;; This allows non-Emacs workflows to continue
-      (println "Warning: Failed to capture edit offsets -" (.getMessage e))
+      (log/error e (str "Warning: Failed to capture edit offsets -" (.getMessage e)))
       ctx)))
 
 ;; This function is no longer needed - we'll use form-pipeline/highlight-form instead
