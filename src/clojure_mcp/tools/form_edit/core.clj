@@ -745,11 +745,95 @@
 
 ;; multi sexp editing
 
-(defn zchild-sexprs [zloc]
-  (->> (iterate z/right zloc)
-       (take-while some?)
-       (filter z/sexpr-able?)
-       (map z/string)))
+(defn semantic-nodes?
+  "Returns true if node contributes to program semantics"
+  [node]
+  (not (#{:comment :uneval :whitespace :newline :comma} (n/tag node))))
+
+(defn normalize-whitespace-node
+  "Normalize whitespace within a node while preserving structure"
+  [node]
+  (if (= :forms (n/tag node))
+    (n/forms-node (map normalize-whitespace-node (n/children node)))
+    (if (n/inner? node)
+      (let [children (n/children node)
+            filtered (->> children
+                          (remove #(#{:whitespace :newline :comma} (n/tag %)))
+                          (map normalize-whitespace-node)
+                          (interpose (n/spaces 1))
+                          vec)]
+        (n/replace-children node filtered))
+      node)))
+
+(defn normalize-and-clean-node 
+  "Normalize whitespace and remove non-semantic forms"
+  [node]
+  (cond
+    ;; Skip non-semantic nodes entirely
+    (not (semantic-nodes? node)) nil
+    
+    ;; For forms node, recursively process children
+    (= :forms (n/tag node))
+    (n/forms-node (->> (n/children node)
+                       (map normalize-and-clean-node)
+                       (filter some?)))
+    
+    ;; For other container nodes
+    (n/inner? node)
+    (let [children (n/children node)
+          cleaned (->> children
+                      (map normalize-and-clean-node)
+                      (filter some?)
+                      (interpose (n/spaces 1))
+                      vec)]
+      (n/replace-children node cleaned))))
+
+(defn zchild-match-exprs
+  "Extract expressions for pattern matching.
+
+   Normalizes whitespace within semantic forms.
+
+   By default, including comments and #_ forms. Preserves accuracy by
+   including non-semantic nodes in sequence. Set clean? to true if you want to ignore
+   comments in the match.
+   
+   Options:
+   - :clean? (default false) 
+   
+   Example:
+   (zchild-match-exprs (z/of-string* \";; TODO\\n(defn foo [x] x)\"))
+   => (\";; TODO\\n\" \"(defn foo [x] x)\")"
+  [zloc & {:keys [clean?] :or {clean? false}}]
+  (let [nodes (if (= :forms (z/tag zloc))
+                ;; If at forms node, get children
+                (n/children (z/node zloc))
+                ;; Otherwise iterate through siblings
+                (->> (iterate z/right* zloc)
+                     (take-while some?)
+                     (map z/node)))]
+    (->> nodes
+         (filter (fn [node]
+                   (let [tag (n/tag node)]
+                     (or (semantic-nodes? node)
+                         (and (not clean?)
+                              (or (= :comment tag)
+                                  (= :uneval tag)))))))
+         (map (fn [node]
+                (if (semantic-nodes? node)
+                  (-> ((if clean?
+                        normalize-and-clean-node
+                        normalize-whitespace-node)
+                       node)
+                      n/string)
+                  (n/string node)))))))
+
+(def zchild-sexprs zchild-match-exprs)
+
+#_(defn zchild-sexprs [zloc]
+    (->> (iterate z/right zloc)
+         (take-while some?)
+         (filter z/sexpr-able?)
+         (map z/string)))
 
 (defn str-forms->sexps [str-forms]
   (zchild-sexprs (z/of-string str-forms)))
@@ -769,7 +853,7 @@
 (defn kill-n-sexps [n zloc]
   ;; zloc on first item to remove
   ;; calling z/next after this should get you to the next position
-  (-> zloc 
+  (-> zloc
       (z/insert-left (p/parse-string "(__clojure-mcp-edit-marker__)"))
       z/prev ;; inside added node
       ;; then slurp into the node
@@ -856,24 +940,19 @@
 (comment
 
   (let [source "(defn test-fn [x] (+ x 1) (+ x 2))"
-        zloc 
-        result 
+        zloc
+        result
         updated (z/root-string (:zloc result))])
 
-
-  
-  
   (-> (find-and-edit-multi-sexp
        (z/of-string "(defn test-fn [x] (+ x 1) (+ x 2))")
        "(+ x 1) (+ x 2)"
        "(inc x) (+ x 10)"
        {:operation :replace})
-      :zloc
-
-      )
+      :zloc)
 
   (-> (z/of-string "(+ x 1) (+ x 2)"))
-  
+
   (let [new-node (p/parse-string-all "(inc x) (+ x 10)")]
     (-> (find-multi-sexp
          (z/of-string "(defn test-fn [x] (+ x 1) (+ x 2))")
@@ -887,16 +966,13 @@
         ;;z/up
         ;;z/remove
         #_(z/subedit->
-              (z/replace (p/parse-string "x")))
+           (z/replace (p/parse-string "x")))
         ;; z/remove
         #_(replace-multi
-           (str-forms->sexps "(+ x 1) (+ x 2)")
+           (str-forms->sexps "(+ x 1) (+ x 2)"))
 
-           )
-        z/root-string
-        ))
+        z/root-string))
 
-  
   (def test-content (str "(ns test.core)\n\n"
                          "(defn example-fn [x y]\n"
                          "  #_(println \"debug value:\" x)\n"
@@ -923,8 +999,7 @@
        "(+ x y)"
        "(+ xxx yyx)"
        {:operation :replace
-        :all? false
-        })
+        :all? false})
       :zloc
       z/root-string
       println)
@@ -934,8 +1009,7 @@
        "2"
        "3"
        {:operation :replace
-        :all? false
-        })
+        :all? false})
       :zloc
       z/root-string
       #_println)
@@ -946,8 +1020,7 @@
        "a b c d e"
        {:operation :insert-after})
       :zloc
-      z/root-string 
-      )
+      z/root-string)
 
   (-> (find-and-edit-multi-sexp
        (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
@@ -955,8 +1028,7 @@
        "a b c d e"
        {:operation :insert-before})
       :zloc
-      z/root-string 
-      )
+      z/root-string)
 
   (-> (find-and-edit-multi-sexp
        (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
@@ -964,8 +1036,7 @@
        "a b c d e"
        {:operation :replace})
       :zloc
-      z/root-string 
-      )
+      z/root-string)
 
   (-> (find-and-edit-multi-sexp
        (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
@@ -973,8 +1044,7 @@
        "a"
        {:operation :replace})
       :zloc
-      z/root-string 
-      )
+      z/root-string)
 
   (z/root-string (:zloc (find-and-edit-multi-sexp
                          (z/of-node (p/parse-string-all "[1 2 3 4 5]"))
@@ -990,6 +1060,4 @@
         :replace-all true})
       #_:locations
       :zloc
-      z/root-string)
-
-  )
+      z/root-string))
