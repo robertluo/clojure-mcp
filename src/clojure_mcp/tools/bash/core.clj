@@ -152,19 +152,10 @@ EDN parsing failed: %s\nRaw result: %s"
                           working-directory
                           timeout-ms)
           eval-timeout-ms (+ 5000 timeout-ms)
-          result (try
-                   (eval-core/evaluate-code
-                    @nrepl-client-atom
-                    {:code clj-shell-code
-                     :timeout-ms eval-timeout-ms})
-                   ;; this is an internal exception
-                   (catch Exception e
-                     ;; prevent errors from confusing the LLM
-                     (log/error e "Error when trying to eval on the nrepl connection")
-                     (throw
-                      (ex-info
-                       (str "Internal Error: Unable to reach the REPL is not currently connected "
-                            "thus we are unable to execute the bash command.")))))
+          result (eval-core/evaluate-code
+                  @nrepl-client-atom
+                  {:code clj-shell-code
+                   :timeout-ms eval-timeout-ms})
           output-map (into {} (:outputs result))
           inner-value (:value output-map)]
       (when (:error result)

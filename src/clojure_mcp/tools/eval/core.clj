@@ -5,7 +5,8 @@
    [clojure-mcp.nrepl :as nrepl]
    [clojure-mcp.linting :as linting]
    [clojure-mcp.sexp.paren-utils :as paren-utils]
-   [clojure.string :as string]))
+   [clojure.string :as string]
+   [clojure.tools.logging :as log]))
 
 ;; Eval results formatting
 ;; The goal is to make it clear for the LLM to understand
@@ -79,24 +80,32 @@
           (swap! state update :clojure-mcp.repl-tools/eval-history conj form-str))
 
         ;; Evaluate the code, using the namespace parameter if provided
-        (nrepl/eval-code-msg
-         nrepl-client form-str
-         (if session {:session session} {})
-         (->> identity
-              (nrepl/out-err
-               #(add-output! :out %)
-               #(add-output! :err %))
-              (nrepl/value #(add-output! :value %))
-              (nrepl/done (fn [_]
-                            (deliver result-promise
-                                     {:outputs @outputs
-                                      :error @error-occurred})))
-              (nrepl/error (fn [_]
-                             (reset! error-occurred true)
-                             (add-output! :err "Evaluation failed")
-                             (deliver result-promise
-                                      {:outputs @outputs
-                                       :error true})))))
+        (try
+          (nrepl/eval-code-msg
+           nrepl-client form-str
+           (if session {:session session} {})
+           (->> identity
+                (nrepl/out-err
+                 #(add-output! :out %)
+                 #(add-output! :err %))
+                (nrepl/value #(add-output! :value %))
+                (nrepl/done (fn [_]
+                              (deliver result-promise
+                                       {:outputs @outputs
+                                        :error @error-occurred})))
+                (nrepl/error (fn [_]
+                               (reset! error-occurred true)
+                               (add-output! :err "Evaluation failed")
+                               (deliver result-promise
+                                        {:outputs @outputs
+                                         :error true})))))
+          (catch Exception e
+            ;; prevent connection errors from confusing the LLM
+            (log/error e "Error when trying to eval on the nrepl connection")
+            (throw
+             (ex-info
+              (str "Internal Error: Unable to reach the REPL is not currently connected "
+                   "thus we are unable to execute the bash command.")))))
 
         ;; Wait for the result and return it
         (let [tmb (Object.)
