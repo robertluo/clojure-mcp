@@ -175,7 +175,8 @@
   (testing "format-source formats the source code"
     ;; Manual setup to avoid dependency on zloc->output-source
     (let [source "(ns test.core)\n\n(defn  example-fn[x y]   (+ x y))"
-          ctx {::sut/output-source source} ;; Directly use the source as output source
+          ctx {::sut/nrepl-client-atom *nrepl-client-atom*
+               ::sut/output-source source} ;; Directly use the source as output source
           result (sut/format-source ctx)]
       (is (string? (::sut/output-source result)))
       (is (not (str/includes? (::sut/output-source result) "  example-fn[x y]")))

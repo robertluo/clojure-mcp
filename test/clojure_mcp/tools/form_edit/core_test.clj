@@ -305,7 +305,9 @@
 (deftest format-source-string-test
   (testing "format-source-string correctly formats source code"
     (let [unformatted "(defn   example-fn[x y]  (+ x  y)   )"
-          formatted (sut/format-source-string unformatted)]
+          formatted (sut/format-source-string
+                     unformatted
+                     sut/default-formatting-options)]
       ;; Compare as EDN to ignore whitespace differences
       (is (= (read-string unformatted) (read-string formatted))))))
 

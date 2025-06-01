@@ -29,13 +29,14 @@
    
    Returns:
    - A map with :error, :type, :file-path, and :diff keys"
-  [file-path content]
+  [nrepl-client-atom file-path content]
   (let [file (io/file file-path)
         file-exists? (.exists file)
         old-content (if file-exists? (slurp file) "")
 
         ;; Create a context map for the pipeline
-        initial-ctx {::pipeline/file-path file-path
+        initial-ctx {::pipeline/nrepl-client-atom nrepl-client-atom
+                     ::pipeline/file-path file-path
                      ::pipeline/source old-content
                      ::pipeline/new-source-code content
                      ::pipeline/old-content old-content
@@ -104,7 +105,7 @@
    
    Returns:
    - A map with :error, :type, :file-path, and :diff keys"
-  [file-path content]
+  [nrepl-client-atom file-path content]
   (if (is-clojure-file? file-path)
-    (write-clojure-file file-path content)
+    (write-clojure-file nrepl-client-atom file-path content)
     (write-text-file file-path content)))

@@ -87,7 +87,7 @@ Before using this tool:
 
 (defmethod tool-system/execute-tool :file-write [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [file-path content]} inputs
-        result (core/write-file file-path content)]
+        result (core/write-file nrepl-client-atom file-path content)]
     ;; Update the timestamp if write was successful and we have a client atom
     (when (and nrepl-client-atom (not (:error result)))
       (file-timestamps/update-file-timestamp-to-current-mtime! nrepl-client-atom file-path))

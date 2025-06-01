@@ -1,6 +1,7 @@
 (ns clojure-mcp.tools.test-utils
   "Utility functions for testing the tool-system based tools."
   (:require
+   [clojure-mcp.config :as config]
    [clojure-mcp.nrepl :as nrepl]
    [nrepl.server :as nrepl-server]
    [clojure-mcp.tool-system :as tool-system]
@@ -15,7 +16,8 @@
 (defn test-nrepl-fixture [f]
   (let [server (nrepl-server/start-server :port 0) ; Use port 0 for dynamic port assignment
         port (:port server)
-        client (nrepl/create {:port port})
+        client (-> (nrepl/create {:port port})
+                   (assoc ::config/config {:nrepl-user-dir "."}))
         client-atom (atom client)]
     (nrepl/start-polling client)
     (nrepl/eval-code client "(require 'clojure.repl)" identity)
