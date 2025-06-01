@@ -1,5 +1,7 @@
 (ns clojure-mcp.tools.form-edit.core-test
   (:require
+   [clojure-mcp.tools.test-utils :as test-utils]
+   [clojure-mcp.config :as config]
    [clojure.test :refer [deftest testing is use-fixtures]]
    [clojure-mcp.tools.form-edit.core :as sut]
    [rewrite-clj.zip :as z]
@@ -18,12 +20,14 @@
       (spit test-file "(ns test.core)\n\n(defn example-fn [x y]\n  #_(println \"debug value:\" x)\n  (+ x y))\n\n(def a 1)\n\n#_(def unused-value 42)\n\n(comment\n  (example-fn 1 2))\n\n;; Test comment\n;; spans multiple lines")
       (binding [*test-dir* test-dir
                 *test-file* test-file]
+        (config/set-config! test-utils/*nrepl-client-atom* :nrepl-user-dir test-dir)
         (try
           (f)
           (finally
             (when (.exists test-file) (.delete test-file))
             (when (.exists test-dir) (.delete test-dir))))))))
 
+(use-fixtures :once test-utils/test-nrepl-fixture)
 (use-fixtures :each create-test-files-fixture)
 
 ;; Test helper functions
@@ -305,9 +309,20 @@
 (deftest format-source-string-test
   (testing "format-source-string correctly formats source code"
     (let [unformatted "(defn   example-fn[x y]  (+ x  y)   )"
-          formatted (sut/format-source-string unformatted)]
+          formatted (sut/format-source-string
+                     unformatted
+                     sut/default-formatting-options)]
       ;; Compare as EDN to ignore whitespace differences
       (is (= (read-string unformatted) (read-string formatted))))))
+
+(deftest project-formatting-options-test
+  (testing "format-source-string correctly formats source code"
+    (let [custom-options {:function-arguments-indentation :cursive}
+          _ (spit (io/file *test-dir* "cljfmt.edn") (pr-str custom-options))
+          formatting-options (sut/project-formatting-options
+                              @test-utils/*nrepl-client-atom*)]
+      (is (= (merge sut/default-formatting-options custom-options)
+             formatting-options)))))
 
 (deftest load-file-content-test
   (testing "load-file-content loads existing file"

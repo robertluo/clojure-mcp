@@ -1,6 +1,7 @@
 (ns clojure-mcp.tools.test-utils
   "Utility functions for testing the tool-system based tools."
   (:require
+   [clojure-mcp.config :as config]
    [clojure-mcp.nrepl :as nrepl]
    [nrepl.server :as nrepl-server]
    [clojure-mcp.tool-system :as tool-system]

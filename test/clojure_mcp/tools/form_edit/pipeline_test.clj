@@ -1,6 +1,7 @@
 (ns clojure-mcp.tools.form-edit.pipeline-test
   (:require
    [clojure.test :refer [deftest testing is use-fixtures]]
+   [clojure-mcp.config :as config]
    [clojure-mcp.tools.form-edit.pipeline :as sut]
    [clojure-mcp.tools.form-edit.core :as core]
    [clojure-mcp.tools.test-utils :as test-utils]
@@ -11,7 +12,6 @@
 ;; Test fixtures
 (def ^:dynamic *test-dir* nil)
 (def ^:dynamic *test-file* nil)
-
 (def ^:dynamic *nrepl-client-atom* nil)
 
 (defn create-test-files-fixture [f]
@@ -29,6 +29,7 @@
                           test-file-content)]
       (binding [*test-dir* test-dir
                 *test-file* (io/file test-file-path)]
+        (config/set-config! test-utils/*nrepl-client-atom* :nrepl-user-dir test-dir)
         (try
           (f)
           (finally
@@ -175,7 +176,8 @@
   (testing "format-source formats the source code"
     ;; Manual setup to avoid dependency on zloc->output-source
     (let [source "(ns test.core)\n\n(defn  example-fn[x y]   (+ x y))"
-          ctx {::sut/output-source source} ;; Directly use the source as output source
+          ctx {::sut/nrepl-client-atom *nrepl-client-atom*
+               ::sut/output-source source} ;; Directly use the source as output source
           result (sut/format-source ctx)]
       (is (string? (::sut/output-source result)))
       (is (not (str/includes? (::sut/output-source result) "  example-fn[x y]")))
