@@ -1,6 +1,7 @@
 (ns clojure-mcp.tools.file-write.core-test
   (:require
    [clojure.test :refer [deftest is testing use-fixtures]]
+   [clojure-mcp.config :as config]
    [clojure-mcp.tools.file-write.core :as file-write-core]
    [clojure-mcp.tools.test-utils :as test-utils]
    [clojure.java.io :as io]
@@ -29,6 +30,7 @@
     (binding [*test-dir* test-dir
               *test-clj-file* test-clj-file
               *test-txt-file* test-txt-file]
+      (config/set-config! test-utils/*nrepl-client-atom* :nrepl-user-dir test-dir)
       (try
         (f)
         (finally
@@ -38,8 +40,8 @@
               (.delete file)))
           (.delete test-dir))))))
 
-(use-fixtures :each create-test-files-fixture)
 (use-fixtures :once test-utils/test-nrepl-fixture)
+(use-fixtures :each create-test-files-fixture)
 
 (deftest is-clojure-file-test
   (testing "Detecting Clojure file extensions"
