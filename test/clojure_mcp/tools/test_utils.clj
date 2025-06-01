@@ -16,8 +16,7 @@
 (defn test-nrepl-fixture [f]
   (let [server (nrepl-server/start-server :port 0) ; Use port 0 for dynamic port assignment
         port (:port server)
-        client (-> (nrepl/create {:port port})
-                   (assoc ::config/config {:nrepl-user-dir "."}))
+        client (nrepl/create {:port port})
         client-atom (atom client)]
     (nrepl/start-polling client)
     (nrepl/eval-code client "(require 'clojure.repl)" identity)
