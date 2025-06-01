@@ -316,7 +316,7 @@
       (is (= (read-string unformatted) (read-string formatted))))))
 
 (deftest project-formatting-options-test
-  (testing "format-source-string correctly formats source code"
+  (testing "project-formatting-options returns options from cljfmt config files"
     (let [custom-options {:function-arguments-indentation :cursive}
           _ (spit (io/file *test-dir* "cljfmt.edn") (pr-str custom-options))
           formatting-options (sut/project-formatting-options
