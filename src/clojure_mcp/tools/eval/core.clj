@@ -104,7 +104,7 @@
             (log/error e "Error when trying to eval on the nrepl connection")
             (throw
              (ex-info
-              (str "Internal Error: Unable to reach the REPL is not currently connected "
+              (str "Internal Error: Unable to reach the nREPL "
                    "thus we are unable to execute the bash command.")))))
 
         ;; Wait for the result and return it
