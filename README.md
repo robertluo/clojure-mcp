@@ -16,6 +16,31 @@
 A Model Context Protocol (MCP) server for Clojure that provides a
 complete set of tools to aid in the development of Clojure projects.
 
+## TDLR: what does this all mean for me?
+
+With Clojure MCP alone you can turn an LLM into a powerful Clojure
+REPL and coding assistant.
+
+Importantly, in the REPL the form and maintainablity of the code being
+evaluated DOES NOT MATTER. As a result, LLMs are unarguably fantastic
+Clojure REPL assistants that perform evaluations quickly and much more
+effectively than you can imagine. Ask anyone who has experienced this
+and they will all tell you that the LLMs are performing much better in
+the Clojure REPL than they would have imagined.
+
+Editing Clojure: LLMs with current edit tooling still struggle with
+the parenthesis. Clojure MCP has a different take on editing that
+increases edit acceptance rates significantly. Clojure MCP lints code
+coming in, fixes parenthesis if possible, uses clj-rewrite to apply
+syntax aware patches, and then lints and formats the final
+result. This is a powerful editing pipeline that vastly outperforms
+when it comes to editing Clojure Code.
+
+Together these two features along with a set of other Clojure aware
+tools create a new and unique LLM developing experience that you
+probably should try at least once to understand how transformational
+it is.
+
 ## 🚀 Overview
 
 This project implements an MCP server that connects AI models to a
@@ -25,25 +50,34 @@ Clojure develop experience.
 Clojure MCP provides a superset of the tools that Claude Code uses,
 so you can use it to work on Clojure **without any other tools**.  I
 highly recommend using it with Claude Desktop to start.  It's
-prettier and there are **no api charges!** Claude Desktop also let's you
+more attractive and there are **no api charges!**. Claude Desktop, also let's you
 have quick access to **your own prompts** and other resources provided
 by the clojure-mcp server. Having a stack of your own prompts
-available in a UI menu is pretty nice.
+available in a UI menu is very convenient.
+
+> If you use the built in Agent tools you will accumulate API charges.
 
 ## Main Features
 
-- **Clojure REPL Connection**
+- **Clojure REPL Connection** - which lints the eval and auto-balances parens
 - **Clojure Aware editing** - Using clj-kondo, parinfer, cljfmt, and clj-rewrite
 - **Optimized set of tools for Clojure Development** superset of Claude Code
 - **Emacs edit highlighting** - alpha
 
 ### Why REPL-Driven Development with AI?
 
-This approach enables:
-- **Immediate feedback** - Validate code by running it in a stateful REPL, not just statically analyzing it
-- **Incremental development** - Build solutions in small, verified steps
-- **Human oversight** - Keep the programmer in the loop for guidance
-- **Functional approach** - Encourage pure functions that are easier to understand and test
+For Clojurists an LLM assisted REPL is the killer application.
+
+LLMs can:
+* **Iterate** on code in the REPL and when finished present the findings before adding them to your code
+* **Validate** and probe your code for errors
+* **Debug** your code in the REPL
+* and much more
+
+Additionally, in some LLM clients (including Claude Desktop), you can
+control which tools are available to the model at any given moment so
+you can easily remove the ability to edit files and restrict the model
+to the REPL tool and force the use of the REPL.
 
 ## 🧠 Model Compatibility
 
@@ -97,6 +131,8 @@ While you *can* use these tools alongside Claude Code and other code assistants 
 - Develop familiarity with the integrated approach before mixing systems
 
 Once you're comfortable with the Clojure MCP toolset, you can make informed decisions about whether to use it exclusively or integrate it with other code assistants and development tools based on your specific workflow needs.
+
+
 
 ## 📋 Installation
 
@@ -258,6 +294,11 @@ This workflow creates a virtuous cycle where each session builds on the accumula
 #### LLM API Keys
 
 > This is NOT required to use the Clojure MCP server.
+
+> IMPORTANT: if you have the following API keys set in your
+> environment, then ClojureMCP will make calls to them when you use
+> the `dispatch_agent`,`architect` and `code_critique` tools. These
+> calls will incur API charges.
 
 There are a few MCP tools provided that are agents unto themselves and they need API keys to function.
 
@@ -547,7 +588,10 @@ Want to create your own MCP tools?
 
 ## ⚙️ Configuration
 
-The Clojure MCP server supports project-specific configuration through a `.clojure-mcp/config.edn` file in your project's root directory. This configuration provides security controls and customization options for the MCP server.
+The Clojure MCP server supports minimal project-specific configuration
+through a `.clojure-mcp/config.edn` file in your project's root
+directory. This configuration provides security controls and
+customization options for the MCP server.
 
 ### Configuration File Location
 
