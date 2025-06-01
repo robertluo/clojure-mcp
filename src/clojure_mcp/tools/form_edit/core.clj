@@ -642,10 +642,12 @@
     (load-cljfmt-config nrepl-user-dir)))
 
 (defn format-source-string
-  "Formats a source code string using cljfmt with comprehensive formatting options.
+  "Formats a source code string using cljfmt. Use the project-formatting-options
+  function to get comprehensive formatting options for the current project.
    
    Arguments:
    - source-str: The source code string to format
+   - formatting-options: Options for cljfmt
    
    Returns:
    - The formatted source code string"
