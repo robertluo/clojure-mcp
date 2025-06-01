@@ -657,11 +657,13 @@ Returns a diff showing the changes made to the file.")
             (throw (ex-info (str "Invalid Clojure code in match_form: " (.getMessage e))
                             {:inputs inputs}))))))
 
-    (when-not (string? new_form)
+    (when-not (str/blank? new_form)
       ;; Validate that new_form is valid Clojure code
-      (throw (ex-info "Parameter error: new_form must be a string"
-                      {:inputs inputs})))
-
+      (try
+        (p/parse-string-all new_form)
+        (catch Exception e
+          (throw (ex-info (str "Invalid Clojure code in new_form: " (.getMessage e))
+                          {:inputs inputs})))))
     ;; Return validated inputs
     {:file_path file-path
      :match_form match_form
