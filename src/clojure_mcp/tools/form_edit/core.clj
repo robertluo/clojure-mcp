@@ -8,6 +8,8 @@
    [rewrite-clj.node :as n]
    [rewrite-clj.paredit :as par]
    [cljfmt.core :as fmt]
+   [cljfmt.config :as cljfmt-config]
+   [clojure-mcp.config :as config]
    [clojure.string :as str]
    [clojure.java.io :as io]))
 
@@ -617,6 +619,28 @@
 
 ;; Source code formatting
 
+(def default-formatting-options
+  {:indentation? true
+   :remove-surrounding-whitespace? true
+   :remove-trailing-whitespace? true
+   :insert-missing-whitespace? true
+   :remove-consecutive-blank-lines? true
+   :remove-multiple-non-indenting-spaces? true
+   :split-keypairs-over-multiple-lines? false
+   :sort-ns-references? false
+   :function-arguments-indentation :community
+   :indents fmt/default-indents})
+
+(defn- load-cljfmt-config [nrepl-user-dir]
+  (let [path (cljfmt-config/find-config-file nrepl-user-dir)]
+    (->> (some-> path cljfmt-config/read-config)
+         (merge default-formatting-options)
+         (cljfmt-config/convert-legacy-keys))))
+
+(defn project-formatting-options [nrepl-client-map]
+  (let [nrepl-user-dir (config/get-nrepl-user-dir nrepl-client-map)]
+    (load-cljfmt-config nrepl-user-dir)))
+
 (defn format-source-string
   "Formats a source code string using cljfmt with comprehensive formatting options.
    
@@ -625,18 +649,8 @@
    
    Returns:
    - The formatted source code string"
-  [source-str]
-  (let [formatting-options {:indentation? true
-                            :remove-surrounding-whitespace? true
-                            :remove-trailing-whitespace? true
-                            :insert-missing-whitespace? true
-                            :remove-consecutive-blank-lines? true
-                            :remove-multiple-non-indenting-spaces? true
-                            :split-keypairs-over-multiple-lines? false
-                            :sort-ns-references? false
-                            :function-arguments-indentation :community
-                            :indents fmt/default-indents}]
-    (fmt/reformat-string source-str formatting-options)))
+  [source-str formatting-options]
+  (fmt/reformat-string source-str formatting-options))
 
 ;; File operations
 
