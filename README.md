@@ -16,28 +16,29 @@
 A Model Context Protocol (MCP) server for Clojure that provides a
 complete set of tools to aid in the development of Clojure projects.
 
-## TDLR: what does this all mean for me?
+## TLDR: what does this all mean for me?
 
 With Clojure MCP alone you can turn an LLM into a powerful Clojure
 REPL and coding assistant.
 
-Importantly, in the REPL the form and maintainablity of the code being
-evaluated DOES NOT MATTER. As a result, LLMs are unarguably fantastic
-Clojure REPL assistants that perform evaluations quickly and much more
-effectively than you can imagine. Ask anyone who has experienced this
-and they will all tell you that the LLMs are performing much better in
-the Clojure REPL than they would have imagined.
+**LLMs excel in the Clojure REPL:** Current LLMs are unarguably
+fantastic Clojure REPL assistants that perform evaluations quickly and
+much more effectively than you can imagine. Ask anyone who has
+experienced this and they will tell you that the LLMs are performing
+much better in the Clojure REPL than they would have
+imagined. Additionally, we must remember that the form and
+maintainability of ephemeral code DOES NOT MATTER.
 
-Editing Clojure: LLMs with current edit tooling still struggle with
-the parenthesis. Clojure MCP has a different take on editing that
-increases edit acceptance rates significantly. Clojure MCP lints code
-coming in, fixes parenthesis if possible, uses clj-rewrite to apply
-syntax aware patches, and then lints and formats the final
-result. This is a powerful editing pipeline that vastly outperforms
-when it comes to editing Clojure Code.
+**Buttery Smooth Clojure Editing:** With current editing tools, LLMs
+still struggle with the parenthesis. Clojure MCP has a different take
+on editing that increases edit acceptance rates significantly. Clojure
+MCP lints code coming in, fixes parenthesis if possible, uses
+clj-rewrite to apply syntax aware patches, and then lints and formats
+the final result. This is a powerful editing pipeline that vastly
+outperforms when it comes to editing Clojure Code.
 
 Together these two features along with a set of other Clojure aware
-tools create a new and unique LLM developing experience that you
+tools create a new and unique LLM development experience that you
 probably should try at least once to understand how transformational
 it is.
 
