@@ -414,9 +414,7 @@
   [ctx]
   (try
     (let [source (::output-source ctx)
-          nrepl-client-map @(::nrepl-client-atom ctx)
-          formatting-options (core/project-formatting-options nrepl-client-map)
-          formatted (core/format-source-string source formatting-options)]
+          formatted (core/format-source-string source)]
       (assoc ctx ::output-source formatted))
     (catch Exception e
       ;; Instead of failing, use the original source if available
