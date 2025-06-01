@@ -115,7 +115,7 @@
    (merge {:session (tool-session service)}
           msg)))
 
-(def truncation-length 5000)
+(def truncation-length 10000) ;; 20000 roughly 250 lines
 
 (defn eval-code-msg
   [{:keys [::state] :as service} code-str msg' k]

@@ -5,6 +5,7 @@
    [clojure.string :as str]
    [clojure.edn :as edn]
    [clojure.tools.logging :as log]
+   [clojure-mcp.nrepl :as nrepl]
    [clojure-mcp.tools.eval.core :as eval-core])
   (:import
    (java.util.concurrent TimeUnit TimeoutException)
@@ -65,41 +66,41 @@
 (defn generate-shell-eval-code
   "Generate Clojure code to execute shell command with explicit timeout handling"
   [command working-directory timeout-ms]
-  (format "(try 
+  (format "(try
+             (require '[clojure.java.io :as io])
+             (require '[clojure.string :as str])
              (let [pb (ProcessBuilder. (into-array [\"bash\" \"-c\" %s]))
                    _ %s
                    process (.start pb)
-                   timeout-ms %s
-                   completed (.waitFor process timeout-ms java.util.concurrent.TimeUnit/MILLISECONDS)]
+                   completed (.waitFor process %s java.util.concurrent.TimeUnit/MILLISECONDS)
+                   nrepl-limit %s
+                   max-stderr-length (quot nrepl-limit 2)
+                   truncate-with-limit
+                   (fn [s limit]
+                     (if (> (count s) limit)
+                       (str (subs s 0 (- limit 16))
+                            \"\\n... (truncated)\")
+                       s))
+                   read-it (fn [limit input-stream]
+                              (-> (try
+                                    (with-open [reader (io/reader input-stream)]
+                                      (str/join \"\\n\" (line-seq reader)))
+                                    (catch Exception _ \"\"))
+                                  (truncate-with-limit limit)))
+                   stderr (read-it max-stderr-length (.getErrorStream process))
+                   remaining-space (max 500 (- nrepl-limit 500 (count stderr)))
+                   stdout (read-it remaining-space (.getInputStream process))]
                (if completed
-                 (let [exit-code (.exitValue process)
-                       ;; Use consistent stream reading approach with direct version
-                       stdout (with-open [reader (java.io.BufferedReader. 
-                                                  (java.io.InputStreamReader. (.getInputStream process)))]
-                                (clojure.string/join \"\\n\" (line-seq reader)))
-                       stderr (with-open [reader (java.io.BufferedReader. 
-                                                  (java.io.InputStreamReader. (.getErrorStream process)))]
-                                (clojure.string/join \"\\n\" (line-seq reader)))]
-                   {:exit-code exit-code
-                    :stdout stdout
-                    :stderr stderr
-                    :timed-out false})
+                 {:exit-code (.exitValue process)
+                  :stdout stdout
+                  :stderr stderr
+                  :timed-out false}
                  (do
                    (.destroyForcibly process)
-                   (let [stdout (try 
-                                  (with-open [reader (java.io.BufferedReader. 
-                                                     (java.io.InputStreamReader. (.getInputStream process)))]
-                                    (clojure.string/join \"\\n\" (line-seq reader)))
-                                  (catch Exception _ \"\"))
-                         stderr (try 
-                                  (with-open [reader (java.io.BufferedReader. 
-                                                     (java.io.InputStreamReader. (.getErrorStream process)))]
-                                    (clojure.string/join \"\\n\" (line-seq reader)))
-                                  (catch Exception _ \"\"))]
-                     {:exit-code -1
-                      :stdout stdout
-                      :stderr stderr
-                      :timed-out true}))))
+                   {:exit-code -1
+                    :stdout stdout
+                    :stderr stderr
+                    :timed-out true})))
              (catch Exception e
                {:exit-code -1
                 :stdout \"\"
@@ -112,7 +113,9 @@
             (format "(when %s (.directory pb (java.io.File. %s)))"
                     (pr-str working-directory) (pr-str working-directory))
             "nil  ;; no working directory specified")
-          (or timeout-ms default-timeout-ms)))
+          (or timeout-ms default-timeout-ms)
+          ;; should be less than overall nrepl limit
+          (int (* nrepl/truncation-length 0.85))))
 
 (defn execute-bash-command-nrepl
   [nrepl-client-atom {:keys [command working-directory timeout-ms] :as args}]
@@ -183,7 +186,7 @@
   #_(config/set-config! client-atom :allowed-directories [(System/getProperty "user.dir")])
   (clojure-mcp.nrepl/start-polling @client-atom)
 
-  (execute-bash-command-nrepl client-atom {:command "clojure -X:test"
+  (execute-bash-command-nrepl client-atom {:command "curl -s https://wttr.in/Phoenix?format=j1"
                                            :working-directory (System/getProperty "user.dir")})
 
   (->> (eval-core/evaluate-code
