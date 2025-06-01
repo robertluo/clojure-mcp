@@ -62,14 +62,10 @@
    - Updated context with formatted content for Clojure files, or unchanged for other file types"
   [ctx]
   (let [file-path (::form-pipeline/file-path ctx)
-        output-source (::form-pipeline/output-source ctx)
-        nrepl-client-map @(::nrepl-client-atom ctx)
-        formatting-options (form-edit-core/project-formatting-options nrepl-client-map)]
+        output-source (::form-pipeline/output-source ctx)]
     (if (and (file-write-core/is-clojure-file? file-path) output-source)
       (try
-        (let [formatted-source (form-edit-core/format-source-string
-                                output-source
-                                formatting-options)]
+        (let [formatted-source (form-edit-core/format-source-string output-source)]
           (assoc ctx ::form-pipeline/output-source formatted-source))
         (catch Exception e
           ctx))
