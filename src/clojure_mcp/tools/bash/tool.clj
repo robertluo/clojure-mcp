@@ -99,17 +99,10 @@ in the response to determine command success.")
 (defmethod tool-system/format-results :bash [_ result]
   (let [{:keys [stdout stderr exit-code timed-out error]} result
         formatted-output (cond-> []
-                           ;; If there's an error message from the tool itself (not command exit code)
                            error (conj (str "Error: " error))
-
-                           ;; Always include command output details
                            :always (conj (str "Exit code: " exit-code
                                               (when timed-out " (operation timed out, if this is a long running process like tests increase the timeout_ms)")))
-
-                           ;; Include stdout if present
                            (not (str/blank? stdout)) (conj (str "Standard output:\n" stdout))
-
-                           ;; Include stderr if present
                            (not (str/blank? stderr)) (conj (str "Standard error:\n" stderr)))]
 
     ;; We treat command execution as successful even if the command itself returns non-zero

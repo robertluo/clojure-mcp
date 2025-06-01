@@ -124,6 +124,22 @@
           ;; should be less than overall nrepl limit
           (int (* nrepl/truncation-length 0.85))))
 
+(defn internal-error-result
+  ([ex inner-value]
+   (internal-error-result ex inner-value {}))
+  ([ex inner-value opts]
+   (into {:stdout ""
+          :stderr (format
+                   "Bash Tool execution failed.
+IMPORTANT this was an error internal to the bash tool and and most likely has nothing to do with the bash command you submited.
+EDN parsing failed: %s\nRaw result: %s"
+                   (.getMessage ex)
+                   inner-value)
+          :timed-out false
+          :exit-code -1
+          :error "edn-parse-failure"}
+         opts)))
+
 (defn execute-bash-command-nrepl
   [nrepl-client-atom {:keys [command working-directory timeout-ms] :as args}]
   (let [timeout-ms (or timeout-ms default-timeout-ms)]
@@ -136,52 +152,58 @@
                           working-directory
                           timeout-ms)
           eval-timeout-ms (+ 5000 timeout-ms)
-          result (eval-core/evaluate-code
-                  @nrepl-client-atom
-                  {:code clj-shell-code
-                   :timeout-ms eval-timeout-ms})
-          inner-value (:value (into {} (:outputs result)))]
-
-      ;; Add logging for debugging intermittent failures
+          result (try
+                   (eval-core/evaluate-code
+                    @nrepl-client-atom
+                    {:code clj-shell-code
+                     :timeout-ms eval-timeout-ms})
+                   ;; this is an internal exception
+                   (catch Exception e
+                     ;; prevent errors from confusing the LLM
+                     (log/error e "Error when trying to eval on the nrepl connection")
+                     (throw
+                      (ex-info
+                       (str "Internal Error: Unable to reach the REPL is not currently connected "
+                            "thus we are unable to execute the bash command.")))))
+          output-map (into {} (:outputs result))
+          inner-value (:value output-map)]
       (when (:error result)
         (log/warn "REPL evaluation failed for bash command"
                   {:command command
+                   :nrelp-eval-output-map output-map
                    :working-directory working-directory
                    :timeout-ms timeout-ms
                    :eval-timeout-ms eval-timeout-ms
                    :error result}))
-
       (if (not (:error result))
         (try
+          ;; this is expected to work
           (edn/read-string inner-value)
           (catch Exception e
             (log/error e "Failed to parse bash command result as EDN"
                        {:command command
+                        :nrepl-eval-output-map output-map
                         :inner-value inner-value
                         :result result})
-            ;; Return more informative error response
-            {:stdout ""
-             :stderr (format "EDN parsing failed: %s\nRaw result: %s"
-                             (.getMessage e) inner-value)
-             :timed-out false
-             :exit-code -1
-             :error "edn-parse-failure"}))
-        (if-let [val (try (edn/read-string inner-value)
-                          (catch Exception e
-                            (log/warn e "Secondary EDN parse attempt failed"
-                                      {:command command
-                                       :inner-value inner-value})
-                            nil))]
-          val
-          (do
+            (internal-error-result e inner-value)))
+        (try
+          ;; this is expected to fail
+          (edn/read-string inner-value)
+          (catch Exception e
             (log/error "Bash command evaluation failed completely"
                        {:command command
+                        :nrepl-eval-output-map output-map
+                        :inner-value inner-value
                         :result result})
-            {:stdout ""
-             :stderr (format "Command evaluation failed: %s" (pr-str result))
-             :timed-out false
-             :exit-code -1
-             :error "eval-failure"}))))))
+            (internal-error-result
+             e
+             inner-value
+             {:stderr (str "Bash command failed to execute. "
+                           "This COULD be an error INTERNAL to the bash tool "
+                           "and probably not due to the command submitted:\n"
+                           "command: " command
+                           inner-value)
+              :error "bash-command-failed"})))))))
 
 (comment
   (require '[clojure-mcp.config :as config])
@@ -191,7 +213,7 @@
   #_(config/set-config! client-atom :allowed-directories [(System/getProperty "user.dir")])
   (clojure-mcp.nrepl/start-polling @client-atom)
 
-  (execute-bash-command-nrepl client-atom {:command "curl -s https://wttr.in/Phoenix?format=j1"
+  (execute-bash-command-nrepl client-atom {:command "curl -s https://rigsomelight.com"
                                            :working-directory (System/getProperty "user.dir")})
 
   (->> (eval-core/evaluate-code
