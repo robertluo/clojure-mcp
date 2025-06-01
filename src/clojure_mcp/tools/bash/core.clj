@@ -66,9 +66,16 @@
 (defn generate-shell-eval-code
   "Generate Clojure code to execute shell command with explicit timeout handling"
   [command working-directory timeout-ms]
+  ;; TODO add this require to an eval in the creation of this tool
+  ;; actually we can ship this whole function to an eval in the creation
+  ;; but this would survive a restart of the repl??
+  ;; so we could think of this as memoization with the REPL as our store
+  ;; 1. probe the repl to see if it has the tools we need
+  ;; 2. if not eval the tools into the REPL env
+  ;; 3. or use the tools
+  ;; This takes 2 evals, is that words than just shipping the code?
   (format "(try
-             (require '[clojure.java.io :as io])
-             (require '[clojure.string :as str])
+             (require 'clojure.java.io)
              (let [pb (ProcessBuilder. (into-array [\"bash\" \"-c\" %s]))
                    _ %s
                    process (.start pb)
@@ -83,8 +90,8 @@
                        s))
                    read-it (fn [limit input-stream]
                               (-> (try
-                                    (with-open [reader (io/reader input-stream)]
-                                      (str/join \"\\n\" (line-seq reader)))
+                                    (with-open [reader (clojure.java.io/reader input-stream)]
+                                      (slurp reader))
                                     (catch Exception _ \"\"))
                                   (truncate-with-limit limit)))
                    stderr (read-it max-stderr-length (.getErrorStream process))
@@ -120,16 +127,14 @@
 (defn execute-bash-command-nrepl
   [nrepl-client-atom {:keys [command working-directory timeout-ms] :as args}]
   (let [timeout-ms (or timeout-ms default-timeout-ms)]
-
     (when-not (command-allowed? command)
       (throw (ex-info "Command not allowed due to security restrictions"
                       {:command command
                        :error-details "The command contains restricted operations"})))
-    (let [clj-shell-code (str (edn/read-string
-                               (generate-shell-eval-code command
-                                                         working-directory
-                                                         timeout-ms)))
-          ;; Increase timeout buffer from 200ms to 5000ms for more reliability
+    (let [clj-shell-code (generate-shell-eval-code
+                          command
+                          working-directory
+                          timeout-ms)
           eval-timeout-ms (+ 5000 timeout-ms)
           result (eval-core/evaluate-code
                   @nrepl-client-atom
