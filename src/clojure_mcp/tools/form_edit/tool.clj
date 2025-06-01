@@ -645,21 +645,22 @@ Returns a diff showing the changes made to the file.")
                       {:inputs inputs})))
     ;; Special handling for empty string
     (when-not (str/blank? match_form)
-      ;; Validate that match_form is valid Clojure code and contains only one expression
       (try
-        (p/parse-string-all match_form)
+        (let [parsed (p/parse-string-all match_form)]
+          ;; Check if there's at least one non-whitespace, non-comment node
+          (when (zero? (count (n/child-sexprs parsed)))
+            (throw (ex-info "match_form must contain at least one S-expression (not just comments or whitespace)"
+                            {:inputs inputs}))))
         (catch Exception e
-          (throw (ex-info (str "Invalid Clojure code in match_form: " (.getMessage e))
-                          {:inputs inputs})))))
+          (if (str/includes? (.getMessage e) "match_form must contain")
+            (throw e)
+            (throw (ex-info (str "Invalid Clojure code in match_form: " (.getMessage e))
+                            {:inputs inputs}))))))
 
-    ;; Special handling for empty string
-    (when-not (str/blank? new_form)
+    (when-not (string? new_form)
       ;; Validate that new_form is valid Clojure code
-      (try
-        (p/parse-string-all new_form)
-        (catch Exception e
-          (throw (ex-info (str "Invalid Clojure code in new_form: " (.getMessage e))
-                          {:inputs inputs})))))
+      (throw (ex-info "Parameter error: new_form must be a string"
+                      {:inputs inputs})))
 
     ;; Return validated inputs
     {:file_path file-path
