@@ -84,9 +84,9 @@
     (let [new-file (io/file *test-dir* "new-file.clj")
           content "(ns new.namespace)\n\n(defn new-function [x]\n  (+ x 10))"
           result (file-write-core/write-clojure-file
-                   test-utils/*nrepl-client-atom*
-                   (.getPath new-file)
-                   content)]
+                  test-utils/*nrepl-client-atom*
+                  (.getPath new-file)
+                  content)]
       (is (not (:error result)))
       (is (= "create" (:type result)))
       (is (= (.getPath new-file) (:file-path result)))
@@ -98,9 +98,9 @@
           original-content (slurp *test-clj-file*)
           new-content "(ns test.namespace)\n\n(defn test-function [x]\n  (+ x 10))"
           result (file-write-core/write-clojure-file
-                   test-utils/*nrepl-client-atom*
-                   path
-                   new-content)]
+                  test-utils/*nrepl-client-atom*
+                  path
+                  new-content)]
       (is (not (:error result)))
       (is (= "update" (:type result)))
       (is (= path (:file-path result)))
@@ -111,9 +111,9 @@
     (let [path (.getPath *test-clj-file*)
           unformatted-content "(ns test.namespace)( defn poorly-formatted-fn[x]( + x 5) )"
           result (file-write-core/write-clojure-file
-                   test-utils/*nrepl-client-atom*
-                   path
-                   unformatted-content)]
+                  test-utils/*nrepl-client-atom*
+                  path
+                  unformatted-content)]
       (is (not (:error result)))
       (is (= "update" (:type result)))
       (is (not (str/includes? (slurp *test-clj-file*) "poorly-formatted-fn[x]")))
@@ -123,9 +123,9 @@
     (let [path (.getPath *test-clj-file*)
           content-with-missing-paren "(ns test.namespace)\n\n(defn repaired-function [x]\n  (+ x 10)"
           result (file-write-core/write-clojure-file
-                   test-utils/*nrepl-client-atom*
-                   path
-                   content-with-missing-paren)]
+                  test-utils/*nrepl-client-atom*
+                  path
+                  content-with-missing-paren)]
       (is (not (:error result)))
       (is (= "update" (:type result)))
       (let [saved-content (slurp *test-clj-file*)]
@@ -137,9 +137,9 @@
     (let [path (.getPath *test-clj-file*)
           content-with-mismatched-brackets "(ns test.namespace)\n\n(defn bracket-fn [x]\n  (let [y (+ x 1)]\n    (println y]))"
           result (file-write-core/write-clojure-file
-                   test-utils/*nrepl-client-atom*
-                   path
-                   content-with-mismatched-brackets)]
+                  test-utils/*nrepl-client-atom*
+                  path
+                  content-with-mismatched-brackets)]
       (is (not (:error result)))
       (is (= "update" (:type result)))
       (let [saved-content (slurp *test-clj-file*)]
@@ -152,9 +152,9 @@
           content-with-syntax-error "(ns test.namespace)\n\n(defn broken-function a123 [x 11)\n  (+ x 10))"
           original-content (slurp *test-clj-file*)
           result (file-write-core/write-clojure-file
-                   test-utils/*nrepl-client-atom*
-                   path
-                   content-with-syntax-error)]
+                  test-utils/*nrepl-client-atom*
+                  path
+                  content-with-syntax-error)]
       ;; The test should fail with a specific error
       (is (:error result) "Should have error for non-repairable syntax error")
       (when (:message result)
