@@ -37,7 +37,7 @@ jobs:
           ${{ runner.os }}-clojure-
           
     - name: Install dependencies
-      run: clojure -P -X:test
+      run: clojure -P -M:test
       
     - name: Run tests
-      run: clojure -X:test
+      run: clojure -M:test
