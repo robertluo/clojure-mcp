@@ -21,6 +21,8 @@
 (defmethod tool-system/tool-description :scratch-pad [_]
   "A persistent scratch pad for storing structured data between tool calls. Supports storing and retrieving data at nested paths using assoc_in, get_in, dissoc_in operations. Automatically parses EDN values, falling back to strings.
 
+Whenever you need to store data or make a plan this is your goto tool.
+
 TRACKING PLANS WITH TODO LISTS:
 
 Recommended todo item schema:
@@ -32,6 +34,9 @@ Recommended todo item schema:
 Adding todo items:
 - First item: {\"op\": \"assoc_in\", \"path\": [\"todos\", \"0\"], \"value\": \"{:task \\\"Write tests\\\" :done false}\", \"todo\": \"todos\", \"explanation\": \"Adding first task\"}
 - Next item: {\"op\": \"assoc_in\", \"path\": [\"todos\", \"1\"], \"value\": \"{:task \\\"Review PR\\\" :done false :priority :high}\", \"todo\": \"todos\", \"explanation\": \"Adding high priority task\"}
+
+Adding multiple todo items at once:
+- Entire map: {\"op\": \"assoc_in\", \"path\": [\"todos\"], \"value\": \"{0 {:task \\\"Write tests\\\" :done false :priority :high} 1 {:task \\\"Review PR\\\" :done false :priority :high} 2 {:task \\\"Update docs\\\" :done false :priority :medium}}\", \"todo\": \"todos\", \"explanation\": \"Adding multiple todos at once\"}
 
 Checking off completed tasks:
 - Mark as done: {\"op\": \"assoc_in\", \"path\": [\"todos\", \"0\", \":done\"], \"value\": \"true\", \"todo\": \"todos\", \"explanation\": \"Completed writing tests\"}
