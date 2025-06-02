@@ -101,7 +101,7 @@
   ([data max-depth]
    (letfn [(render-tree [node prefix depth]
              (if (or (>= depth max-depth) (not (map? node)))
-               (str prefix (pr-str node))
+               (str prefix (pr-str node) "\n")
                (let [entries (seq node)
                      lines (map-indexed
                             (fn [idx [k v]]

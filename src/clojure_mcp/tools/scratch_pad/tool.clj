@@ -19,7 +19,32 @@
   "scratch_pad")
 
 (defmethod tool-system/tool-description :scratch-pad [_]
-  "A persistent scratch pad for storing structured data between tool calls. Supports storing and retrieving data at nested paths using assoc_in, get_in, dissoc_in operations. Automatically parses EDN values, falling back to strings. Useful for task tracking, storing intermediate results, and sharing data between agents.")
+  "A persistent scratch pad for storing structured data between tool calls. Supports storing and retrieving data at nested paths using assoc_in, get_in, dissoc_in operations. Automatically parses EDN values, falling back to strings.
+
+TRACKING PLANS WITH TODO LISTS:
+
+Recommended todo item schema:
+{:task \"Description of the task\"
+ :done false
+ :priority :high/:medium/:low (optional)
+ :context \"Additional details\" (optional)}
+
+Adding todo items:
+- First item: {\"op\": \"assoc_in\", \"path\": [\"todos\", \"0\"], \"value\": \"{:task \\\"Write tests\\\" :done false}\", \"todo\": \"todos\", \"explanation\": \"Adding first task\"}
+- Next item: {\"op\": \"assoc_in\", \"path\": [\"todos\", \"1\"], \"value\": \"{:task \\\"Review PR\\\" :done false :priority :high}\", \"todo\": \"todos\", \"explanation\": \"Adding high priority task\"}
+
+Checking off completed tasks:
+- Mark as done: {\"op\": \"assoc_in\", \"path\": [\"todos\", \"0\", \":done\"], \"value\": \"true\", \"todo\": \"todos\", \"explanation\": \"Completed writing tests\"}
+
+Deleting tasks:
+- Remove entire task: {\"op\": \"dissoc_in\", \"path\": [\"todos\", \"0\"], \"explanation\": \"Removing completed task\"}
+- Remove specific field: {\"op\": \"dissoc_in\", \"path\": [\"todos\", \"1\", \":priority\"], \"explanation\": \"Removing priority field\"}
+
+Viewing todos:
+- All data: {\"op\": \"tree_view\", \"explanation\": \"Checking todo list\"}
+- Specific task: {\"op\": \"get_in\", \"path\": [\"todos\", \"0\"], \"explanation\": \"Checking first task details\"}
+
+The \"todo\" parameter helps UI tools track and display task progress when working with todo lists.")
 
 (defmethod tool-system/tool-schema :scratch-pad [_]
   {:type "object"
@@ -143,23 +168,52 @@
    :value "{:theme \"dark\" :font-size 14}"
    :explanation "Storing user preferences"}
 
-  ;; Store a todo item
+  ;; === TODO LIST WORKFLOW EXAMPLE ===
+
+  ;; 1. Add first todo item
   {:op "assoc_in"
    :path ["todos" "0"]
-   :value "{:task \"Implement login\" :done false}"
+   :value "{:task \"Implement user authentication\" :done false :priority :high}"
    :todo "todos"
-   :explanation "Adding first todo item"}
+   :explanation "Starting authentication work"}
 
-  ;; Get a value
+  ;; 2. Add second todo
+  {:op "assoc_in"
+   :path ["todos" "1"]
+   :value "{:task \"Write unit tests\" :done false}"
+   :todo "todos"
+   :explanation "Adding testing task"}
+
+  ;; 3. Check off first task
+  {:op "assoc_in"
+   :path ["todos" "0" ":done"]
+   :value "true"
+   :todo "todos"
+   :explanation "Completed authentication implementation"}
+
+  ;; 4. Update task with additional context
+  {:op "assoc_in"
+   :path ["todos" "0" ":context"]
+   :value "\"Used OAuth2 with JWT tokens\""
+   :explanation "Adding implementation details"}
+
+  ;; 5. Remove completed task
+  {:op "dissoc_in"
+   :path ["todos" "0"]
+   :explanation "Cleaning up completed task"}
+
+  ;; 6. View all todos
+  {:op "tree_view"
+   :explanation "Reviewing remaining tasks"}
+
+  ;; === OTHER OPERATIONS ===
+
+  ;; Get a specific value
   {:op "get_in"
    :path ["user" "name"]
    :explanation "Retrieving user name"}
 
   ;; Remove a value
   {:op "dissoc_in"
-   :path ["todos" "0" "done"]
-   :explanation "Removing done flag from todo"}
-
-  ;; View entire scratch pad
-  {:op "tree_view"
-   :explanation "Checking current state"})
+   :path ["config" "old-setting"]
+   :explanation "Removing deprecated config"})

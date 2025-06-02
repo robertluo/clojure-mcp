@@ -67,4 +67,4 @@
       (is (.contains (core/tree-view data) "└── a")))
     (let [nested {"a" {"b" {"c" 1}}}
           view (core/tree-view nested 2)]
-      (is (.contains view "{\"c\" 1}"))))) ; Should truncate at depth 2
+      (is (.contains view "{\"c\" 1}\n"))))) ; Should truncate at depth 2
