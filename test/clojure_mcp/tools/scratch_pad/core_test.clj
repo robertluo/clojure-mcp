@@ -62,9 +62,12 @@
 (deftest test-tree-view
   (testing "Tree view generation"
     (is (= "Empty scratch pad" (core/tree-view {})))
-    (let [data {"a" 1}]
-      (is (string? (core/tree-view data)))
-      (is (.contains (core/tree-view data) "└── a")))
-    (let [nested {"a" {"b" {"c" 1}}}
-          view (core/tree-view nested 2)]
-      (is (.contains view "{\"c\" 1}\n"))))) ; Should truncate at depth 2
+    (testing "Pretty printing simple data"
+      (let [data {"a" 1}
+            result (core/tree-view data)]
+        (is (string? result))
+        (is (.contains result "{\"a\" 1}"))))
+    (testing "Pretty printing nested data"
+      (let [nested {"a" {"b" {"c" 1}}}
+            view (core/tree-view nested)]
+        (is (.contains view "{\"a\" {\"b\" {\"c\" 1}}}")))))) ; Should truncate at depth 2

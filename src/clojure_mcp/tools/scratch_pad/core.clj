@@ -1,7 +1,8 @@
 (ns clojure-mcp.tools.scratch-pad.core
   "Core functionality for the scratch pad tool - a persistent storage for structured data."
   (:require
-   [clojure.edn :as edn]))
+   [clojure.edn :as edn]
+   [clojure.pprint :as pprint]))
 
 (defn parse-value
   "Parses a value, attempting EDN first, falling back to string.
@@ -90,28 +91,13 @@
       (update-in data (butlast path) dissoc (last path)))))
 
 (defn tree-view
-  "Generates a tree view of the data structure.
+  "Returns a pretty-printed string representation of the data structure.
    
    Parameters:
    - data: The data map to display
-   - max-depth: Maximum depth to display (optional, defaults to 10)
    
-   Returns a string representation of the tree."
-  ([data] (tree-view data 10))
-  ([data max-depth]
-   (letfn [(render-tree [node prefix depth]
-             (if (or (>= depth max-depth) (not (map? node)))
-               (str prefix (pr-str node) "\n")
-               (let [entries (seq node)
-                     lines (map-indexed
-                            (fn [idx [k v]]
-                              (let [is-last (= idx (dec (count entries)))
-                                    branch (if is-last "└── " "├── ")
-                                    continuation (if is-last "    " "│   ")]
-                                (str prefix branch k "\n"
-                                     (render-tree v (str prefix continuation) (inc depth)))))
-                            entries)]
-                 (apply str lines))))]
-     (if (empty? data)
-       "Empty scratch pad"
-       (render-tree data "" 0)))))
+   Returns a pretty-printed string of the data."
+  [data]
+  (if (empty? data)
+    "Empty scratch pad"
+    (with-out-str (pprint/pprint data))))
