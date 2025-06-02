@@ -23,7 +23,8 @@
             [clojure-mcp.tools.dispatch-agent.tool :as dispatch-agent-tool]
             [clojure-mcp.tools.architect.tool :as architect-tool]
             [clojure-mcp.tools.code-critique.tool :as code-critique-tool]
-            [clojure-mcp.tools.project.tool :as project-tool]))
+            [clojure-mcp.tools.project.tool :as project-tool]
+            [clojure-mcp.tools.scratch-pad.tool :as scratch-pad-tool]))
 
 ;; Define the resources you want available
 (defn my-resources [nrepl-client-map working-dir]
@@ -80,6 +81,7 @@
    (new-grep-tool/grep-tool nrepl-client-atom)
    (glob-files-tool/glob-files-tool nrepl-client-atom)
    (think-tool/think-tool nrepl-client-atom)
+   (scratch-pad-tool/scratch-pad-tool nrepl-client-atom)
 
    ;; eval
    (eval-tool/eval-code nrepl-client-atom)
@@ -94,7 +96,7 @@
 
    ;; introspection
    (project-tool/inspect-project-tool nrepl-client-atom)
-   
+
    ;; Agents these are read only
    ;; these require api keys to be configured
    (dispatch-agent-tool/dispatch-agent-tool nrepl-client-atom)
