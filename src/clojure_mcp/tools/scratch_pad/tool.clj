@@ -94,6 +94,10 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                                                {:inputs inputs})))
       "tree_view" nil)
 
+    ;; Validate path has at least one element when provided
+    (when (and path (empty? path))
+      (throw (ex-info "Path must have at least one element" {:path path :inputs inputs})))
+
     ;; Convert path to keywords if they look like keywords
     (let [parsed-path (when path
                         (mapv core/parse-path-element path))]
