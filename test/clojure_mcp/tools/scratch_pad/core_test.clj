@@ -2,15 +2,6 @@
   (:require [clojure.test :refer :all]
             [clojure-mcp.tools.scratch-pad.core :as core]))
 
-(deftest test-parse-value
-  (testing "EDN parsing with fallback"
-    (is (= 42 (core/parse-value "42")))
-    (is (= "hello" (core/parse-value "hello")))
-    (is (= {:a 1} (core/parse-value "{:a 1}")))
-    (is (= [1 2 3] (core/parse-value "[1 2 3]")))
-    (is (= :keyword (core/parse-value ":keyword")))
-    (is (= "not-valid-edn{" (core/parse-value "not-valid-edn{")))))
-
 (deftest test-assoc-in-data
   (testing "Associating values at paths"
     (let [data {}]

@@ -81,11 +81,12 @@
    (new-grep-tool/grep-tool nrepl-client-atom)
    (glob-files-tool/glob-files-tool nrepl-client-atom)
    (think-tool/think-tool nrepl-client-atom)
-   (scratch-pad-tool/scratch-pad-tool nrepl-client-atom)
+   ;; experimental todo list / scratch pad
+   #_(scratch-pad-tool/scratch-pad-tool nrepl-client-atom)
 
    ;; eval
    (eval-tool/eval-code nrepl-client-atom)
-   ;; currently not safe doen't run in repl process, it really should
+   ;; now runs in the nrepl process
    (bash-tool/bash-tool nrepl-client-atom)
 
    ;; editing tools
