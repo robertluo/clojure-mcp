@@ -1,6 +1,7 @@
 (ns clojure-mcp.main
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
             [clojure-mcp.core :as core]
             [clojure-mcp.nrepl :as nrepl]
@@ -63,6 +64,8 @@
          "text/markdown"
          outputs)))]))
 
+(declare code-review-prompt-example)
+
 (defn my-prompts [working-dir]
   [{:name "clojure_repl_system_prompt"
     :description "Provides instructions and guidelines for Clojure development, including style and best practices."
@@ -72,7 +75,11 @@
                 (str
                  (prompts/load-prompt-from-resource "clojure-mcp/prompts/system/clojure_repl_form_edit.md")
                  (prompts/load-prompt-from-resource "clojure-mcp/prompts/system/clojure_form_edit.md")))}
-   (prompts/create-project-summary working-dir)])
+   (prompts/create-project-summary working-dir)
+   
+   ;; Example parameterized prompt - code review - see function below
+   #_(code-review-prompt-example)
+   ])
 
 (defn my-tools [nrepl-client-atom]
   [;; read-only tools
@@ -82,7 +89,7 @@
    (glob-files-tool/glob-files-tool nrepl-client-atom)
    (think-tool/think-tool nrepl-client-atom)
    ;; experimental todo list / scratch pad
-   #_(scratch-pad-tool/scratch-pad-tool nrepl-client-atom)
+   (scratch-pad-tool/scratch-pad-tool nrepl-client-atom)
 
    ;; eval
    (eval-tool/eval-code nrepl-client-atom)
@@ -128,6 +135,37 @@
       (core/add-prompt mcp prompt))
     (swap! nrepl-client-atom assoc :mcp-server mcp)
     nil))
+
+;; Example parameterized prompt
+(defn code-review-prompt-example []
+  {:name "code-review-prompt"
+   :description "Generate a code review prompt for a specific file or namespace"
+   :arguments [{:name "file-path"
+                :description "The file path to review"
+                :required? true}
+               {:name "focus-areas"
+                :description "Specific areas to focus on (e.g., 'performance,style,testing')"
+                :required? false}]
+   :prompt-fn (fn [_ request-args clj-result-k]
+                (let [file-path (get request-args "file-path")
+                      focus-areas (get request-args "focus-areas" "general code quality")]
+                  (clj-result-k
+                   {:description (str "Code review for: " file-path)
+                    :messages
+                    [{:role :user
+                      :content
+                      (str "Please perform a thorough code review of the file at: "
+                           file-path "\n\n"
+                           "Focus areas: " focus-areas "\n\n"
+                           "Consider:\n"
+                           "1. Code style and Clojure idioms\n"
+                           "2. Performance implications\n"
+                           "3. Error handling\n"
+                           "4. Function complexity and readability\n"
+                           "5. Missing tests or edge cases\n\n"
+                           "Please use the read_file tool to examine the code, "
+                           "then provide detailed feedback.")}]})))})
+
 
 ;; -Djdk.attach.allowAttachSelf is needed on the nrepl server if you want the mcp-server eval tool
 ;; to be able to interrupt long running evals
