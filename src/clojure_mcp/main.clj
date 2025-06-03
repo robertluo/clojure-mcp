@@ -76,10 +76,10 @@
                  (prompts/load-prompt-from-resource "clojure-mcp/prompts/system/clojure_repl_form_edit.md")
                  (prompts/load-prompt-from-resource "clojure-mcp/prompts/system/clojure_form_edit.md")))}
    (prompts/create-project-summary working-dir)
-   
+   prompts/scratch-pad-guide
+
    ;; Example parameterized prompt - code review - see function below
-   #_(code-review-prompt-example)
-   ])
+   #_(code-review-prompt-example)])
 
 (defn my-tools [nrepl-client-atom]
   [;; read-only tools
@@ -165,7 +165,6 @@
                            "5. Missing tests or edge cases\n\n"
                            "Please use the read_file tool to examine the code, "
                            "then provide detailed feedback.")}]})))})
-
 
 ;; -Djdk.attach.allowAttachSelf is needed on the nrepl server if you want the mcp-server eval tool
 ;; to be able to interrupt long running evals
