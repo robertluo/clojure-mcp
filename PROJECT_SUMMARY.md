@@ -235,17 +235,26 @@ scratch_pad:
 
 # Adding todo items
 scratch_pad:
-  Input: {"op": "assoc_in", "path": ["todos", "0"], "value": "{:task \"Write tests\" :done false :priority :high}", "todo": "todos", "explanation": "Adding first task"}
+  op: assoc_in
+  path: [todos 0]
+  value: {:task "Write tests" :done false :priority :high}
+  todo: todos
+  explanation: Adding first task
   Output: Stored value at path ["todos" 0] (todo: todos)
 
 # Checking off tasks  
 scratch_pad:
-  Input: {"op": "assoc_in", "path": ["todos", "0", ":done"], "value": "true", "todo": "todos", "explanation": "Completed writing tests"}
+  op: assoc_in
+  path: [todos 0 :done]
+  value: true
+  todo: todos
+  explanation: Completed writing tests
   Output: Stored value at path ["todos" 0 :done]
 
 # Viewing all data
 scratch_pad:
-  Input: {"op": "tree_view", "explanation": "Checking current state"}
+  op: tree_view
+  explanation: Checking current state
   Output: Tree view with formatted structure:
     ├── todos
     │   └── 0
@@ -256,12 +265,16 @@ scratch_pad:
 
 # Retrieving specific values
 scratch_pad:
-  Input: {"op": "get_in", "path": ["todos", "0", ":done"], "explanation": "Checking task status"}
+  op: get_in
+  path: [todos 0 :done]
+  explanation: Checking task status
   Output: Value at ["todos" 0 :done]: true
 
 # Removing data
 scratch_pad:
-  Input: {"op": "dissoc_in", "path": ["todos", "0"], "explanation": "Removing completed task"}
+  op: dissoc_in
+  path: [todos 0]
+  explanation: Removing completed task
   Output: Removed value at path ["todos" 0]
 
 # Recommended todo schema:

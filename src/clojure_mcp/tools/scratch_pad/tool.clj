@@ -32,22 +32,59 @@ Recommended todo item schema:
  :context \"Additional details\" (optional)}
 
 Adding todo items:
-- First item: {\"op\": \"assoc_in\", \"path\": [\"todos\", \"0\"], \"value\": \"{:task \\\"Write tests\\\" :done false}\", \"todo\": \"todos\", \"explanation\": \"Adding first task\"}
-- Next item: {\"op\": \"assoc_in\", \"path\": [\"todos\", \"1\"], \"value\": \"{:task \\\"Review PR\\\" :done false :priority :high}\", \"todo\": \"todos\", \"explanation\": \"Adding high priority task\"}
+- First item:
+  op: assoc_in
+  path: [todos 0]
+  value: {:task \"Write tests\" :done false}
+  todo: todos
+  explanation: Adding first task
+
+- Next item:
+  op: assoc_in
+  path: [todos 1]
+  value: {:task \"Review PR\" :done false :priority :high}
+  todo: todos
+  explanation: Adding high priority task
 
 Adding multiple todo items at once:
-- Entire map: {\"op\": \"assoc_in\", \"path\": [\"todos\"], \"value\": \"{0 {:task \\\"Write tests\\\" :done false :priority :high} 1 {:task \\\"Review PR\\\" :done false :priority :high} 2 {:task \\\"Update docs\\\" :done false :priority :medium}}\", \"todo\": \"todos\", \"explanation\": \"Adding multiple todos at once\"}
+- Entire map:
+  op: assoc_in
+  path: [todos]
+  value: {0 {:task \"Write tests\" :done false :priority :high} 
+          1 {:task \"Review PR\" :done false :priority :high} 
+          2 {:task \"Update docs\" :done false :priority :medium}}
+  todo: todos
+  explanation: Adding multiple todos at once
 
 Checking off completed tasks:
-- Mark as done: {\"op\": \"assoc_in\", \"path\": [\"todos\", \"0\", \":done\"], \"value\": \"true\", \"todo\": \"todos\", \"explanation\": \"Completed writing tests\"}
+- Mark as done:
+  op: assoc_in
+  path: [todos 0 :done]
+  value: true
+  todo: todos
+  explanation: Completed writing tests
 
 Deleting tasks:
-- Remove entire task: {\"op\": \"dissoc_in\", \"path\": [\"todos\", \"0\"], \"explanation\": \"Removing completed task\"}
-- Remove specific field: {\"op\": \"dissoc_in\", \"path\": [\"todos\", \"1\", \":priority\"], \"explanation\": \"Removing priority field\"}
+- Remove entire task:
+  op: dissoc_in
+  path: [todos 0]
+  explanation: Removing completed task
+
+- Remove specific field:
+  op: dissoc_in
+  path: [todos 1 :priority]
+  explanation: Removing priority field
 
 Viewing todos:
-- All data: {\"op\": \"tree_view\", \"explanation\": \"Checking todo list\"}
-- Specific task: {\"op\": \"get_in\", \"path\": [\"todos\", \"0\"], \"explanation\": \"Checking first task details\"}
+- All todos:
+  op: tree_view
+  path: [todos]
+  explanation: Checking todo list
+
+- Specific task:
+  op: get_in
+  path: [todos 0]
+  explanation: Checking first task details
 
 The \"todo\" parameter helps UI tools track and display task progress when working with todo lists.")
 
