@@ -76,7 +76,7 @@
                  (prompts/load-prompt-from-resource "clojure-mcp/prompts/system/clojure_repl_form_edit.md")
                  (prompts/load-prompt-from-resource "clojure-mcp/prompts/system/clojure_form_edit.md")))}
    (prompts/create-project-summary working-dir)
-   prompts/scratch-pad-guide
+   #_prompts/scratch-pad-guide
 
    ;; Example parameterized prompt - code review - see function below
    #_(code-review-prompt-example)])

@@ -24,7 +24,7 @@
 ;; --- Prompt Definitions ---
 
 (defn create-project-summary [working-dir]
-  {:name "create-project-summary"
+  {:name "create-update-project-summary"
    :description "Generates a prompt instructing the LLM to create a summary of a project."
    :arguments []
    :prompt-fn (fn [_ _ clj-result-k]
