@@ -61,13 +61,13 @@ Adding todo items:
 Adding multiple todo items at once:
 - Entire map:
   op: assoc_in
-  path: [todos]
+  path: [\"todos\"]
   value: {
     0: {task: \"Write tests\", done: false, priority: \"high\"},
     1: {task: \"Review PR\", done: false, priority: \"high\"},
     2: {task: \"Update docs\", done: false, priority: \"medium\"}
   }
-  todo: todos
+  todo: \"todos\"
   explanation: Adding multiple todos at once
 
 Checking off completed tasks:
