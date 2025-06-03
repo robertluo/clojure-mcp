@@ -81,7 +81,7 @@
    (new-grep-tool/grep-tool nrepl-client-atom)
    (glob-files-tool/glob-files-tool nrepl-client-atom)
    (think-tool/think-tool nrepl-client-atom)
-   #_(scratch-pad-tool/scratch-pad-tool nrepl-client-atom)
+   (scratch-pad-tool/scratch-pad-tool nrepl-client-atom)
 
    ;; eval
    (eval-tool/eval-code nrepl-client-atom)

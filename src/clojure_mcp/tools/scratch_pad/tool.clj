@@ -108,13 +108,13 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                       :description "The operation to perform"}
                 "path" {:type "array"
                         :items {:type ["string" "number"]}
-                        :description "Path to the data location (array of keys)"}
+                        :description "Path to the data location (array of string or number keys)"}
                 "value" {:description "Value to store (for assoc_in). Can be any JSON value: object, array, string, number, boolean, or null."
                          :type ["object" "array" "string" "number" "boolean" "null"]}
                 "explanation" {:type "string"
                                :description "Explanation of why this operation is being performed"}
                 "todo" {:type "string"
-                        :description "Optional that represents the root key of the todo list ie.  \"rename_function_todos\" "}}
+                        :description "(Optional) Represents the key of the todo list being operated on ie.  \"rename_function_todos\" "}}
    :required ["op" "explanation"]})
 
 (defmethod tool-system/validate-inputs :scratch-pad [{:keys [nrepl-client-atom]} inputs]
@@ -186,6 +186,7 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
       {:error true
        :message (str "Error executing scratch pad operation: " (.getMessage e))})))
 
+;; this is convoluted this can be stream lined as most of this is imply echoing back what was sent
 (defmethod tool-system/format-results :scratch-pad [_ {:keys [error message result explanation]}]
   (if error
     {:result [message]
@@ -214,30 +215,17 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
    :schema (tool-system/tool-schema tool-config)
    :tool-fn (fn [_ params callback]
               (try
-                (let [     ; Deep convert function that actually works
-                      deep-convert (fn [x]
-                                     (clojure.walk/prewalk
-                                      (fn [node]
-                                        (cond
-                                          (instance? java.util.Map node) (into {} node)
-                                          (instance? java.util.List node) (into [] node)
-                                          (instance? java.util.Set node) (into #{} node)
-                                          :else node))
-                                      x))
-                                        ; First deep convert all params
-                      converted-params (deep-convert params)
-                                        ; Keywordize everything except the value
+                (let [converted-params (tool-system/convert-java-collections params)
                       keywordized-params (-> converted-params
                                              (dissoc "value")
                                              tool-system/keywordize-keys-preserve-underscores)
-                                        ; Get the deeply converted value
-                      converted-value (get converted-params "value")
-                                        ; Assemble final params with converted value
-                      final-params (assoc keywordized-params :value converted-value)
-                      validated (tool-system/validate-inputs tool-config final-params)
-                      result (tool-system/execute-tool tool-config validated)
-                      formatted (tool-system/format-results tool-config result)]
-                  (callback (:result formatted) (:error formatted)))
+                      {:keys [result error]}
+                      (->> (get converted-params "value")
+                           (assoc keywordized-params :value)
+                           (tool-system/validate-inputs tool-config)
+                           (tool-system/execute-tool tool-config)
+                           (tool-system/format-results tool-config))]
+                  (callback result error))
                 (catch Exception e
                   (log/error e)
                   ;; On error, create a sequence of error messages
