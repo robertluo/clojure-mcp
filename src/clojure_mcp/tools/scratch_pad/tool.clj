@@ -23,31 +23,39 @@
 (defmethod tool-system/tool-description :scratch-pad [_]
   "A persistent scratch pad for storing structured data between tool calls. Accepts any JSON value (objects, arrays, strings, numbers, booleans, null) and stores them at nested paths using assoc_in, get_in, dissoc_in operations.
 
-Whenever you need to store data or make a plan this is your goto tool.
+Whenever you need to make a plan, this is your goto tool.
+
+This tool can be used to:
+ * maintain todo lists
+ * maintain a list of files that need to be addressed
+ * store thinking and overall strategy notes
+ * store a list of reminders
+ * simply jotting down things that are noteworthy
+ * or other proactive/creative uses that will help you accomplish the task at hand
 
 TRACKING PLANS WITH TODO LISTS:
 
 Recommended todo item structure:
 {
-  \"task\": \"Description of the task\",
-  \"done\": false,
-  \"priority\": \"high\", // optional: \"high\", \"medium\", \"low\"
-  \"context\": \"Additional details\" // optional
+  task: \"Description of the task\",
+  done: false,
+  priority: \"high\", // optional: \"high\", \"medium\", \"low\"
+  context: \"Additional details\" // optional
 }
 
 Adding todo items:
 - First item:
   op: assoc_in
-  path: [todos 0]
-  value: {\"task\": \"Write tests\", \"done\": false}
-  todo: todos
+  path: [\"todos\" 0]
+  value: {task: \"Write tests\", done: false}
+  todo: \"todos\"
   explanation: Adding first task
 
 - Next item:
   op: assoc_in
-  path: [todos 1]
-  value: {\"task\": \"Review PR\", \"done\": false, \"priority\": \"high\"}
-  todo: todos
+  path: [\"todos\" 1]
+  value: {task: \"Review PR\", done: false, priority: \"high\"}
+  todo: \"todos\"
   explanation: Adding high priority task
 
 Adding multiple todo items at once:
@@ -55,9 +63,9 @@ Adding multiple todo items at once:
   op: assoc_in
   path: [todos]
   value: {
-    \"0\": {\"task\": \"Write tests\", \"done\": false, \"priority\": \"high\"},
-    \"1\": {\"task\": \"Review PR\", \"done\": false, \"priority\": \"high\"},
-    \"2\": {\"task\": \"Update docs\", \"done\": false, \"priority\": \"medium\"}
+    0: {task: \"Write tests\", done: false, priority: \"high\"},
+    1: {task: \"Review PR\", done: false, priority: \"high\"},
+    2: {task: \"Update docs\", done: false, priority: \"medium\"}
   }
   todo: todos
   explanation: Adding multiple todos at once
@@ -65,20 +73,20 @@ Adding multiple todo items at once:
 Checking off completed tasks:
 - Mark as done:
   op: assoc_in
-  path: [todos 0 done]
+  path: [\"todos\" 0 \"done\"]
   value: true
-  todo: todos
+  todo: \"todos\"
   explanation: Completed writing tests
 
 Deleting tasks:
 - Remove entire task:
   op: dissoc_in
-  path: [todos 0]
+  path: [\"todos\" 0]
   explanation: Removing completed task
 
 - Remove specific field:
   op: dissoc_in
-  path: [todos 1 priority]
+  path: [\"todos\" 1 \"priority\"]
   explanation: Removing priority field
 
 Viewing todos:
@@ -88,7 +96,7 @@ Viewing todos:
 
 - Specific task:
   op: get_in
-  path: [todos 0]
+  path: [\"todos\" 0]
   explanation: Checking first task details
 
 The \"todo\" parameter helps UI tools track and display task progress when working with todo lists.")
@@ -106,7 +114,7 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                 "explanation" {:type "string"
                                :description "Explanation of why this operation is being performed"}
                 "todo" {:type "string"
-                        :description "Optional key for todo list tracking"}}
+                        :description "Optional that represents the root key of the todo list ie.  \"rename_function_todos\" "}}
    :required ["op" "explanation"]})
 
 (defmethod tool-system/validate-inputs :scratch-pad [{:keys [nrepl-client-atom]} inputs]
@@ -199,13 +207,14 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                 (str "\nReason: " explanation)]
        :error false})))
 
+;; this is needed because of the special handling of edn in the default handler
 (defmethod tool-system/registration-map :scratch-pad [tool-config]
   {:name (tool-system/tool-name tool-config)
    :description (tool-system/tool-description tool-config)
    :schema (tool-system/tool-schema tool-config)
    :tool-fn (fn [_ params callback]
               (try
-                (let [; Deep convert function that actually works
+                (let [     ; Deep convert function that actually works
                       deep-convert (fn [x]
                                      (clojure.walk/prewalk
                                       (fn [node]
@@ -215,15 +224,15 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                                           (instance? java.util.Set node) (into #{} node)
                                           :else node))
                                       x))
-                      ; First deep convert all params
+                                        ; First deep convert all params
                       converted-params (deep-convert params)
-                      ; Keywordize everything except the value
+                                        ; Keywordize everything except the value
                       keywordized-params (-> converted-params
                                              (dissoc "value")
                                              tool-system/keywordize-keys-preserve-underscores)
-                      ; Get the deeply converted value
+                                        ; Get the deeply converted value
                       converted-value (get converted-params "value")
-                      ; Assemble final params with converted value
+                                        ; Assemble final params with converted value
                       final-params (assoc keywordized-params :value converted-value)
                       validated (tool-system/validate-inputs tool-config final-params)
                       result (tool-system/execute-tool tool-config validated)
@@ -280,34 +289,34 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
 
   ;; 1. Add first todo item (object with string keys)
   {:op "assoc_in"
-   :path ["todos" "0"]
+   :path ["todos" 0]
    :value {"task" "Implement user authentication" "done" false "priority" "high"}
    :todo "todos"
    :explanation "Starting authentication work"}
 
   ;; 2. Add second todo
   {:op "assoc_in"
-   :path ["todos" "1"]
+   :path ["todos" 1]
    :value {"task" "Write unit tests" "done" false}
    :todo "todos"
    :explanation "Adding testing task"}
 
   ;; 3. Check off first task (boolean value)
   {:op "assoc_in"
-   :path ["todos" "0" "done"]
+   :path ["todos" 0 "done"]
    :value true
    :todo "todos"
    :explanation "Completed authentication implementation"}
 
   ;; 4. Update task with additional context
   {:op "assoc_in"
-   :path ["todos" "0" "context"]
+   :path ["todos" 0 "context"]
    :value "Used OAuth2 with JWT tokens"
    :explanation "Adding implementation details"}
 
   ;; 5. Remove completed task
   {:op "dissoc_in"
-   :path ["todos" "0"]
+   :path ["todos" 0]
    :explanation "Cleaning up completed task"}
 
   ;; 6. View all todos
