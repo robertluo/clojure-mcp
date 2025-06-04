@@ -295,7 +295,10 @@ This workflow creates a virtuous cycle where each session builds on the accumula
 
 ## Chat Session Summarization
 
-The Clojure MCP server provides a pair of prompts that enable conversation continuity across chat sessions using the `scratch_pad` tool for persistent storage.
+The Clojure MCP server provides a pair of prompts that enable
+conversation continuity across chat sessions using the `scratch_pad`
+tool. This will be stored **in memory**. Things stored in the `scratch_pad`
+are not persisted to disk (yet).
 
 ### How It Works
 
@@ -333,7 +336,7 @@ You can maintain multiple parallel conversation contexts by using custom keys:
 # For feature development
 chat-session-summarize with key "feature-auth-system"
 
-# For bug fixing  
+# For bug fixing
 chat-session-summarize with key "debug-memory-leak"
 
 # Resume specific context
@@ -351,7 +354,7 @@ This enables switching between different development contexts while maintaining 
 
 The chat summarization feature complements the PROJECT_SUMMARY.md by capturing conversation-specific context and decisions that haven't yet been formalized into project documentation.
 
-#### LLM API Keys
+## LLM API Keys
 
 > This is NOT required to use the Clojure MCP server.
 
