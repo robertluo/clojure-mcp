@@ -152,3 +152,42 @@ If the file get's *edited* outside and must be read to see the changes, you shou
    :prompt-fn (simple-content-prompt-fn
                "Use Scratch Pad"
                "Let's use the scratch_pad tool.\n\nThe scratch_pad tool is your persistent storage for data between tool calls. Use it to:\n\n1. **Track Tasks**: Create todo lists to manage complex workflows\n2. **Store Intermediate Results**: Save computation results for later use\n3. **Share Context**: Pass data between different agents or tool sequences\n4. **Build Complex Data**: Incrementally construct data structures\n\nExample todo workflow:\n```clojure\n;; Add tasks\nscratch_pad(op: assoc_in, path: [\"todos\"], \n  value: {0: {task: \"Analyze code\", done: false},\n          1: {task: \"Write tests\", done: false}})\n\n;; Check off completed\nscratch_pad(op: assoc_in, path: [\"todos\" 0 \"done\"], value: true)\n\n;; View progress\nscratch_pad(op: tree_view)\n```\n\nBest practices:\n- Use descriptive keys for organization\n- Store results you'll need later\n- Track progress on multi-step tasks\n- Clean up completed items when done")})
+
+(def chat-session-summary
+  {:name "chat-session-summarize"
+   :description "Instructs the assistant to create a summary of the current chat session and store it in the scratch pad. `chat_session_key` is optional and will default to `chat_session_summary`"
+   :arguments [{:name "chat_session_key"
+                :description "[Optional] key to store the session summary in"
+                :required? false}]
+   :prompt-fn (fn [_ request-args clj-result-k]
+                (let [provided-key (get request-args "chat_session_key")
+                      session-key (if (str/blank? provided-key)
+                                    "chat_session_summary"
+                                    provided-key)]
+                  (clj-result-k
+                   {:description (str "Create conversation summary for key: " session-key)
+                    :messages [{:role :user
+                                :content (format "Place in the scratch_pad under the key path [\"%s\"] a detailed but concise summary of our conversation above. Focus on information that would be helpful for continuing the conversation, including what we did, what we're doing, which files we're working on, and what we're going to do next."
+                                                 session-key)}]})))})
+
+(def resume-chat-session
+  {:name "chat-session-resume"
+   :description "Instructs the assistant to resume a previous chat session by loading context from the scratch pad. `chat_session_key` is optional and will default to `chat_session_summary`"
+   :arguments [{:name "chat_session_key"
+                :description "[Optional] key where session summary is stored"
+                :required? false}]
+   :prompt-fn (fn [_ request-args clj-result-k]
+                (let [provided-key (get request-args "chat_session_key")
+                      session-key (if (str/blank? provided-key)
+                                    "chat_session_summary"
+                                    provided-key)]
+                  (clj-result-k
+                   {:description (str "Resume conversation from key: " session-key)
+                    :messages [{:role :user
+                                :content (format "We are continuing a previous chat session, can you the read the following context
+* read the PROJECT_SUMMARY.md file
+* call the clojure_inspect_project tool
+Also we stored information about our last conversation in the scratch_pad [\"%s\"]  path so can you call scratch_pad with get-in [\"%s\"] to see what we were working on previously.
+After doing this provide a very brief (8 lines) summary of where we are and then wait for my instructions."
+                                                 session-key
+                                                 session-key)}]})))})

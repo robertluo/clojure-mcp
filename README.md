@@ -293,6 +293,64 @@ This project includes a workflow for maintaining an LLM-friendly `PROJECT_SUMMAR
 
 This workflow creates a virtuous cycle where each session builds on the accumulated knowledge of previous sessions, making the assistant increasingly effective as your project evolves.
 
+## Chat Session Summarization
+
+The Clojure MCP server provides a pair of prompts that enable conversation continuity across chat sessions using the `scratch_pad` tool for persistent storage.
+
+### How It Works
+
+The system uses two complementary prompts:
+
+1. **`chat-session-summarize`**: Creates a summary of the current conversation
+   - Saves a detailed summary to the scratch pad
+   - Captures what was done, what's being worked on, and what's next
+   - Accepts an optional `chat_session_key` parameter (defaults to `"chat_session_summary"`)
+
+2. **`chat-session-resume`**: Restores context from a previous conversation
+   - Reads the PROJECT_SUMMARY.md file
+   - Calls `clojure_inspect_project` for current project state
+   - Retrieves the previous session summary from scratch pad
+   - Provides a brief 8-line summary of where things left off
+   - Accepts an optional `chat_session_key` parameter (defaults to `"chat_session_summary"`)
+
+### Usage Workflow
+
+**Ending a Session:**
+1. At the end of a productive conversation, invoke the `chat-session-summarize` prompt
+2. The assistant will store a comprehensive summary in the scratch pad
+3. This summary persists across sessions thanks to the scratch pad's global state
+
+**Starting a New Session:**
+1. When continuing work, invoke the `chat-session-resume` prompt
+2. The assistant will load all relevant context and provide a brief summary
+3. You can then continue where you left off with full context
+
+### Advanced Usage with Multiple Sessions
+
+You can maintain multiple parallel conversation contexts by using custom keys:
+
+```
+# For feature development
+chat-session-summarize with key "feature-auth-system"
+
+# For bug fixing  
+chat-session-summarize with key "debug-memory-leak"
+
+# Resume specific context
+chat-session-resume with key "feature-auth-system"
+```
+
+This enables switching between different development contexts while maintaining the full state of each conversation thread.
+
+### Benefits
+
+- **Seamless Continuity**: Pick up exactly where you left off
+- **Context Preservation**: Important details aren't lost between sessions
+- **Multiple Contexts**: Work on different features/bugs in parallel
+- **Reduced Repetition**: No need to re-explain what you're working on
+
+The chat summarization feature complements the PROJECT_SUMMARY.md by capturing conversation-specific context and decisions that haven't yet been formalized into project documentation.
+
 #### LLM API Keys
 
 > This is NOT required to use the Clojure MCP server.

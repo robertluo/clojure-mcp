@@ -77,6 +77,8 @@
                  (prompts/load-prompt-from-resource "clojure-mcp/prompts/system/clojure_form_edit.md")))}
    (prompts/create-project-summary working-dir)
    #_prompts/scratch-pad-guide
+   prompts/chat-session-summary
+   prompts/resume-chat-session
 
    ;; Example parameterized prompt - code review - see function below
    #_(code-review-prompt-example)])
@@ -89,7 +91,7 @@
    (glob-files-tool/glob-files-tool nrepl-client-atom)
    (think-tool/think-tool nrepl-client-atom)
    ;; experimental todo list / scratch pad
-   #_(scratch-pad-tool/scratch-pad-tool nrepl-client-atom)
+   (scratch-pad-tool/scratch-pad-tool nrepl-client-atom)
 
    ;; eval
    (eval-tool/eval-code nrepl-client-atom)
