@@ -200,6 +200,156 @@ Add project-specific prompts to guide your AI assistant:
                                               "\n- Use our team's test naming conventions")}]})))}]))
 ```
 
+## Modifying Existing Tools, Resources, and Prompts
+
+Sometimes you need to modify existing components rather than creating new ones. Common reasons include:
+- Resolving name conflicts between tools
+- Changing descriptions to influence how AI assistants use them
+- Customizing behavior for your specific workflow
+
+### Modifying Tool Names and Descriptions
+
+Tools are just maps, so you can modify them before registering:
+
+```clojure
+(defn my-tools [nrepl-client-atom]
+  (let [standard-tools (main/my-tools nrepl-client-atom)]
+    ;; Find and modify specific tools
+    (map (fn [tool]
+           (case (:name tool)
+             ;; Rename bash to be more specific
+             "bash" (assoc tool 
+                          :name "shell_command"
+                          :description "Execute shell commands in the project directory. Use for: git operations, running tests, file system operations.")
+             
+             ;; Make file reading more prominent
+             "read_file" (assoc tool
+                               :description "READ FILES FIRST! Always use this before editing. Smart reader with pattern matching for Clojure files.")
+             
+             ;; Discourage use of file_edit in favor of clojure_edit
+             "file_edit" (assoc tool
+                               :description "Simple text replacement - AVOID for Clojure files! Use clojure_edit instead.")
+             
+             ;; Return unchanged
+             tool))
+         standard-tools)))
+```
+
+### Adding Prefixes to Avoid Conflicts
+
+If you're combining tools from multiple sources:
+
+```clojure
+(defn prefix-tool-names [prefix tools]
+  (map #(update % :name (fn [n] (str prefix "_" n))) tools))
+
+(defn my-tools [nrepl-client-atom]
+  (concat
+   ;; Standard tools with prefix
+   (prefix-tool-names "core" (main/my-tools nrepl-client-atom))
+   
+   ;; Your custom tools with different prefix
+   (prefix-tool-names "custom" 
+                      [(my-special-tool/special-tool nrepl-client-atom)])))
+```
+
+### Modifying Resources
+
+Resources can be modified the same way:
+
+```clojure
+(defn my-resources [nrepl-client-map working-dir]
+  (let [standard-resources (main/my-resources nrepl-client-map working-dir)]
+    (concat
+     ;; Modify existing resources
+     (map (fn [resource]
+            (case (:name resource)
+              ;; Make project summary more prominent
+              "PROJECT_SUMMARY.md" 
+              (assoc resource 
+                     :name "MAIN_PROJECT_CONTEXT"
+                     :description "CRITICAL: Primary project documentation - ALWAYS load this first!")
+              
+              ;; Keep others as-is
+              resource))
+          standard-resources)
+     
+     ;; Add your own
+     [(resources/create-file-resource ...)])))
+```
+
+### Modifying Prompts
+
+Prompts can be enhanced or modified:
+
+```clojure
+(defn my-prompts [working-dir]
+  (let [standard-prompts (main/my-prompts working-dir)]
+    (map (fn [prompt]
+           (case (:name prompt)
+             ;; Enhance the system prompt
+             "clojure_repl_system_prompt"
+             (update prompt :prompt-fn 
+                     (fn [original-fn]
+                       (fn [exchange request-args callback]
+                         ;; Call original
+                         (original-fn exchange request-args
+                                    (fn [result]
+                                      ;; Modify the result
+                                      (callback
+                                       (update-in result [:messages 0 :content]
+                                                 str "\n\nREMEMBER: Always use our company style guide!")))))))
+             
+             ;; Keep others unchanged
+             prompt))
+         standard-prompts)))
+```
+
+### Complete Example: Customizing Everything
+
+Here's how to selectively modify components while keeping what you want:
+
+```clojure
+(ns my-company.custom-mcp-server
+  (:require [clojure-mcp.core :as core]
+            [clojure-mcp.config :as config]
+            [clojure-mcp.main :as main]
+            [clojure.string :as str]))
+
+(defn customize-for-safety [tool]
+  ;; Make all editing tools warn about safety
+  (if (str/includes? (:name tool) "edit")
+    (update tool :description 
+            #(str "⚠️ CAUTION: This modifies files! " %))
+    tool))
+
+(defn my-tools [nrepl-client-atom]
+  (->> (main/my-tools nrepl-client-atom)
+       ;; Remove tools we don't want
+       (remove #(= (:name %) "bash"))  ; Too dangerous
+       ;; Modify remaining tools
+       (map customize-for-safety)
+       ;; Rename potential conflicts
+       (map (fn [tool]
+              (case (:name tool)
+                "think" (assoc tool :name "reflect")  ; Avoid conflict with other system
+                tool)))))
+
+(defn start-mcp-server [nrepl-args]
+  ;; ... standard setup ...
+  )
+```
+
+### Tips for Modifying Components
+
+1. **Test modifications**: Always test that your modifications work as expected
+2. **Document changes**: Add comments explaining why you modified components
+3. **Be consistent**: If you rename tools, update any documentation that references them
+4. **Consider AI behavior**: Remember that descriptions heavily influence how AI assistants use tools
+5. **Preserve schemas**: Be careful not to accidentally remove required fields like `:schema` for tools
+
+This flexibility lets you fine-tune exactly how AI assistants interact with your development environment!
+
 ## Real-World Example: Shadow-cljs Server
 
 Here's how the Shadow-cljs example extends the main server:

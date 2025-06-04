@@ -582,11 +582,21 @@ Choose tools based on your workflow needs:
 
 This modular approach lets you create focused, efficient MCP servers tailored to specific development workflows.
 
-## 🔧 Extending with Custom Tools
+## 🔧 Customization
 
-Want to create your own MCP tools?
+ClojureMCP is designed to be highly customizable. During the alpha phase, creating your own custom MCP server is the primary way to configure the system for your specific needs.
 
-**📖 [Custom Tools Development Guide](CUSTOM_TOOLS.md)** 
+You can customize:
+- **Tools** - Choose which tools to include, create new ones with multimethods or simple maps
+- **Prompts** - Add project-specific prompts for your workflows
+- **Resources** - Expose your documentation, configuration, and project information
+- **Tool Selection** - Create read-only servers, development servers, or specialized configurations
+
+The customization approach is both easy and empowering - you're essentially building your own personalized AI development companion.
+
+**📖 [Complete Customization Documentation](doc/README.md)**
+
+For a quick start: **[Creating Your Own Custom MCP Server](doc/custom-mcp-server.md)** - This is where most users should begin. 
 
 ## ⚙️ Configuration
 
