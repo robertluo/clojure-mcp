@@ -4,6 +4,7 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.scratch-pad.core :as core]
    [clojure.tools.logging :as log]
+   [clojure.pprint :as pprint]
    [clojure.walk]))
 
 (defn get-scratch-pad
@@ -21,7 +22,7 @@
   "scratch_pad")
 
 (defmethod tool-system/tool-description :scratch-pad [_]
-  "A persistent scratch pad for storing structured data between tool calls. Accepts any JSON value except null (objects, arrays, strings, numbers, booleans) and stores them at nested paths using assoc_in, get_in, dissoc_in operations.
+  "A persistent scratch pad for storing structured data between tool calls. Accepts any JSON value except null (objects, arrays, strings, numbers, booleans) and stores them at nested paths using set_path, get_path, delete_path operations.
 
 Whenever you need to make a plan, this is your goto tool.
 
@@ -45,14 +46,14 @@ Recommended todo item structure:
 
 Adding todo items:
 - First item:
-  op: assoc_in
+  op: set_path
   path: [\"todos\" 0]
   value: {task: \"Write tests\", done: false}
   todo: \"todos\"
   explanation: Adding first task
 
 - Next item:
-  op: assoc_in
+  op: set_path
   path: [\"todos\" 1]
   value: {task: \"Review PR\", done: false, priority: \"high\"}
   todo: \"todos\"
@@ -60,7 +61,7 @@ Adding todo items:
 
 Adding multiple todo items at once:
 - Entire map:
-  op: assoc_in
+  op: set_path
   path: [\"todos\"]
   value: {
     0: {task: \"Write tests\", done: false, priority: \"high\"},
@@ -72,7 +73,7 @@ Adding multiple todo items at once:
 
 Checking off completed tasks:
 - Mark as done:
-  op: assoc_in
+  op: set_path
   path: [\"todos\" 0 \"done\"]
   value: true
   todo: \"todos\"
@@ -80,12 +81,12 @@ Checking off completed tasks:
 
 Deleting tasks:
 - Remove entire task:
-  op: dissoc_in
+  op: delete_path
   path: [\"todos\" 0]
   explanation: Removing completed task
 
 - Remove specific field:
-  op: dissoc_in
+  op: delete_path
   path: [\"todos\" 1 \"priority\"]
   explanation: Removing priority field
 
@@ -95,7 +96,7 @@ Viewing todos:
   explanation: Checking todo list
 
 - Specific task:
-  op: get_in
+  op: get_path
   path: [\"todos\" 0]
   explanation: Checking first task details
 
@@ -104,12 +105,12 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
 (defmethod tool-system/tool-schema :scratch-pad [_]
   {:type "object"
    :properties {"op" {:type "string"
-                      :enum ["assoc_in" "get_in" "dissoc_in" "tree_view"]
+                      :enum ["set_path" "get_path" "delete_path" "tree_view"]
                       :description "The operation to perform"}
                 "path" {:type "array"
                         :items {:type ["string" "number"]}
                         :description "Path to the data location (array of string or number keys)"}
-                "value" {:description "Value to store (for assoc_in). Can be any JSON value: object, array, string, number, or boolean."
+                "value" {:description "Value to store (for set_path). Can be any JSON value: object, array, string, number, or boolean."
                          :type ["object" "array" "string" "number" "boolean"]}
                 "explanation" {:type "string"
                                :description "Explanation of why this operation is being performed"}
@@ -128,20 +129,20 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
       (throw (ex-info "Missing required parameter: explanation" {:inputs inputs})))
 
     ;; Validate operation
-    (when-not (#{"assoc_in" "get_in" "dissoc_in" "tree_view"} op)
-      (throw (ex-info "Invalid operation. Must be one of: assoc_in, get_in, dissoc_in, tree_view"
+    (when-not (#{"set_path" "get_path" "delete_path" "tree_view"} op)
+      (throw (ex-info "Invalid operation. Must be one of: set_path, get_path, delete_path, tree_view"
                       {:op op :inputs inputs})))
 
     ;; Operation-specific validation
     (case op
-      "assoc_in" (do
+      "set_path" (do
                    (when-not path
-                     (throw (ex-info "Missing required parameter for assoc_in: path" {:inputs inputs})))
+                     (throw (ex-info "Missing required parameter for set_path: path" {:inputs inputs})))
                    (when-not (contains? inputs :value)
-                     (throw (ex-info "Missing required parameter for assoc_in: value" {:inputs inputs}))))
-      ("get_in" "dissoc_in") (when-not path
-                               (throw (ex-info (str "Missing required parameter for " op ": path")
-                                               {:inputs inputs})))
+                     (throw (ex-info "Missing required parameter for set_path: value" {:inputs inputs}))))
+      ("get_path" "delete_path") (when-not path
+                                   (throw (ex-info (str "Missing required parameter for " op ": path")
+                                                   {:inputs inputs})))
       "tree_view" nil)
 
     ;; Validate path has at least one element when provided
@@ -164,19 +165,24 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
   (try
     (let [current-data (get-scratch-pad nrepl-client-atom)
           result (case op
-                   "assoc_in" (let [new-data (core/assoc-in-data current-data path value)]
+                   "set_path" (let [new-data (core/assoc-in-data current-data path value)]
                                 (update-scratch-pad! nrepl-client-atom (constantly new-data))
-                                {:stored-at path
+                                (let [stored-value (core/get-in-data new-data path)]
+                                  {:stored-at path
+                                   :value stored-value
+                                   :pretty-value (with-out-str (pprint/pprint stored-value))
+                                   :todo todo}))
+
+                   "get_path" (let [value (core/get-in-data current-data path)]
+                                {:path path
                                  :value value
-                                 :todo todo})
+                                 :pretty-value (when (some? value)
+                                                 (with-out-str (pprint/pprint value)))
+                                 :found (some? value)})
 
-                   "get_in" {:path path
-                             :value (core/get-in-data current-data path)
-                             :found (some? (core/get-in-data current-data path))}
-
-                   "dissoc_in" (let [new-data (core/dissoc-in-data current-data path)]
-                                 (update-scratch-pad! nrepl-client-atom (constantly new-data))
-                                 {:removed-from path})
+                   "delete_path" (let [new-data (core/dissoc-in-data current-data path)]
+                                   (update-scratch-pad! nrepl-client-atom (constantly new-data))
+                                   {:removed-from path})
 
                    "tree_view" {:tree (core/tree-view current-data)})]
       {:result result
@@ -192,18 +198,19 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
     {:result [message]
      :error true}
     (let [op-type (cond
-                    (:stored-at result) "assoc_in"
-                    (:removed-from result) "dissoc_in"
-                    (contains? result :value) "get_in"
+                    (:stored-at result) "set_path"
+                    (:removed-from result) "delete_path"
+                    (contains? result :value) "get_path"
                     (:tree result) "tree_view")]
       {:result [(case op-type
-                  "assoc_in" (str "Stored value at path " (:stored-at result)
+                  "set_path" (str "Stored value at path " (:stored-at result)
                                   (when (:todo result)
-                                    (str " (todo: " (:todo result) ")")))
-                  "get_in" (if (:found result)
-                             (str "Value at " (:path result) ": " (pr-str (:value result)))
-                             (str "No value found at path " (:path result)))
-                  "dissoc_in" (str "Removed value at path " (:removed-from result))
+                                    (str " (todo: " (:todo result) ")"))
+                                  "\n" (:pretty-value result))
+                  "get_path" (if (:found result)
+                               (str "Value at " (:path result) ":\n" (:pretty-value result))
+                               (str "No value found at path " (:path result)))
+                  "delete_path" (str "Removed value at path " (:removed-from result))
                   "tree_view" (str "Scratch pad contents:\n" (:tree result)))
                 (str "\nReason: " explanation)]
        :error false})))
@@ -256,19 +263,19 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
   ;; Usage examples with JSON values:
 
   ;; Store a simple string
-  {:op "assoc_in"
+  {:op "set_path"
    :path ["user" "name"]
    :value "Alice"
    :explanation "Setting user name"}
 
   ;; Store an object (JSON object becomes Clojure map with string keys)
-  {:op "assoc_in"
+  {:op "set_path"
    :path ["config"]
    :value {"theme" "dark" "fontSize" 14}
    :explanation "Storing user preferences"}
 
   ;; Store an array
-  {:op "assoc_in"
+  {:op "set_path"
    :path ["tags"]
    :value ["clojure" "mcp" "tools"]
    :explanation "Setting project tags"}
@@ -276,34 +283,34 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
   ;; === TODO LIST WORKFLOW EXAMPLE ===
 
   ;; 1. Add first todo item (object with string keys)
-  {:op "assoc_in"
+  {:op "set_path"
    :path ["todos" 0]
    :value {"task" "Implement user authentication" "done" false "priority" "high"}
    :todo "todos"
    :explanation "Starting authentication work"}
 
   ;; 2. Add second todo
-  {:op "assoc_in"
+  {:op "set_path"
    :path ["todos" 1]
    :value {"task" "Write unit tests" "done" false}
    :todo "todos"
    :explanation "Adding testing task"}
 
   ;; 3. Check off first task (boolean value)
-  {:op "assoc_in"
+  {:op "set_path"
    :path ["todos" 0 "done"]
    :value true
    :todo "todos"
    :explanation "Completed authentication implementation"}
 
   ;; 4. Update task with additional context
-  {:op "assoc_in"
+  {:op "set_path"
    :path ["todos" 0 "context"]
    :value "Used OAuth2 with JWT tokens"
    :explanation "Adding implementation details"}
 
   ;; 5. Remove completed task
-  {:op "dissoc_in"
+  {:op "delete_path"
    :path ["todos" 0]
    :explanation "Cleaning up completed task"}
 
@@ -314,17 +321,17 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
   ;; === OTHER OPERATIONS ===
 
   ;; Get a specific value
-  {:op "get_in"
+  {:op "get_path"
    :path ["user" "name"]
    :explanation "Retrieving user name"}
 
   ;; Store nested data
-  {:op "assoc_in"
+  {:op "set_path"
    :path ["metrics" "performance"]
    :value {"cpu" 45.2 "memory" 78 "disk" 92}
    :explanation "Recording system metrics"}
 
   ;; Remove a value
-  {:op "dissoc_in"
+  {:op "delete_path"
    :path ["config" "old-setting"]
    :explanation "Removing deprecated config"})
