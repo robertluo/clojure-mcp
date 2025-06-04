@@ -15,6 +15,7 @@
 
         
         ;; llm ecosystem java libs
+        org.apache.tika/tika-core {:mvn/version "3.2.0"} 
         com.fasterxml.jackson.core/jackson-databind {:mvn/version "2.15.2"}
         io.modelcontextprotocol.sdk/mcp {:mvn/version "0.10.0"}
         
