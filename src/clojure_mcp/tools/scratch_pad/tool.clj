@@ -21,7 +21,7 @@
   "scratch_pad")
 
 (defmethod tool-system/tool-description :scratch-pad [_]
-  "A persistent scratch pad for storing structured data between tool calls. Accepts any JSON value (objects, arrays, strings, numbers, booleans, null) and stores them at nested paths using assoc_in, get_in, dissoc_in operations.
+  "A persistent scratch pad for storing structured data between tool calls. Accepts any JSON value except null (objects, arrays, strings, numbers, booleans) and stores them at nested paths using assoc_in, get_in, dissoc_in operations.
 
 Whenever you need to make a plan, this is your goto tool.
 
@@ -109,8 +109,8 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                 "path" {:type "array"
                         :items {:type ["string" "number"]}
                         :description "Path to the data location (array of string or number keys)"}
-                "value" {:description "Value to store (for assoc_in). Can be any JSON value: object, array, string, number, boolean, or null."
-                         :type ["object" "array" "string" "number" "boolean" "null"]}
+                "value" {:description "Value to store (for assoc_in). Can be any JSON value: object, array, string, number, or boolean."
+                         :type ["object" "array" "string" "number" "boolean"]}
                 "explanation" {:type "string"
                                :description "Explanation of why this operation is being performed"}
                 "todo" {:type "string"

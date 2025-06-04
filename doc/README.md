@@ -7,6 +7,9 @@ This directory contains documentation for creating MCP (Model Context Protocol) 
 ### [Creating Your Own Custom MCP Server](custom-mcp-server.md)
 Learn how to create your own personalized MCP server by customizing tools, prompts, and resources. This is the primary way to configure ClojureMCP during the alpha phase, and it's both easy and empowering!
 
+### [Generate Your Custom MCP Server with AI](gen-your-mcp-server.md)
+Welcome to the new age of MCP server configuration! Learn how to use Large Language Models to generate a fully customized Clojure MCP server by providing documentation as context and describing your needs. Includes numerous examples and prompt templates.
+
 ### [Creating Tools with ClojureMCP's Multimethod System](creating-tools-multimethod.md)
 Learn how to create tools using ClojureMCP's structured multimethod approach. This provides validation, error handling, and integration benefits when building tools within the ClojureMCP ecosystem.
 
