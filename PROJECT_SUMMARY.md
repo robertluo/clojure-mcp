@@ -59,7 +59,7 @@ The project allows AI assistants to:
 - `/src/clojure_mcp/tools/file_write/`: File writing operations
 - `/src/clojure_mcp/tools/scratch_pad/`: **New** - Persistent scratch pad for inter-tool communication
   - `core.clj`: Core functionality for data storage and retrieval
-  - `tool.clj`: MCP integration with path-based operations (assoc_in, get_in, dissoc_in)
+  - `tool.clj`: MCP integration with path-based operations (set_path, get_path, delete_path)
 
 #### Unused Tools (moved to other_tools/)
 
@@ -229,13 +229,13 @@ The `scratch_pad` tool provides persistent storage for structured data between t
 ```clojure
 # Basic operations
 scratch_pad:
-  Operations: assoc_in, get_in, dissoc_in, tree_view
+  Operations: set_path, get_path, delete_path, tree_view
   Path elements: Array of strings or numbers (no parsing needed)
   Values: Any JSON-compatible value (objects, arrays, strings, numbers, booleans, null)
 
 # Adding todo items
 scratch_pad:
-  op: assoc_in
+  op: set_path
   path: ["todos" 0]
   value: {task: "Write tests", done: false}
   todo: "todos"
@@ -244,7 +244,7 @@ scratch_pad:
 
 # Adding multiple todo items at once
 scratch_pad:
-  op: assoc_in
+  op: set_path
   path: ["todos"]
   value: {
     0: {task: "Write tests", done: false, priority: "high"},
@@ -256,7 +256,7 @@ scratch_pad:
 
 # Checking off tasks
 scratch_pad:
-  op: assoc_in
+  op: set_path
   path: ["todos" 0 "done"]
   value: true
   todo: "todos"
@@ -275,14 +275,14 @@ scratch_pad:
 
 # Retrieving specific values
 scratch_pad:
-  op: get_in
+  op: get_path
   path: ["todos" 0]
   explanation: Checking first task details
   Output: Value at ["todos" 0]: {task: "Write tests", done: true}
 
 # Removing data
 scratch_pad:
-  op: dissoc_in
+  op: delete_path
   path: [todos 0]
   explanation: Removing completed task
   Output: Removed value at path ["todos" 0]
@@ -409,7 +409,7 @@ The implementation uses rewrite-clj to:
 
 7. **Persistent State Management**: The `scratch_pad` tool provides:
    - Global atom-based storage accessible across all tool invocations
-   - Path-based data structure manipulation (similar to Clojure's assoc-in/get-in)
+   - Path-based data structure manipulation (operations similar to Clojure's assoc-in/get-in/dissoc-in)
    - Direct storage of JSON-compatible values without parsing
    - Path elements as arrays of strings and numbers
    - Tree visualization for debugging and inspection
@@ -578,7 +578,7 @@ The unified `clojure_edit` tool uses a pattern-matching approach for finding and
 - Inter-agent communication through shared state
 - Task tracking with structured todo lists
 - Building complex data structures incrementally
-- Path-based data manipulation similar to Clojure's assoc-in/get-in
+- Path-based data manipulation operations similar to Clojure's assoc-in/get-in/dissoc-in
 - Direct storage of JSON-compatible values (objects, arrays, strings, numbers, booleans, null)
 - Path elements specified as arrays of strings and numbers
 
