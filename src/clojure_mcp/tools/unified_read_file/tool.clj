@@ -150,7 +150,15 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
           {:error true
            :message (.getMessage e)}))
 
-      (file-content/should-be-file-response? path)
+      (file-content/text-file? path)
+      (let [result (file-timestamps/read-file-with-timestamp
+                    nrepl-client-atom path line_offset limit-val :max-line-length max-line-length)]
+        (if (:error result)
+          {:error true
+           :message (:error result)}
+          (assoc result :mode :raw)))
+
+      (file-content/image-file? path)
       (try
         (assoc (file-content/->file-response path)
                :mode :file-response)
@@ -159,14 +167,12 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
             (log/error e message)
             {:error true
              :message message})))
-      
+
       :else
-      (let [result (file-timestamps/read-file-with-timestamp
-                    nrepl-client-atom path line_offset limit-val :max-line-length max-line-length)]
-        (if (:error result)
-          {:error true
-           :message (:error result)}
-          (assoc result :mode :raw))))))
+      {:error true
+       :message (format "File read not supported for `%s` with mime-type `%s`"
+                        (str path)
+                        (str (file-content/mime-type path)))})))
 
 (defn format-clojure-view
   "Formats Clojure file view with markdown and usage advice."

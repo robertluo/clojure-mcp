@@ -72,10 +72,10 @@
   (not (text-media-type? (mime-type file-path))))
 
 (defn text-file? [file-path]
-  (not (text-media-type? (mime-type file-path))))
+  (text-media-type? (mime-type file-path)))
 
 (defn image-file? [file-path]
-  (not (image-media-type? (mime-type file-path))))
+  (image-media-type? (mime-type file-path)))
 
 (defn ->file-response [file-path]
   {::file-response file-path})
