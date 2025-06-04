@@ -1,13 +1,8 @@
 (ns clojure-mcp.tools.scratch-pad.core
   (:require
    [clojure.edn :as edn]
-   [clojure.pprint :as pprint]))
-
-(defn assoc-in-data [data path value]
-  (assoc-in data path value))
-
-(defn get-in-data [data path]
-  (get-in data path))
+   [clojure.pprint :as pprint]
+   [clojure-mcp.tools.scratch-pad.truncate :as truncate]))
 
 (defn dissoc-in-data [data path]
   (if (empty? path)
@@ -20,3 +15,36 @@
   (if (empty? data)
     "Empty scratch pad"
     (with-out-str (pprint/pprint data))))
+
+(defn execute-set-path
+  "Execute a set_path operation and return the result map."
+  [current-data path value todo]
+  (let [new-data (assoc-in current-data path value)
+        stored-value (get-in new-data path)]
+    {:data new-data
+     :result {:stored-at path
+              :value stored-value
+              :pretty-value (with-out-str (pprint/pprint stored-value))
+              :todo todo}}))
+
+(defn execute-get-path
+  "Execute a get_path operation and return the result map."
+  [current-data path]
+  (let [value (get-in current-data path)]
+    {:result {:path path
+              :value value
+              :pretty-value (when (some? value)
+                              (with-out-str (pprint/pprint value)))
+              :found (some? value)}}))
+
+(defn execute-delete-path
+  "Execute a delete_path operation and return the result map."
+  [current-data path]
+  (let [new-data (dissoc-in-data current-data path)]
+    {:data new-data
+     :result {:removed-from path}}))
+
+(defn execute-tree-view
+  "Execute a tree_view operation and return the result map."
+  [current-data depth]
+  {:result {:tree (truncate/pprint-truncated current-data depth)}})

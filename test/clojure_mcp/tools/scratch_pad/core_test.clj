@@ -2,20 +2,6 @@
   (:require [clojure.test :refer :all]
             [clojure-mcp.tools.scratch-pad.core :as core]))
 
-(deftest test-assoc-in-data
-  (testing "Associating values at paths"
-    (let [data {}]
-      (is (= {"a" 1} (core/assoc-in-data data ["a"] 1)))
-      (is (= {"a" {"b" 2}} (core/assoc-in-data data ["a" "b"] 2)))
-      (is (= {"a" {"b" {:c 3}}} (core/assoc-in-data data ["a" "b"] {:c 3}))))))
-
-(deftest test-get-in-data
-  (testing "Getting values from paths"
-    (let [data {"a" {"b" 2}}]
-      (is (= {"b" 2} (core/get-in-data data ["a"])))
-      (is (= 2 (core/get-in-data data ["a" "b"])))
-      (is (nil? (core/get-in-data data ["x" "y"]))))))
-
 (deftest test-dissoc-in-data
   (testing "Removing values at paths"
     (let [data {"a" {"b" 2 "c" 3}}]

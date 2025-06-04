@@ -4,7 +4,6 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.scratch-pad.core :as core]
    [clojure.tools.logging :as log]
-   [clojure.pprint :as pprint]
    [clojure.walk]))
 
 (defn get-scratch-pad
@@ -115,11 +114,13 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                 "explanation" {:type "string"
                                :description "Explanation of why this operation is being performed"}
                 "todo" {:type "string"
-                        :description "(Optional) Represents the key of the todo list being operated on ie.  \"rename_function_todos\" "}}
+                        :description "(Optional) Represents the key of the todo list being operated on ie.  \"rename_function_todos\" "}
+                "depth" {:type "number"
+                         :description "(Optional) For tree_view operation: Maximum depth to display (default: 5). Must be a positive integer."}}
    :required ["op" "explanation"]})
 
 (defmethod tool-system/validate-inputs :scratch-pad [{:keys [nrepl-client-atom]} inputs]
-  (let [{:keys [op path value explanation]} inputs]
+  (let [{:keys [op path value explanation depth]} inputs]
 
     ;; Check required parameters
     (when-not op
@@ -143,7 +144,10 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
       ("get_path" "delete_path") (when-not path
                                    (throw (ex-info (str "Missing required parameter for " op ": path")
                                                    {:inputs inputs})))
-      "tree_view" nil)
+      "tree_view" (when depth
+                    (when-not (and (number? depth) (integer? depth) (pos? depth))
+                      (throw (ex-info "Depth must be a positive integer greater than 0"
+                                      {:depth depth :inputs inputs})))))
 
     ;; Validate path has at least one element when provided
     (when (and path (empty? path))
@@ -157,35 +161,27 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                           {:element element :type (type element) :path path})))))
 
     ;; Convert path to vector if needed (MCP provides as array)
-    (if path
-      (assoc inputs :path (vec path))
-      inputs)))
+    ;; And ensure depth is provided with default value for tree_view
+    (cond-> inputs
+      path (assoc :path (vec path))
+      (and (= op "tree_view") (nil? depth)) (assoc :depth 5))))
 
-(defmethod tool-system/execute-tool :scratch-pad [{:keys [nrepl-client-atom]} {:keys [op path value explanation todo]}]
+(defmethod tool-system/execute-tool :scratch-pad [{:keys [nrepl-client-atom]} {:keys [op path value explanation todo depth]}]
   (try
     (let [current-data (get-scratch-pad nrepl-client-atom)
-          result (case op
-                   "set_path" (let [new-data (core/assoc-in-data current-data path value)]
-                                (update-scratch-pad! nrepl-client-atom (constantly new-data))
-                                (let [stored-value (core/get-in-data new-data path)]
-                                  {:stored-at path
-                                   :value stored-value
-                                   :pretty-value (with-out-str (pprint/pprint stored-value))
-                                   :todo todo}))
+          exec-result (case op
+                        "set_path" (let [{:keys [data result]} (core/execute-set-path current-data path value todo)]
+                                     (update-scratch-pad! nrepl-client-atom (constantly data))
+                                     result)
 
-                   "get_path" (let [value (core/get-in-data current-data path)]
-                                {:path path
-                                 :value value
-                                 :pretty-value (when (some? value)
-                                                 (with-out-str (pprint/pprint value)))
-                                 :found (some? value)})
+                        "get_path" (:result (core/execute-get-path current-data path))
 
-                   "delete_path" (let [new-data (core/dissoc-in-data current-data path)]
-                                   (update-scratch-pad! nrepl-client-atom (constantly new-data))
-                                   {:removed-from path})
+                        "delete_path" (let [{:keys [data result]} (core/execute-delete-path current-data path)]
+                                        (update-scratch-pad! nrepl-client-atom (constantly data))
+                                        result)
 
-                   "tree_view" {:tree (core/tree-view current-data)})]
-      {:result result
+                        "tree_view" (:result (core/execute-tree-view current-data depth)))]
+      {:result exec-result
        :explanation explanation
        :error false})
     (catch Exception e

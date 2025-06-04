@@ -409,10 +409,15 @@ The implementation uses rewrite-clj to:
 
 7. **Persistent State Management**: The `scratch_pad` tool provides:
    - Global atom-based storage accessible across all tool invocations
-   - Path-based data structure manipulation (operations similar to Clojure's assoc-in/get-in/dissoc-in)
+   - Path-based data structure manipulation using `set_path`/`get_path`/`delete_path` operations
    - Direct storage of JSON-compatible values without parsing
    - Path elements as arrays of strings and numbers
    - Tree visualization for debugging and inspection
+   - Pretty-printed output with truncation at depth 3 for readability
+   - Symbol-based truncation indicators for cleaner output:
+     - Arrays: `['... '... '... '...50_elements]`
+     - Maps: `{key '... '... '...20_entries}`
+     - Sets: `#{...15_items '...}`
    - Enables inter-agent communication and task tracking
    - No need for explicit namespace management or REPL state
 
@@ -578,9 +583,15 @@ The unified `clojure_edit` tool uses a pattern-matching approach for finding and
 - Inter-agent communication through shared state
 - Task tracking with structured todo lists
 - Building complex data structures incrementally
-- Path-based data manipulation operations similar to Clojure's assoc-in/get-in/dissoc-in
-- Direct storage of JSON-compatible values (objects, arrays, strings, numbers, booleans, null)
+- Path-based data manipulation using `set_path`/`get_path`/`delete_path` operations (renamed from assoc_in/get_in/dissoc_in)
+- Direct storage of JSON-compatible values (objects, arrays, strings, numbers, booleans)
 - Path elements specified as arrays of strings and numbers
+- Pretty-printed output with symbol-based truncation at depth 3 for improved readability
+- Truncation algorithm that shows collection sizes with clean symbols:
+  - `'...50_elements` for sequences
+  - `'...20_entries` for maps  
+  - `'...15_items` for sets
+- Truncation utility in `/src/clojure_mcp/tools/scratch_pad/truncate.clj` for reuse
 
 **Tool Reorganization**: To improve codebase maintainability, unused tools have been moved to `/src/clojure_mcp/other_tools/`. This separation clarifies which tools are actively used in the main MCP server (`main.clj`) versus those that remain available but are not currently essential. The moved tools include:
 
