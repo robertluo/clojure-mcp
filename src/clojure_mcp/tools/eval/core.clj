@@ -105,7 +105,9 @@
             (throw
              (ex-info
               (str "Internal Error: Unable to reach the nREPL "
-                   "thus we are unable to execute the bash command.")))))
+                   "thus we are unable to execute the bash command.")
+              {:error-type :connection-error}
+              e))))
 
         ;; Wait for the result and return it
         (let [tmb (Object.)
