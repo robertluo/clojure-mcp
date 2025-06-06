@@ -93,9 +93,9 @@
                               (deliver result-promise
                                        {:outputs @outputs
                                         :error @error-occurred})))
-                (nrepl/error (fn [_]
+                (nrepl/error (fn [{:keys [exception]}]
                                (reset! error-occurred true)
-                               (add-output! :err "Evaluation failed")
+                               (add-output! :err exception)
                                (deliver result-promise
                                         {:outputs @outputs
                                          :error true})))))
