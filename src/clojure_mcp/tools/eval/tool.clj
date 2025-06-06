@@ -50,9 +50,7 @@ Examples:
 (defmethod tool-system/tool-schema ::clojure-eval [_]
   {:type :object
    :properties {:code {:type :string
-                       :description "The Clojure code to evaluate."}
-                #_:ns #_{:type :string
-                     :description "Optional namespace to evaluate the code in. If not provided, uses the current namespace."}}
+                       :description "The Clojure code to evaluate."}}
    :required [:code]})
 
 (defmethod tool-system/validate-inputs ::clojure-eval [_ inputs]

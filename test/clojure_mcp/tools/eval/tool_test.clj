@@ -108,14 +108,14 @@
       (is (true? (:error? result)))
       (is (= 1 (count (:result result))))
       (is (str/includes? (first (:result result)) "test error"))
-      (is (str/includes? (first (:result result)) "Evaluation failed"))))
+      (is (str/includes? (first (:result result)) "Execution error"))))
 
   (testing "Multiple expressions"
     (let [result (test-tool-execution "(println \"first\") (+ 10 20)")]
       (is (false? (:error? result)))
-      (is (= 3 (count (:result result))))
-      (is (= ["first\n=> nil" "*===============================================*" "=> 30"]
-             (:result result)))))
+       (is (= 3 (count (:result result))))
+       (is (= ["first\n=> nil" "*===============================================*" "=> 30"]
+              (:result result)))))
 
   (testing "Evaluation with linter warning"
     (let [result (test-tool-execution "(let [unused 1] (+ 2 3))")]
