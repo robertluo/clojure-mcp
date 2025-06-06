@@ -58,14 +58,12 @@ Adding todo items:
   op: set_path
   path: [\"todos\" 0]
   value: {task: \"Write tests\", done: false}
-  todo: \"todos\"
   explanation: Adding first task
 
 - Next item:
   op: set_path
   path: [\"todos\" 1]
   value: {task: \"Review PR\", done: false, priority: \"high\"}
-  todo: \"todos\"
   explanation: Adding high priority task
 
 Adding multiple todo items at once:
@@ -77,7 +75,6 @@ Adding multiple todo items at once:
     1: {task: \"Review PR\", done: false, priority: \"high\"},
     2: {task: \"Update docs\", done: false, priority: \"medium\"}
   }
-  todo: \"todos\"
   explanation: Adding multiple todos at once
 
 Checking off completed tasks:
@@ -85,7 +82,6 @@ Checking off completed tasks:
   op: set_path
   path: [\"todos\" 0 \"done\"]
   value: true
-  todo: \"todos\"
   explanation: Completed writing tests
 
 Deleting tasks:
@@ -107,9 +103,7 @@ Viewing todos:
 - Specific task:
   op: get_path
   path: [\"todos\" 0]
-  explanation: Checking first task details
-
-The \"todo\" parameter helps UI tools track and display task progress when working with todo lists.")
+  explanation: Checking first task details")
 
 (defmethod tool-system/tool-schema :scratch-pad [_]
   {:type "object"
@@ -123,11 +117,9 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                          :type ["object" "array" "string" "number" "boolean" "null"]}
                 "explanation" {:type "string"
                                :description "Explanation of why this operation is being performed"}
-                "todo" {:type "string"
-                        :description "If you are adding marking deleting a todos or otherwise changing a todo this should be set to key of the todo list being operated on (ie.  \"rename_function_todos\") OR \"NOT_TODO\" if this isn't a todo operation"}
                 "depth" {:type "number"
                          :description "(Optional) For inspect operation: Maximum depth to display (default: 5). Must be a positive integer."}}
-   :required ["op" "explanation" "todo"]})
+   :required ["op" "explanation"]})
 
 (defmethod tool-system/validate-inputs :scratch-pad [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [op path value explanation depth]} inputs]
@@ -176,11 +168,11 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
       path (assoc :path (vec path))
       (and (= op "inspect") (nil? depth)) (assoc :depth 5))))
 
-(defmethod tool-system/execute-tool :scratch-pad [{:keys [nrepl-client-atom]} {:keys [op path value explanation todo depth]}]
+(defmethod tool-system/execute-tool :scratch-pad [{:keys [nrepl-client-atom]} {:keys [op path value explanation depth]}]
   (try
     (let [current-data (get-scratch-pad nrepl-client-atom)
           exec-result (case op
-                        "set_path" (let [{:keys [data result]} (core/execute-set-path current-data path value todo)]
+                        "set_path" (let [{:keys [data result]} (core/execute-set-path current-data path value)]
                                      (update-scratch-pad! nrepl-client-atom (constantly data))
                                      ;; Add parent value to result
                                      (let [parent-path (butlast path)
@@ -300,21 +292,18 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
   {:op "set_path"
    :path ["todos" 0]
    :value {"task" "Implement user authentication" "done" false "priority" "high"}
-   :todo "todos"
    :explanation "Starting authentication work"}
 
   ;; 2. Add second todo
   {:op "set_path"
    :path ["todos" 1]
    :value {"task" "Write unit tests" "done" false}
-   :todo "todos"
    :explanation "Adding testing task"}
 
   ;; 3. Check off first task (boolean value)
   {:op "set_path"
    :path ["todos" 0 "done"]
    :value true
-   :todo "todos"
    :explanation "Completed authentication implementation"}
 
   ;; 4. Update task with additional context

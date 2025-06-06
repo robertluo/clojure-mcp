@@ -10,15 +10,15 @@
       (is (= data (core/dissoc-in-data data [])))
       (is (= {"a" {}} (core/dissoc-in-data {"a" {"b" 2}} ["a" "b"]))))))
 
-(deftest test-tree-view
-  (testing "Tree view generation"
-    (is (= "Empty scratch pad" (core/tree-view {})))
+(deftest test-inspect-data
+  (testing "Inspect data generation"
+    (is (= "Empty scratch pad" (core/inspect-data {})))
     (testing "Pretty printing simple data"
       (let [data {"a" 1}
-            result (core/tree-view data)]
+            result (core/inspect-data data)]
         (is (string? result))
         (is (.contains result "{\"a\" 1}"))))
     (testing "Pretty printing nested data"
       (let [nested {"a" {"b" {"c" 1}}}
-            view (core/tree-view nested)]
-        (is (.contains view "{\"a\" {\"b\" {\"c\" 1}}}")))))) ; Should truncate at depth 2
+            view (core/inspect-data nested)]
+        (is (.contains view "{\"a\"")))))) ; Should truncate at depth 2

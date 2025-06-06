@@ -31,7 +31,7 @@
         (is (contains? (:properties schema) "path"))
         (is (contains? (:properties schema) "value"))
         (is (contains? (:properties schema) "explanation"))
-        (is (contains? (:properties schema) "todo"))
+
         (is (contains? (:properties schema) "depth"))
         (is (= ["op" "explanation"] (:required schema)))))))
 
@@ -106,18 +106,18 @@
               {:op "delete_path"
                :explanation "test"})))))
 
-    (testing "validate-inputs for tree_view operation"
+    (testing "validate-inputs for inspect operation"
       (testing "valid inputs without depth"
         (let [result (tool-system/validate-inputs
                       tool-config
-                      {:op "tree_view"
+                      {:op "inspect"
                        :explanation "test"})]
           (is (= 5 (:depth result)))))
 
       (testing "valid inputs with depth"
         (let [result (tool-system/validate-inputs
                       tool-config
-                      {:op "tree_view"
+                      {:op "inspect"
                        :depth 3
                        :explanation "test"})]
           (is (= 3 (:depth result)))))
@@ -128,7 +128,7 @@
              #"Depth must be a positive integer greater than 0"
              (tool-system/validate-inputs
               tool-config
-              {:op "tree_view"
+              {:op "inspect"
                :depth 0
                :explanation "test"})))
 
@@ -137,7 +137,7 @@
              #"Depth must be a positive integer greater than 0"
              (tool-system/validate-inputs
               tool-config
-              {:op "tree_view"
+              {:op "inspect"
                :depth -1
                :explanation "test"})))
 
@@ -146,7 +146,7 @@
              #"Depth must be a positive integer greater than 0"
              (tool-system/validate-inputs
               tool-config
-              {:op "tree_view"
+              {:op "inspect"
                :depth 3.5
                :explanation "test"})))))
 
@@ -209,12 +209,10 @@
                     {:op "set_path"
                      :path ["test" "key"]
                      :value "test value"
-                     :explanation "test"
-                     :todo "test-todo"})]
+                     :explanation "test"})]
         (is (= false (:error result)))
         (is (= ["test" "key"] (get-in result [:result :stored-at])))
         (is (= "test value" (get-in result [:result :value])))
-        (is (= "test-todo" (get-in result [:result :todo])))
         (is (string? (get-in result [:result :pretty-value])))
         ;; Check data was actually stored
         (is (= "test value" (get-in @nrepl-client-atom [::sut/scratch-pad "test" "key"])))))
@@ -263,7 +261,7 @@
         ;; But other data remains
         (is (= "data" (get-in @nrepl-client-atom [::sut/scratch-pad "test" "other"])))))
 
-    (testing "tree_view operation"
+    (testing "inspect operation"
       ;; Set up nested data
       (swap! nrepl-client-atom assoc ::sut/scratch-pad
              {"level1" {"level2" {"level3" {"level4" "deep value"}}}})
@@ -271,7 +269,7 @@
       (testing "with default depth"
         (let [result (tool-system/execute-tool
                       tool-config
-                      {:op "tree_view"
+                      {:op "inspect"
                        :explanation "test"
                        :depth 5})]
           (is (= false (:error result)))
@@ -281,7 +279,7 @@
       (testing "with custom depth"
         (let [result (tool-system/execute-tool
                       tool-config
-                      {:op "tree_view"
+                      {:op "inspect"
                        :explanation "test"
                        :depth 2})]
           (is (= false (:error result)))
@@ -299,14 +297,12 @@
                      :result {:stored-at ["test"]
                               :value "value"
                               :pretty-value "\"value\"\n"
-                              :todo "test-todo"}
+                              :parent-value {"test" "value"}}
                      :explanation "test explanation"})]
         (is (= false (:error result)))
         (is (vector? (:result result)))
-        (is (= 2 (count (:result result))))
-        (is (re-find #"Stored value at path" (first (:result result))))
-        (is (re-find #"todo: test-todo" (first (:result result))))
-        (is (re-find #"Reason: test explanation" (second (:result result))))))
+        (is (= 1 (count (:result result))))
+        (is (string? (first (:result result))))))
 
     (testing "format-results for get_path"
       (testing "when value found"
@@ -319,7 +315,7 @@
                                 :found true}
                        :explanation "test explanation"})]
           (is (= false (:error result)))
-          (is (re-find #"Value at" (first (:result result))))))
+          (is (= ["\"value\"\n"] (:result result)))))
 
       (testing "when value not found"
         (let [result (tool-system/format-results
@@ -330,7 +326,7 @@
                                 :found false}
                        :explanation "test explanation"})]
           (is (= false (:error result)))
-          (is (re-find #"No value found at path" (first (:result result)))))))
+          (is (= ["nil"] (:result result))))))
 
     (testing "format-results for delete_path"
       (let [result (tool-system/format-results
@@ -341,14 +337,14 @@
         (is (= false (:error result)))
         (is (re-find #"Removed value at path" (first (:result result))))))
 
-    (testing "format-results for tree_view"
+    (testing "format-results for inspect"
       (let [result (tool-system/format-results
                     tool-config
                     {:error false
                      :result {:tree "{\"test\" \"data\"}\n"}
                      :explanation "test explanation"})]
         (is (= false (:error result)))
-        (is (re-find #"Scratch pad contents:" (first (:result result))))))
+        (is (= ["{\"test\" \"data\"}\n"] (:result result)))))
 
     (testing "format-results for error"
       (let [result (tool-system/format-results

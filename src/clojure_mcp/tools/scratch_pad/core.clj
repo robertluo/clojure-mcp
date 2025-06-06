@@ -18,14 +18,13 @@
 
 (defn execute-set-path
   "Execute a set_path operation and return the result map."
-  [current-data path value todo]
+  [current-data path value]
   (let [new-data (assoc-in current-data path value)
         stored-value (get-in new-data path)]
     {:data new-data
      :result {:stored-at path
               :value stored-value
-              :pretty-value (with-out-str (pprint/pprint stored-value))
-              :todo todo}}))
+              :pretty-value (with-out-str (pprint/pprint stored-value))}}))
 
 (defn execute-get-path
   "Execute a get_path operation and return the result map."
