@@ -93,9 +93,9 @@
                               (deliver result-promise
                                        {:outputs @outputs
                                         :error @error-occurred})))
-                (nrepl/error (fn [_]
+                (nrepl/error (fn [{:keys [exception]}]
                                (reset! error-occurred true)
-                               (add-output! :err "Evaluation failed")
+                               (add-output! :err exception)
                                (deliver result-promise
                                         {:outputs @outputs
                                          :error true})))))
@@ -145,11 +145,11 @@
   ;; === Examples of using the eval core functionality directly ===
 
   ;; Setup for REPL-based testing
-  (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
+  (def client-atom (atom (clojure-mcp.nrepl/create {:port 44833})))
   (clojure-mcp.nrepl/start-polling @client-atom)
 
   ;; Test simple expression evaluation with options map
-  (evaluate-code @client-atom {:code "(+ 1 2)"})
+  (evaluate-code @client-atom {:code "(println hello_world)"})
 
   ;; Test with namespace option
   (evaluate-code @client-atom {:code "(str *ns*)" :namespace "clojure.string"})

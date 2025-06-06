@@ -71,7 +71,7 @@ Examples:
 (defmethod tool-system/format-results ::clojure-eval [_ {:keys [outputs error repaired] :as eval-result}]
   ;; The core implementation now returns a map with :outputs (raw outputs), :error (boolean), and :repaired (boolean)
   ;; We need to format the outputs and return a map with :result, :error, and :repaired
-  {:result [(string/join "\n" (core/partition-and-format-outputs outputs))]
+  {:result (core/partition-and-format-outputs outputs)
    :error error
    :repaired repaired})
 
