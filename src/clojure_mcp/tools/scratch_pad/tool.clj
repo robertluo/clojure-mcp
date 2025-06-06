@@ -41,7 +41,7 @@ CORE OPERATIONS:
 - set_path: Store a value at a path, returns the parent container
 - get_path: Retrieve a value from a path, returns the value or nil
 - delete_path: Remove a value at a path, returns a confirmation message
-- tree_view: Display the entire structure with truncation at specified depth
+- inspect: Display the entire structure (or a specific path) with truncation at specified depth
 
 TRACKING PLANS WITH TODO LISTS:
 
@@ -101,7 +101,7 @@ Deleting tasks:
 
 Viewing todos:
 - All data:
-  op: tree_view
+  op: inspect
   explanation: Checking todo list
 
 - Specific task:
@@ -114,11 +114,11 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
 (defmethod tool-system/tool-schema :scratch-pad [_]
   {:type "object"
    :properties {"op" {:type "string"
-                      :enum ["set_path" "get_path" "delete_path" "tree_view"]
-                      :description "The operation to perform either\n * set_path: set a value at a path\n * get_path: retrieve a value at a path\n * delete_path: remove the value AND the leaf key from the data structure\n * tree_view: get a tree overview of the datastructure (or a specific path within it) up to a certain depth"}
+                      :enum ["set_path" "get_path" "delete_path" "inspect"]
+                      :description "The operation to perform either\n * set_path: set a value at a path\n * get_path: retrieve a value at a path\n * delete_path: remove the value AND the leaf key from the data structure\n * inspect: view the datastructure (or a specific path within it) up to a certain depth"}
                 "path" {:type "array"
                         :items {:type ["string" "number"]}
-                        :description "Path to the data location (array of string or number keys) this works for all operations including tree_view"}
+                        :description "Path to the data location (array of string or number keys) this works for all operations including inspect"}
                 "value" {:description "Value to store (for set_path). Can be any JSON value: object, array, string, number, boolean, or null."
                          :type ["object" "array" "string" "number" "boolean" "null"]}
                 "explanation" {:type "string"
@@ -126,7 +126,7 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                 "todo" {:type "string"
                         :description "If you are adding marking deleting a todos or otherwise changing a todo this should be set to key of the todo list being operated on (ie.  \"rename_function_todos\") OR \"NOT_TODO\" if this isn't a todo operation"}
                 "depth" {:type "number"
-                         :description "(Optional) For tree_view operation: Maximum depth to display (default: 5). Must be a positive integer."}}
+                         :description "(Optional) For inspect operation: Maximum depth to display (default: 5). Must be a positive integer."}}
    :required ["op" "explanation" "todo"]})
 
 (defmethod tool-system/validate-inputs :scratch-pad [{:keys [nrepl-client-atom]} inputs]
@@ -140,8 +140,8 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
       (throw (ex-info "Missing required parameter: explanation" {:inputs inputs})))
 
     ;; Validate operation
-    (when-not (#{"set_path" "get_path" "delete_path" "tree_view"} op)
-      (throw (ex-info "Invalid operation. Must be one of: set_path, get_path, delete_path, tree_view"
+    (when-not (#{"set_path" "get_path" "delete_path" "inspect"} op)
+      (throw (ex-info "Invalid operation. Must be one of: set_path, get_path, delete_path, inspect"
                       {:op op :inputs inputs})))
 
     ;; Operation-specific validation
@@ -154,13 +154,13 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
       ("get_path" "delete_path") (when-not path
                                    (throw (ex-info (str "Missing required parameter for " op ": path")
                                                    {:inputs inputs})))
-      "tree_view" (when depth
-                    (when-not (and (number? depth) (integer? depth) (pos? depth))
-                      (throw (ex-info "Depth must be a positive integer greater than 0"
-                                      {:depth depth :inputs inputs})))))
+      "inspect" (when depth
+                  (when-not (and (number? depth) (integer? depth) (pos? depth))
+                    (throw (ex-info "Depth must be a positive integer greater than 0"
+                                    {:depth depth :inputs inputs})))))
 
     ;; Validate path has at least one element when provided
-    (when (and path (empty? path) (not= op "tree_view"))
+    (when (and path (empty? path) (not= op "inspect"))
       (throw (ex-info "Path must have at least one element" {:path path :inputs inputs})))
 
     ;; Validate path elements are strings or numbers
@@ -171,10 +171,10 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                           {:element element :type (type element) :path path})))))
 
     ;; Convert path to vector if needed (MCP provides as array)
-    ;; And ensure depth is provided with default value for tree_view
+    ;; And ensure depth is provided with default value for inspect
     (cond-> inputs
       path (assoc :path (vec path))
-      (and (= op "tree_view") (nil? depth)) (assoc :depth 5))))
+      (and (= op "inspect") (nil? depth)) (assoc :depth 5))))
 
 (defmethod tool-system/execute-tool :scratch-pad [{:keys [nrepl-client-atom]} {:keys [op path value explanation todo depth]}]
   (try
@@ -195,7 +195,7 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                                         (update-scratch-pad! nrepl-client-atom (constantly data))
                                         result)
 
-                        "tree_view" (:result (core/execute-tree-view current-data depth path)))]
+                        "inspect" (:result (core/execute-inspect current-data depth path)))]
       {:result exec-result
        :explanation explanation
        :error false})
@@ -224,7 +224,7 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
       {:result [(str "Removed value at path " (:removed-from result))]
        :error false}
 
-      ;; tree_view - return pprinted truncated view only
+      ;; inspect - return pprinted truncated view only
       (:tree result)
       {:result [(:tree result)]
        :error false})))
@@ -329,7 +329,7 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
    :explanation "Cleaning up completed task"}
 
   ;; 6. View all todos
-  {:op "tree_view"
+  {:op "inspect"
    :explanation "Reviewing remaining tasks"}
 
   ;; === OTHER OPERATIONS ===
