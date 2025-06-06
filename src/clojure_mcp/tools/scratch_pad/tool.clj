@@ -35,7 +35,18 @@ This tool can be used to:
  * share context between different tool calls
  * any other persistent storage needs during your work
 
-The user will not see the scratch pad contents unless you explicitly retrieve and display them. Use the chat to communicate with users; use the scratch pad to organize your own work.
+The scratch pad is for persistent storage and state management, not for formatting output. Display information directly in your chat responses. However, when the scratch pad contains user-relevant state (like todo lists or tracked progress), you should retrieve and display updates after modifications.
+
+Use the scratch pad when you need to:
+- Track progress across multiple tool calls
+- Build data structures incrementally  
+- Maintain state between operations
+- Store intermediate results for later use
+
+Don't use the scratch pad to:
+- Format text for display
+- Store static information just to retrieve and show it
+- Replace direct chat responses
 
 CORE OPERATIONS:
 - set_path: Store a value at a path, returns the parent container
@@ -50,60 +61,76 @@ Recommended todo item structure:
   task: \"Description of the task\",
   done: false,
   priority: \"high\", // optional: \"high\", \"medium\", \"low\"
-  context: \"Additional details\" // optional
+  context: \"Additional details\", // optional
+  subtasks: [  // optional: array of subtask objects
+    {task: \"Subtask 1\", done: false},
+    {task: \"Subtask 2\", done: true}
+  ]
 }
+
+First add multiple todo items at once as an array:
+- Entire array:
+  op: set_path
+  path: [\"todos\"]
+  value: [
+    {task: \"Write tests\", done: false, priority: \"high\"},
+    {task: \"Review PR\", done: false, priority: \"high\"},
+    {task: \"Update docs\", done: false, priority: \"medium\", subtasks: [
+      {task: \"Update API docs\", done: false},
+      {task: \"Update README\", done: false}
+    ]}
+  ]
+  explanation: Adding multiple todos at once
 
 Adding todo items:
 - First item:
   op: set_path
-  path: [\"todos\" 0]
-  value: {task: \"Write tests\", done: false}
-  explanation: Adding first task
+  path: [\"todos\", 3]
+  value: {task: \"Run tests\", done: false}
+  explanation: Adding write tests task
 
 - Next item:
   op: set_path
-  path: [\"todos\" 1]
-  value: {task: \"Review PR\", done: false, priority: \"high\"}
+  path: [\"todos\", 4]
+  value: {task: \"Notify user\", done: false, priority: \"high\"}
   explanation: Adding high priority task
-
-Adding multiple todo items at once:
-- Entire map:
-  op: set_path
-  path: [\"todos\"]
-  value: {
-    0: {task: \"Write tests\", done: false, priority: \"high\"},
-    1: {task: \"Review PR\", done: false, priority: \"high\"},
-    2: {task: \"Update docs\", done: false, priority: \"medium\"}
-  }
-  explanation: Adding multiple todos at once
 
 Checking off completed tasks:
 - Mark as done:
   op: set_path
-  path: [\"todos\" 0 \"done\"]
+  path: [\"todos\", 0, \"done\"]
   value: true
   explanation: Completed writing tests
 
-Deleting tasks:
-- Remove entire task:
-  op: delete_path
-  path: [\"todos\" 0]
-  explanation: Removing completed task
+- Mark subtask as done:
+  op: set_path
+  path: [\"todos\", 2, \"subtasks\", 0, \"done\"]
+  value: true
+  explanation: Completed API docs update
 
-- Remove specific field:
-  op: delete_path
-  path: [\"todos\" 1 \"priority\"]
-  explanation: Removing priority field
+Adding a new todo to the array:
+- Append to array:
+  op: set_path
+  path: [\"todos\", 3]
+  value: {task: \"Deploy to production\", done: false, priority: \"high\"}
+  explanation: Adding deployment task
 
 Viewing todos:
-- All data:
-  op: inspect
-  explanation: Checking todo list
+- All todos:
+  op: get_path
+  path: [\"todos\"]
+  explanation: Get all todo items
 
 - Specific task:
   op: get_path
-  path: [\"todos\" 0]
-  explanation: Checking first task details")
+  path: [\"todos\", 0]
+  explanation: Checking first task details
+
+- View with depth limit:
+  op: inspect
+  path: [\"todos\"]
+  depth: 2
+  explanation: View todos with limited nesting")
 
 (defmethod tool-system/tool-schema :scratch-pad [_]
   {:type "object"
@@ -286,40 +313,69 @@ Viewing todos:
    :value ["clojure" "mcp" "tools"]
    :explanation "Setting project tags"}
 
-  ;; === TODO LIST WORKFLOW EXAMPLE ===
+  ;; === TODO LIST WORKFLOW EXAMPLE WITH ARRAYS ===
 
-  ;; 1. Add first todo item (object with string keys)
+  ;; 1. Initialize todos as empty array
+  {:op "set_path"
+   :path ["todos"]
+   :value []
+   :explanation "Initialize empty todo list"}
+
+  ;; 2. Add first todo item to array
   {:op "set_path"
    :path ["todos" 0]
    :value {"task" "Implement user authentication" "done" false "priority" "high"}
    :explanation "Starting authentication work"}
 
-  ;; 2. Add second todo
+  ;; 3. Add multiple todos at once as array
   {:op "set_path"
-   :path ["todos" 1]
-   :value {"task" "Write unit tests" "done" false}
-   :explanation "Adding testing task"}
+   :path ["todos"]
+   :value [{"task" "Implement authentication" "done" false "priority" "high"}
+           {"task" "Write unit tests" "done" false "priority" "medium"
+            "subtasks" [{"task" "Test login flow" "done" false}
+                        {"task" "Test logout flow" "done" false}]}
+           {"task" "Update documentation" "done" false}]
+   :explanation "Setting up complete todo list"}
 
-  ;; 3. Check off first task (boolean value)
+  ;; 4. Check off first task (boolean value)
   {:op "set_path"
    :path ["todos" 0 "done"]
    :value true
    :explanation "Completed authentication implementation"}
 
-  ;; 4. Update task with additional context
+  ;; 5. Mark subtask as done
+  {:op "set_path"
+   :path ["todos" 1 "subtasks" 0 "done"]
+   :value true
+   :explanation "Completed login flow tests"}
+
+  ;; 6. Add context to a task
   {:op "set_path"
    :path ["todos" 0 "context"]
    :value "Used OAuth2 with JWT tokens"
    :explanation "Adding implementation details"}
 
-  ;; 5. Remove completed task
-  {:op "delete_path"
-   :path ["todos" 0]
-   :explanation "Cleaning up completed task"}
+  ;; 7. Append new todo to array
+  {:op "set_path"
+   :path ["todos" 3]
+   :value {"task" "Deploy to production" "done" false "priority" "high"}
+   :explanation "Adding deployment task"}
 
-  ;; 6. View all todos
+  ;; 8. View all todos
+  {:op "get_path"
+   :path ["todos"]
+   :explanation "Get all todo items"}
+
+  ;; 9. View specific todo with subtasks
+  {:op "get_path"
+   :path ["todos" 1]
+   :explanation "Get task with subtasks"}
+
+  ;; 10. Inspect with depth limit
   {:op "inspect"
-   :explanation "Reviewing remaining tasks"}
+   :path ["todos"]
+   :depth 2
+   :explanation "View todos structure with limited depth"}
 
   ;; === OTHER OPERATIONS ===
 
