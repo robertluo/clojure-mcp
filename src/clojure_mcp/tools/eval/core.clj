@@ -145,7 +145,7 @@
   ;; === Examples of using the eval core functionality directly ===
 
   ;; Setup for REPL-based testing
-  (def client-atom (atom (clojure-mcp.nrepl/create {:port 44833})))
+  (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))
   (clojure-mcp.nrepl/start-polling @client-atom)
 
   ;; Test simple expression evaluation with options map
