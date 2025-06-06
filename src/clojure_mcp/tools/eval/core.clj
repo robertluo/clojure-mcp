@@ -149,7 +149,7 @@
   (clojure-mcp.nrepl/start-polling @client-atom)
 
   ;; Test simple expression evaluation with options map
-  (evaluate-code @client-atom {:code "(println hello_world)"})
+  (evaluate-code @client-atom {:code "(+ 1 2)"})
 
   ;; Test with namespace option
   (evaluate-code @client-atom {:code "(str *ns*)" :namespace "clojure.string"})
