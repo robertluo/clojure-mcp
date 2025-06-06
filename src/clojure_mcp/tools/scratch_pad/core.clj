@@ -46,5 +46,10 @@
 
 (defn execute-tree-view
   "Execute a tree_view operation and return the result map."
-  [current-data depth]
-  {:result {:tree (truncate/pprint-truncated current-data depth)}})
+  [current-data depth path]
+  (let [data-to-view (if (and path (not (empty? path)))
+                       (get-in current-data path)
+                       current-data)]
+    (if (nil? data-to-view)
+      {:result {:tree (str "No data found at path " path)}}
+      {:result {:tree (truncate/pprint-truncated data-to-view depth)}})))

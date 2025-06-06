@@ -115,7 +115,7 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
   {:type "object"
    :properties {"op" {:type "string"
                       :enum ["set_path" "get_path" "delete_path" "tree_view"]
-                      :description "The operation to perform either\n * set_path: set a value at a path\n * get_path: retrieve a value at a path\n * delete_path: remove the value AND the leaf key from the data structure\n * tree_view: get a tree overview of the datastructure up to a certain depth"}
+                      :description "The operation to perform either\n * set_path: set a value at a path\n * get_path: retrieve a value at a path\n * delete_path: remove the value AND the leaf key from the data structure\n * tree_view: get a tree overview of the datastructure (or a specific path within it) up to a certain depth"}
                 "path" {:type "array"
                         :items {:type ["string" "number"]}
                         :description "Path to the data location (array of string or number keys) this works for all operations including tree_view"}
@@ -160,7 +160,7 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                                       {:depth depth :inputs inputs})))))
 
     ;; Validate path has at least one element when provided
-    (when (and path (empty? path))
+    (when (and path (empty? path) (not= op "tree_view"))
       (throw (ex-info "Path must have at least one element" {:path path :inputs inputs})))
 
     ;; Validate path elements are strings or numbers
@@ -195,7 +195,7 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
                                         (update-scratch-pad! nrepl-client-atom (constantly data))
                                         result)
 
-                        "tree_view" (:result (core/execute-tree-view current-data depth)))]
+                        "tree_view" (:result (core/execute-tree-view current-data depth path)))]
       {:result exec-result
        :explanation explanation
        :error false})
