@@ -10,7 +10,7 @@
    [dev.langchain4j.agent.tool ToolSpecification #_ToolParameter]
    [dev.langchain4j.service.tool ToolExecutor ToolExecution]
    [dev.langchain4j.service TokenStream]
-   [dev.langchain4j.data.message SystemMessage UserMessage TextContent ]
+   [dev.langchain4j.data.message SystemMessage UserMessage TextContent]
    [dev.langchain4j.agent.tool ToolExecutionRequest]
    [dev.langchain4j.model.chat.request.json JsonObjectSchema]
    [dev.langchain4j.memory ChatMemory]
@@ -30,41 +30,11 @@
     OpenAiChatModel
     OpenAiChatRequestParameters
     OpenAiChatModelName]
-   
+
    ;; Java Time API
    [java.time LocalTime LocalDate ZoneId]))
 
 (def default-max-memory 100)
-
-#_(defn create-model-claude-3-7 []
-  (-> (AnthropicChatModel/builder)
-      (.apiKey (System/getenv "ANTHROPIC_API_KEY"))
-      (.modelName AnthropicChatModelName/CLAUDE_3_7_SONNET_20250219)
-      #_(.modelName AnthropicChatModelName/CLAUDE_3_5_SONNET_20241022)
-      (.logRequests true)
-      (.logResponses true)))
-
-#_(defn create-model-claude-3-5 []
-  (-> (AnthropicChatModel/builder)
-      (.apiKey (System/getenv "ANTHROPIC_API_KEY"))
-      (.modelName AnthropicChatModelName/CLAUDE_3_5_SONNET_20241022)
-      #_(.modelName AnthropicChatModelName/CLAUDE_3_5_SONNET_20241022)
-      (.logRequests true)
-      (.logResponses true)))
-
-#_(defn create-model-gemini []
-  (-> (GoogleAiGeminiChatModel/builder)
-      (.apiKey (System/getenv "GEMINI_API_KEY"))
-      (.modelName "gemini-2.5-pro-preview-03-25")
-      #_(.logRequests true)
-      #_(.logResponses true)))
-
-#_(defn create-model-gemini-2-0-flash []
-  (-> (GoogleAiGeminiChatModel/builder)
-      (.apiKey (System/getenv "GEMINI_API_KEY"))
-      (.modelName "gemini-2.0-flash")
-      #_(.logRequests true)
-      #_(.logResponses true)))
 
 ;; simple API as we don't really need more right now
 
@@ -89,8 +59,8 @@
       (.modelName model-name)))
 
 (defn default-request-parameters [model-builder configure-fn]
-   (.defaultRequestParameters model-builder
-    (.build (configure-fn (OpenAiChatRequestParameters/builder)))))
+  (.defaultRequestParameters model-builder
+                             (.build (configure-fn (OpenAiChatRequestParameters/builder)))))
 
 (defn reasoning-effort [request-params-builder reasoning-effort]
   (assert (#{:low :medium :high} reasoning-effort))
@@ -133,7 +103,7 @@
 
 (defn is-well-formed-json? [json-string]
   (try
-    {:result (json/read-str json-string :key-fn keyword)}
+    {:result (json/read-str json-string)}
     (catch Exception _ false)))
 
 (defn registration-map->tool-executor [{:keys [tool-fn]}]
@@ -141,7 +111,6 @@
     (execute [_this request memory-id]
       (let [tool-name (.name request)
             arg-str (.arguments request)]
-
         (if-let [arg-result (is-well-formed-json? arg-str)]
           (try
             (log/info (str "Calling tool" (pr-str {:tool-name tool-name
@@ -220,15 +189,13 @@
      :tool-fn (fn [_ {:keys [nm]} callback]
                 (callback [(str "Hello " nm "!")] false))})
   #_(create-service AiService {})
-  
+
   (let [exec (registration-map->tool-executor test-tool)]
     (.execute exec (-> (ToolExecutionRequest/builder)
                        (.name "hello")
                        (.arguments (json/json-str {:nm "Joey"}))
                        (.build))
-              "asdf"))
-  
-  )
+              "asdf")))
 
 ;; keep this example
 #_(definterface StreamingAiService
