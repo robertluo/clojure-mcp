@@ -1,6 +1,7 @@
 (ns clojure-mcp.tools.eval.tool
   "Implementation of the eval tool using the tool-system multimethod approach."
   (:require
+   [clojure.string :as string]
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.eval.core :as core]))
 
@@ -70,7 +71,7 @@ Examples:
 (defmethod tool-system/format-results ::clojure-eval [_ {:keys [outputs error repaired] :as eval-result}]
   ;; The core implementation now returns a map with :outputs (raw outputs), :error (boolean), and :repaired (boolean)
   ;; We need to format the outputs and return a map with :result, :error, and :repaired
-  {:result (core/partition-and-format-outputs outputs)
+  {:result [(string/join "\n" (core/partition-and-format-outputs outputs))]
    :error error
    :repaired repaired})
 
