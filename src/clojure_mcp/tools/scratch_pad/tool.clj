@@ -21,17 +21,27 @@
   "scratch_pad")
 
 (defmethod tool-system/tool-description :scratch-pad [_]
-  "A persistent scratch pad for storing structured data between tool calls. Accepts any JSON value except null (objects, arrays, strings, numbers, booleans) and stores them at nested paths using set_path, get_path, delete_path operations.
+  "A persistent scratch pad for storing structured data between tool calls. Accepts any JSON value (objects, arrays, strings, numbers, booleans, null) and stores them at nested paths using set_path, get_path, delete_path operations.
 
-Whenever you need to make a plan, this is your goto tool.
+Your persistent workspace for planning, organizing thoughts, and maintaining state across tool invocations.
 
 This tool can be used to:
- * maintain todo lists
- * maintain a list of files that need to be addressed
- * store thinking and overall strategy notes
- * store a list of reminders
- * simply jotting down things that are noteworthy
- * or other proactive/creative uses that will help you accomplish the task at hand
+ * develop and track multi-step plans
+ * maintain todo lists and task tracking
+ * store intermediate results between operations
+ * keep notes about your current approach or strategy
+ * maintain a list of files or resources to process
+ * build up complex data structures incrementally
+ * share context between different tool calls
+ * any other persistent storage needs during your work
+
+The user will not see the scratch pad contents unless you explicitly retrieve and display them. Use the chat to communicate with users; use the scratch pad to organize your own work.
+
+CORE OPERATIONS:
+- set_path: Store a value at a path, returns the parent container
+- get_path: Retrieve a value from a path, returns the value or nil
+- delete_path: Remove a value at a path, returns a confirmation message
+- tree_view: Display the entire structure with truncation at specified depth
 
 TRACKING PLANS WITH TODO LISTS:
 
@@ -105,19 +115,19 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
   {:type "object"
    :properties {"op" {:type "string"
                       :enum ["set_path" "get_path" "delete_path" "tree_view"]
-                      :description "The operation to perform"}
+                      :description "The operation to perform either\n * set_path: set a value at a path\n * get_path: retrieve a value at a path\n * delete_path: remove the value AND the leaf key from the data structure\n * tree_view: get a tree overview of the datastructure up to a certain depth"}
                 "path" {:type "array"
                         :items {:type ["string" "number"]}
-                        :description "Path to the data location (array of string or number keys)"}
-                "value" {:description "Value to store (for set_path). Can be any JSON value: object, array, string, number, or boolean."
-                         :type ["object" "array" "string" "number" "boolean"]}
+                        :description "Path to the data location (array of string or number keys) this works for all operations including tree_view"}
+                "value" {:description "Value to store (for set_path). Can be any JSON value: object, array, string, number, boolean, or null."
+                         :type ["object" "array" "string" "number" "boolean" "null"]}
                 "explanation" {:type "string"
                                :description "Explanation of why this operation is being performed"}
                 "todo" {:type "string"
-                        :description "(Optional) Represents the key of the todo list being operated on ie.  \"rename_function_todos\" "}
+                        :description "If you are adding marking deleting a todos or otherwise changing a todo this should be set to key of the todo list being operated on (ie.  \"rename_function_todos\") OR \"NOT_TODO\" if this isn't a todo operation"}
                 "depth" {:type "number"
                          :description "(Optional) For tree_view operation: Maximum depth to display (default: 5). Must be a positive integer."}}
-   :required ["op" "explanation"]})
+   :required ["op" "explanation" "todo"]})
 
 (defmethod tool-system/validate-inputs :scratch-pad [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [op path value explanation depth]} inputs]
@@ -172,7 +182,12 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
           exec-result (case op
                         "set_path" (let [{:keys [data result]} (core/execute-set-path current-data path value todo)]
                                      (update-scratch-pad! nrepl-client-atom (constantly data))
-                                     result)
+                                     ;; Add parent value to result
+                                     (let [parent-path (butlast path)
+                                           parent-value (if (empty? parent-path)
+                                                          data
+                                                          (get-in data parent-path))]
+                                       (assoc result :parent-value parent-value)))
 
                         "get_path" (:result (core/execute-get-path current-data path))
 
@@ -193,22 +208,25 @@ The \"todo\" parameter helps UI tools track and display task progress when worki
   (if error
     {:result [message]
      :error true}
-    (let [op-type (cond
-                    (:stored-at result) "set_path"
-                    (:removed-from result) "delete_path"
-                    (contains? result :value) "get_path"
-                    (:tree result) "tree_view")]
-      {:result [(case op-type
-                  "set_path" (str "Stored value at path " (:stored-at result)
-                                  (when (:todo result)
-                                    (str " (todo: " (:todo result) ")"))
-                                  "\n" (:pretty-value result))
-                  "get_path" (if (:found result)
-                               (str "Value at " (:path result) ":\n" (:pretty-value result))
-                               (str "No value found at path " (:path result)))
-                  "delete_path" (str "Removed value at path " (:removed-from result))
-                  "tree_view" (str "Scratch pad contents:\n" (:tree result)))
-                (str "\nReason: " explanation)]
+    (cond
+      ;; set_path - return pprinted parent value
+      (:stored-at result)
+      {:result [(with-out-str (clojure.pprint/pprint (:parent-value result)))]
+       :error false}
+
+      ;; get_path - return pprinted value
+      (contains? result :value)
+      {:result [(or (:pretty-value result) "nil")]
+       :error false}
+
+      ;; delete_path - return removed message only
+      (:removed-from result)
+      {:result [(str "Removed value at path " (:removed-from result))]
+       :error false}
+
+      ;; tree_view - return pprinted truncated view only
+      (:tree result)
+      {:result [(:tree result)]
        :error false})))
 
 ;; this is needed because of the special handling of edn in the default handler
