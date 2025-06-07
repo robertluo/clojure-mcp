@@ -200,8 +200,8 @@ Add `clojure-mcp` as an alias in your `~/.clojure/deps.edn`:
   {:mcp 
     {:deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"} ;; Required for stdio server
             com.bhauman/clojure-mcp {:git/url "https://github.com/bhauman/clojure-mcp.git"
-                                     :git/tag "v0.1.1-alpha"
-                                     :git/sha "0fcac09"}}
+                                     :git/tag "v0.1.2-alpha"
+                                     :git/sha "037778b"}}
      :exec-fn clojure-mcp.main/start-mcp-server
      :exec-args {:port 7888}}}}
 ```
