@@ -11,7 +11,7 @@
             [clojure-mcp.tools.glob-files.tool :as glob-files-tool]
             [clojure-mcp.tools.project.tool :as project-tool]
             [clojure-mcp.tools.think.tool :as think-tool]
-            [clojure-mcp.tools.scratch-pad.tool :as scratch-pad-tool])
+            #_[clojure-mcp.tools.scratch-pad.tool :as scratch-pad-tool])
   (:import
    [clojure_mcp.agent.langchain AiService]))
 
@@ -41,7 +41,7 @@
                                 glob-files-tool/glob-files-tool
                                 project-tool/inspect-project-tool
                                 think-tool/think-tool
-                                scratch-pad-tool/scratch-pad-tool])
+                                #_scratch-pad-tool/scratch-pad-tool])
                               :system-message system-message}
              service (-> (chain/create-service AiService ai-service-data)
                          (.build))]

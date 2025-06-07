@@ -143,66 +143,62 @@ Once you're comfortable with the Clojure MCP toolset, you can make informed deci
 - [Java](https://openjdk.org/) (JDK 11 or later)
 - [Claude Desktop](https://claude.ai/download) (for the best experience)
 
-### Setting up the ClojureMCP
+# Setting up ClojureMCP
 
-Seting up ClojureMCP can be challenging as it is currently alpha and
-not optimized for a quick install.
+Setting up ClojureMCP can be challenging as it is currently in alpha and not optimized for quick installation. This guide will walk you through the process step by step.
 
-**Install Overview**
+## Installation Overview
 
-1. Setup and verify that you can start an nREPL on port `7888` in your project
-2. Setup `clojure-mcp` in your `~/.clojure/deps.edn`
-3. Configure `clojure-mcp` as an Mcp server in Claude Desktop or other MCP client
+1. **Configure nREPL**: Set up and verify an nREPL server on port `7888` in your project
+2. **Install ClojureMCP**: Add `clojure-mcp` to your `~/.clojure/deps.edn`
+3. **Configure MCP Client**: Set up `clojure-mcp` as an MCP server in Claude Desktop or other MCP clients
 
-This setup is intended to verify that all the pieces are working
-together. Specific configuration details like port numbers can be
-changed later.
+> **Note**: This setup verifies that all components work together. You can customize specific configuration details (like port numbers) after confirming the basic setup works.
 
-#### Step 1: Configure Your Target Project nREPL connection
+## Step 1: Configure Your Target Project's nREPL Connection
 
-In the Clojure project where you want AI assistance, ensure that we
-can start nREPL server and ensure you can start it at specific
-port `7888`.
+In the Clojure project where you want AI assistance, you'll need to ensure you can start an nREPL server on port `7888`.
 
-This is what I do for my projects:
+### For deps.edn Projects
 
-In my project's `deps.edn` I add an `:nrepl` alias:
+Add an `:nrepl` alias to your project's `deps.edn`:
+
 ```clojure
 {
-  ;; ... all the dependencies your project needs will need to be in here
+  ;; ... your project dependencies ...
   :aliases {
-  ;; nREPL server for AI to connect to
-  ;; include all the paths that you want available for developement
-  :nrepl {:extra-paths ["test"] 
-          :extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}}
-          :jvm-opts ["-Djdk.attach.allowAttachSelf"]						 
-          :main-opts ["-m" "nrepl.cmdline" "--port" "7888"]}}}
+    ;; nREPL server for AI to connect to
+    ;; Include all paths you want available for development
+    :nrepl {:extra-paths ["test"] 
+            :extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}}
+            :jvm-opts ["-Djdk.attach.allowAttachSelf"]
+            :main-opts ["-m" "nrepl.cmdline" "--port" "7888"]}}}
 ```
 
-**Verify** that this is working with the following command:
+**Verify** the configuration:
 
 ```bash
 $ clojure -M:nrepl
 ```
 
-You should see the nREPL start up at the port `7888`
+You should see the nREPL server start on port `7888`.
 
-**Leinigen**: If you are using Leinigen can start an nREPL server like so:
+### For Leiningen Projects
+
+Start an nREPL server with:
 
 ```bash
-$ lein repl :headless :port 7889
+$ lein repl :headless :port 7888
 ```
 
-#### Step 2: Add the  Clojure MCP server
+## Step 2: Install the Clojure MCP Server
 
-Now we will setup `clojure-mcp` so that we can start it. The easiest
-way to do that for now is to set it up as an alias in your
-`~/.clojure/deps.edn` like so:
+Add `clojure-mcp` as an alias in your `~/.clojure/deps.edn`:
 
 ```clojure
 {:aliases 
   {:mcp 
-    {:deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"} ;; stdio server must have this
+    {:deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"} ;; Required for stdio server
             com.bhauman/clojure-mcp {:git/url "https://github.com/bhauman/clojure-mcp.git"
                                      :git/tag "v0.1.1-alpha"
                                      :git/sha "0fcac09"}}
@@ -210,103 +206,59 @@ way to do that for now is to set it up as an alias in your
      :exec-args {:port 7888}}}}
 ```
 
-> **Finding the latest SHA**: Visit [https://github.com/bhauman/clojure-mcp/commits/main](https://github.com/bhauman/clojure-mcp/commits/main) to get the latest commit SHA, or clone the repo and run `git log --oneline -1` to see the latest commit.
+> **Finding the Latest Version**: Visit [https://github.com/bhauman/clojure-mcp/commits/main](https://github.com/bhauman/clojure-mcp/commits/main) for the latest commit SHA, or clone the repo and run `git log --oneline -1`.
 
-**Verify**: It's very important that you verify that you can start `clojure-mcp` before moving on.
+### Verify the Installation
 
-**BEFORE** starting `clojure-mcp` you **must** have an nREPL running and for this is example it must be running on port `7888`.
+⚠️ **Important**: You must have an nREPL server running on port `7888` before starting `clojure-mcp`.
 
-So in the root directory of your project start an nREPL server as demonstrated above:
-```bash
-$ clojure -M:nrepl
-```
-or
-```bash
-$ lein repl :headless :port 7888
-```
+1. **First**, start your nREPL server in your project directory:
+   ```bash
+   $ clojure -M:nrepl
+   # or for Leiningen:
+   $ lein repl :headless :port 7888
+   ```
 
-**THEN** start `clojure-mcp`:
+2. **Then**, in a new terminal, start `clojure-mcp`:
+   ```bash
+   $ clojure -X:mcp :port 7888
+   ```
 
-```bash
-$ clojure -X:mcp :port 7888
-```
+You should see JSON-RPC output like this:
 
-You should see output like this:
-
-```bash
-MacBookPro:clojure-mcp bruce$ clojure -X:mcp
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
+```json
 {"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
 {"jsonrpc":"2.0","method":"notifications/tools/list_changed"}
 {"jsonrpc":"2.0","method":"notifications/resources/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/resources/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/resources/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/resources/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/resources/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/prompts/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/prompts/list_changed"}
-{"jsonrpc":"2.0","method":"notifications/prompts/list_changed"}
 {"jsonrpc":"2.0","method":"notifications/prompts/list_changed"}
 ```
 
-It's import that you don't see any other output. This is a server that reads from standard in and outputs to standard out, so if there is any other output besides `json-rpc` this will cause problems. Extraneous output is normally caused by including `clojure-mcp` in a larger environment.  It's best restrict `clojure-mcp` to its own deps/classpaths.
+### Troubleshooting
 
-If you get an error when you start 
-
-```bash
-MacBookPro:clojure-mcp bruce$ clojure -X:mcp
+**Connection Refused Error**:
+```
 Execution error (ConnectException) at sun.nio.ch.Net/connect0 (Net.java:-2).
 Connection refused
-
-Full report at:
-/var/folders/q2/zvxs36653cxf4v26c6262jwc0000gn/T/clojure-3031591891312608188.edn
 ```
+This means `clojure-mcp` couldn't connect to your nREPL server. Ensure:
+- The nREPL server is running
+- The port numbers match (default: 7888)
 
-This means that `clojure-mcp` could not connect to your nREPL server. 
+**Extraneous Output**: 
+If you see output other than JSON-RPC messages, it's likely due to `clojure-mcp` being included in a larger environment. Ensure `clojure-mcp` runs with its own isolated dependencies.
 
+### Important Notes
 
-> IMPORTANT NOTE: the mcp server can run in any directory and DOES NOT
-> have to run from your project directory.  The mcp server looks to
-> the nREPL connection for context.  The root directory of the project
-> that is running the nREPL server becomes the root directory of all
-> the mcp tool invocations. Currently the nREPL must run on the same
-> machine as the MCP server as there is an assumption of a shared file
-> system between the nREPL server and the MCP server.
+- **Location Independence**: The MCP server can run from any directory—it doesn't need to be in your project directory. It uses the nREPL connection for context.
+- **Shared Filesystem**: Currently, the nREPL and MCP servers must run on the same machine as they assume a shared filesystem.
+- **Dependency Isolation**: Don't include `clojure-mcp` in your project's dependencies. It should run separately with its own deps. Always use `:deps` (not `:extra-deps`) in its alias.
 
-> ANOTHER IMPORTANT NOTE: `clojure-mcp` should not run as part of your
-> project and your project's dependencies should not mingle with
-> clojure-mcp. It should run separately, with its own set of deps. So
-> if you include it in your projects `deps.edn` it should not use
-> `:extra-deps` in its alias is should always use `:deps`
+## Step 3: Configure Claude Desktop
 
-#### Step 3: Configure Claude Desktop
+This is often the most challenging part—ensuring the application's launch environment has the correct PATH and environment variables.
 
-Now that we've launched `clojure-mcp` from the commandline we need to
-set it up so that it can be launched by the tools that are going to be
-using it.
+Create or edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
-The common pattern for Mcp clients like Claude Desktop and others is
-that they have a JSON configuration file where you give them a command
-to start your Mcp server.
-
-**This is the most challenging part of the setup.** We have to ensure
-that applications launch environment has the right PATH and ENV
-variables so that `clojure` can run.
-
-Create a `~/Library/Application Support/Claude/claude_desktop_config.json` file with contents something like this:
 ```json
 {
     "mcpServers": {
@@ -321,35 +273,61 @@ Create a `~/Library/Application Support/Claude/claude_desktop_config.json` file 
 }
 ```
 
-So if you don't use nix and you use homebrew this might just work for
-you. The key is that you will need to supply the PATH that will work.
+### Common PATH Locations
 
-Common 
-  - **Homebrew (Apple Silicon)**: `/opt/homebrew/bin`
-  - **Nix**: `/home/username/.nix-profile/bin` or `/nix/var/nix/profiles/default/bin`
-  - **System default**: Often `/usr/bin:/usr/local/bin` works
+- **Homebrew (Apple Silicon)**: `/opt/homebrew/bin`
+- **Homebrew (Intel Mac)**: `/usr/local/bin`
+- **Nix**: `/home/username/.nix-profile/bin` or `/nix/var/nix/profiles/default/bin`
+- **System Default**: `/usr/bin:/usr/local/bin`
 
-#### Step 4: Test the Setup
+### Advanced Configuration Example
+
+If you need to source environment variables (like API keys):
+
+```json
+{
+    "mcpServers": {
+        "clojure-mcp": {
+            "command": "/bin/sh",
+            "args": [
+                "-c",
+                "source ~/.my-llm-api-keys.sh && PATH=/Users/username/.nix-profile/bin:$PATH && clojure -X:mcp :port 7888"
+            ]
+        }
+    }
+}
+```
+
+## Step 4: Test the Complete Setup
 
 1. **Start nREPL** in your target project:
    ```bash
    cd /path/to/your/project
    clojure -M:nrepl
    ```
-   You should see: `nREPL server started on port 7888...`
+   Look for: `nREPL server started on port 7888...`
 
-2. **Start or Restart Claude Desktop** (required after config changes)
+2. **Restart Claude Desktop** (required after configuration changes)
 
-3. **Verify connection**: In Claude Desktop, click the `+` button in
-   the chat area. You should see "Add from clojure-mcp" in the menu.
+3. **Verify Connection**: In Claude Desktop, click the `+` button in the chat area. You should see "Add from clojure-mcp" in the menu.
 
-This is normally where you will start trouble shooting why Claude
-Desktop won't run the `clojure` command.
+## Troubleshooting Tips
 
-I suggest you have a conversation with Gemini, Claude, ChatGpt about
-how to best do this on your system.
+If Claude Desktop can't run the `clojure` command:
+
+1. **Test your command manually**: Run the exact command from your config in a terminal
+2. **Check your PATH**: Ensure `which clojure` works in a fresh terminal
+3. **Enable logging**: Check Claude Desktop logs for error messages
+4. **Simplify first**: Start with a basic configuration, then add complexity
+
+If you continue to have issues, consider consulting with AI assistants (Claude, ChatGPT, Gemini) about the specific PATH configuration for your system setup.
 
 #### Starting a new conversation
+
+Once everything is set up I'd suggest starting a new chat in Claude.
+
+The first thing you are going to want to do is initialize context
+about the Clojure project in the conversation attached to the nREPL.
 
 In Claude Desktop click the `+` tools and optionally add
  * resource `PROJECT_SUMMARY.md`  - (have the LLM create this) see below
@@ -400,7 +378,7 @@ This project includes a workflow for maintaining an LLM-friendly `PROJECT_SUMMAR
 
 This workflow creates a virtuous cycle where each session builds on the accumulated knowledge of previous sessions, making the assistant increasingly effective as your project evolves.
 
-## Chat Session Summarization
+## Chat Session Summarize and Resume
 
 The Clojure MCP server provides a pair of prompts that enable
 conversation continuity across chat sessions using the `scratch_pad`
@@ -664,6 +642,11 @@ Controls which directories the MCP tools can access for security. Paths can be r
 
 #### `emacs-notify` 
 Boolean flag to enable Emacs integration notifications.
+
+Emacs notify is only a toy for now... it switches focuses on the file
+being edited and highlights changes as they are happening.  There are
+probably much better ways to handle this with auto-revert and existing
+emacs libraries.
 
 **Prerequisites for Emacs Integration:**
 - `emacsclient` must be available in your system PATH

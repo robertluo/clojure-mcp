@@ -10,7 +10,8 @@
             [clojure-mcp.tools.grep.tool :as grep-tool]
             [clojure-mcp.tools.glob-files.tool :as glob-files-tool]
             [clojure-mcp.tools.project.tool :as project-tool]
-            [clojure-mcp.tools.think.tool :as think-tool])
+            [clojure-mcp.tools.think.tool :as think-tool]
+            #_[clojure-mcp.tools.scratch-pad.tool :as scratch-pad-tool])
   (:import
    [clojure_mcp.agent.langchain AiService]))
 
@@ -41,7 +42,8 @@
                                 grep-tool/grep-tool
                                 glob-files-tool/glob-files-tool
                                 project-tool/inspect-project-tool
-                                think-tool/think-tool])
+                                think-tool/think-tool
+                                #_scratch-pad-tool/scratch-pad-tool])
                               :system-message system-message}
              service (-> (chain/create-service AiService
                                                ai-service-data)
@@ -126,7 +128,7 @@ CLOJURE BEST PRACTICES TO FOLLOW:
 - Organize code with thoughtful namespace design and clear dependency management
 - Use appropriate Clojure abstractions like multimethods, protocols, or spec where relevant
 
-Keep responses focused, specific and actionable.
+Keep responses focused, specific and actionable. 
 
 IMPORTANT: Do not ask the user if you should implement the changes at the end. Just provide the plan as described above.
 IMPORTANT: Do not attempt to write the code or use any string modification tools. Just provide the plan.")
