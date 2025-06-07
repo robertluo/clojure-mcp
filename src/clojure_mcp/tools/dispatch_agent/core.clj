@@ -11,8 +11,7 @@
             [clojure-mcp.tools.glob-files.tool :as glob-files-tool]
             [clojure-mcp.tools.project.tool :as project-tool]
             [clojure-mcp.tools.think.tool :as think-tool]
-            ;; maybe unified read-file tool
-            )
+            [clojure-mcp.tools.scratch-pad.tool :as scratch-pad-tool])
   (:import
    [clojure_mcp.agent.langchain AiService]))
 
@@ -41,7 +40,8 @@
                                 grep-tool/grep-tool
                                 glob-files-tool/glob-files-tool
                                 project-tool/inspect-project-tool
-                                think-tool/think-tool])
+                                think-tool/think-tool
+                                scratch-pad-tool/scratch-pad-tool])
                               :system-message system-message}
              service (-> (chain/create-service AiService ai-service-data)
                          (.build))]
@@ -112,16 +112,17 @@
         ;; Use default model
         ai-default (create-ai-service client-atom)
         ;; Use custom model
-        custom-model (-> (chain/create-anthropic-model "claude-3-haiku-20240307")
-                         (.build))
+        custom-model (->
+                      (chain/create-gemini-model "gemini-2.5-flash-preview-05-20")
+                      #_(chain/create-anthropic-model "claude-3-7-sonnet-20250219")
+                      (.build))
         ai-custom (create-ai-service client-atom custom-model)]
 
     ;; Test with default model
     #_(.chat (:service ai-default) "find langchain integration code")
 
     ;; Test with custom model  
-    (.chat (:service ai-custom) "find langchain integration code"))
-
+    (.chat (:service ai-custom) "find the langchain integration code"))
   )
 
 (def system-message
