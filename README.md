@@ -147,7 +147,7 @@ Once you're comfortable with the Clojure MCP toolset, you can make informed deci
 
 #### Step 1: Setup a home for the Clojure MCP server
 
-Set it up as git dep in a local `deps.edn` or global `.clojure/deps.edn` like:
+Set it up as git dep in your global `.clojure/deps.edn` like:
 
 ```clojure
 {:aliases 
@@ -162,19 +162,6 @@ Set it up as git dep in a local `deps.edn` or global `.clojure/deps.edn` like:
 
 > **Finding the latest SHA**: Visit [https://github.com/bhauman/clojure-mcp/commits/main](https://github.com/bhauman/clojure-mcp/commits/main) to get the latest commit SHA, or clone the repo and run `git log --oneline -1` to see the latest commit.
 
-or from a local clone of `clojure-mcp`
-
-```clojure
-{:aliases 
-  {:mcp 
-    {:deps {org.slf4j/slf4j-nop {:mvn/version "2.0.16"}
-            com.bhauman/clojure-mcp {:local/root "~/workspace/clojure-mcp"}}
-     :exec-fn clojure-mcp.main/start-mcp-server
-     :exec-args {:port 7888}}}}
-```
-
-> **Local clone path**: Replace `~/workspace/clojure-mcp` with the actual path where you cloned the repository (e.g., `~/dev/clojure-mcp`, `/Users/username/projects/clojure-mcp`, etc.)
-
 > IMPORTANT NOTE: the mcp server can run in any directory and DOES NOT
 > have to run from your project directory.  The mcp server looks to
 > the nREPL connection for context.  The root directory of the project
@@ -184,7 +171,7 @@ or from a local clone of `clojure-mcp`
 > system between the nREPL server and the MCP server.
 
 > ANOTHER IMPORTANT NOTE: `clojure-mcp` should not run as part of your
-> project and your project dependencies should not mingle with
+> project and your project's dependencies should not mingle with
 > clojure-mcp. It should run separately, with its own set of deps. So
 > if you include it in your projects `deps.edn` it should not use
 > `:extra-deps` in its alias is should always use `:deps`

@@ -3,13 +3,15 @@
             [clojure-mcp.agent.langchain.schema :as schema]
             [clojure.data.json :as json])
   (:import [dev.langchain4j.model.chat.request.json
+            JsonAnyOfSchema
             JsonArraySchema
             JsonBooleanSchema
             JsonEnumSchema
             JsonIntegerSchema
             JsonNumberSchema
             JsonObjectSchema
-            JsonStringSchema]))
+            JsonStringSchema]
+           [dev.langchain4j.agent.tool ToolSpecification]))
 
 (deftest test-simple-schema-types
   (testing "Converting primitive type schemas"
@@ -219,6 +221,177 @@
         (is (instance? JsonStringSchema (get properties "prompt")))
         (is (instance? JsonArraySchema (get properties "options")))
         (is (instance? JsonStringSchema (.items (get properties "options"))))))))
+
+(deftest test-mixed-types
+  (testing "Converting mixed type schemas"
+    (let [mixed-schema {:type ["string" "number"]
+                        :description "Can be string or number"}
+          converted-mixed (schema/edn->sch mixed-schema)]
+
+      (is (instance? JsonAnyOfSchema converted-mixed))
+      (is (= "Can be string or number" (.description converted-mixed)))
+
+      (let [any-of-schemas (vec (.anyOf converted-mixed))]
+        (is (= 2 (count any-of-schemas)))
+        (is (instance? JsonStringSchema (first any-of-schemas)))
+        (is (instance? JsonNumberSchema (second any-of-schemas))))))
+
+  (testing "Mixed types including object and array"
+    (let [mixed-schema {:type ["object" "array" "string" "number" "boolean"]}
+          converted-mixed (schema/edn->sch mixed-schema)]
+
+      (is (instance? JsonAnyOfSchema converted-mixed))
+
+      (let [any-of-schemas (vec (.anyOf converted-mixed))]
+        (is (= 5 (count any-of-schemas)))
+        (is (instance? JsonObjectSchema (nth any-of-schemas 0)))
+        (is (instance? JsonArraySchema (nth any-of-schemas 1)))
+        (is (instance? JsonStringSchema (nth any-of-schemas 2)))
+        (is (instance? JsonNumberSchema (nth any-of-schemas 3)))
+        (is (instance? JsonBooleanSchema (nth any-of-schemas 4))))))
+
+  (testing "Mixed types with null (should be skipped)"
+    (let [mixed-schema {:type ["string" "null" "number"]}
+          converted-mixed (schema/edn->sch mixed-schema)]
+
+      (is (instance? JsonAnyOfSchema converted-mixed))
+
+      ;; null should be skipped, so only 2 schemas
+      (let [any-of-schemas (vec (.anyOf converted-mixed))]
+        (is (= 2 (count any-of-schemas)))
+        (is (instance? JsonStringSchema (first any-of-schemas)))
+        (is (instance? JsonNumberSchema (second any-of-schemas)))))))
+
+(deftest test-array-with-mixed-type-items
+  (testing "Array schema with mixed type items"
+    (let [array-schema {:type :array
+                        :items {:type ["string" "number"]}
+                        :description "Array of strings or numbers"}
+          converted-array (schema/edn->sch array-schema)]
+
+      (is (instance? JsonArraySchema converted-array))
+      (is (instance? JsonAnyOfSchema (.items converted-array)))
+
+      (let [items-schema (.items converted-array)
+            any-of-schemas (vec (.anyOf items-schema))]
+        (is (= 2 (count any-of-schemas)))
+        (is (instance? JsonStringSchema (first any-of-schemas)))
+        (is (instance? JsonNumberSchema (second any-of-schemas)))))))
+
+(deftest test-any-type-schema
+  (testing "Any type schema helper function"
+    (let [any-schema (schema/any-type-schema)]
+
+      (is (instance? JsonAnyOfSchema any-schema))
+
+      (let [any-of-schemas (vec (.anyOf any-schema))]
+        (is (= 5 (count any-of-schemas)))
+        (is (instance? JsonStringSchema (nth any-of-schemas 0)))
+        (is (instance? JsonNumberSchema (nth any-of-schemas 1)))
+        (is (instance? JsonBooleanSchema (nth any-of-schemas 2)))
+        (is (instance? JsonObjectSchema (nth any-of-schemas 3)))
+        (is (instance? JsonArraySchema (nth any-of-schemas 4)))))))
+
+(deftest test-scratch-pad-schema
+  (testing "Complex scratch pad schema with mixed types"
+    (let [scratch-pad-schema {:type :object
+                              :properties {:op {:enum ["set_path" "get_path" "delete_path" "inspect"]}
+                                           :path {:type :array
+                                                  :items {:type ["string" "number"]}
+                                                  :description "Path to the data location"}
+                                           :value {:type ["object" "array" "string" "number" "boolean"]
+                                                   :description "Value to store (for set_path)"}
+                                           :explanation {:type :string
+                                                         :description "Explanation of why this operation is being performed"}
+                                           :depth {:type :number
+                                                   :description "(Optional) For inspect operation"}}
+                              :required [:op :explanation]
+                              :description "Persistent scratch pad for storing structured data"}
+          converted-schema (schema/edn->sch scratch-pad-schema)
+          properties (.properties converted-schema)]
+
+      (is (instance? JsonObjectSchema converted-schema))
+      (is (= "Persistent scratch pad for storing structured data" (.description converted-schema)))
+      (is (= #{"op" "explanation"} (set (.required converted-schema))))
+
+      ;; Check op enum
+      (let [op-schema (get properties "op")]
+        (is (instance? JsonEnumSchema op-schema))
+        (is (= ["set_path" "get_path" "delete_path" "inspect"] (vec (.enumValues op-schema)))))
+
+      ;; Check path array with mixed items
+      (let [path-schema (get properties "path")
+            path-items (.items path-schema)]
+        (is (instance? JsonArraySchema path-schema))
+        (is (instance? JsonAnyOfSchema path-items))
+        (let [item-schemas (vec (.anyOf path-items))]
+          (is (= 2 (count item-schemas)))
+          (is (instance? JsonStringSchema (first item-schemas)))
+          (is (instance? JsonNumberSchema (second item-schemas)))))
+
+      ;; Check value with multiple types
+      (let [value-schema (get properties "value")]
+        (is (instance? JsonAnyOfSchema value-schema))
+        (is (= "Value to store (for set_path)" (.description value-schema)))
+        (let [value-schemas (vec (.anyOf value-schema))]
+          (is (= 5 (count value-schemas)))))
+
+      ;; Check other fields
+      (is (instance? JsonStringSchema (get properties "explanation")))
+      (is (instance? JsonNumberSchema (get properties "depth"))))))
+
+(deftest test-error-handling
+  (testing "Invalid schema dispatch"
+    (is (thrown-with-msg? Exception #"By JSON data"
+                          (schema/edn->sch {:invalid "schema"}))))
+
+  (testing "Missing required fields for array"
+    (is (thrown? AssertionError
+                 (schema/edn->sch {:type :array}))))
+
+  (testing "Missing required fields for object"
+    (is (thrown? AssertionError
+                 (schema/edn->sch {:type :object}))))
+
+  (testing "Empty enum"
+    (is (thrown? AssertionError
+                 (schema/edn->sch {:enum []}))))
+
+  (testing "Non-string enum values"
+    (is (thrown? AssertionError
+                 (schema/edn->sch {:enum [1 2 3]})))))
+
+(deftest test-tool-specification-with-mixed-types
+  (testing "Creating ToolSpecification with mixed types"
+
+    (let [schema {:type :object
+                  :properties {:action {:enum ["read" "write"]}
+                               :target {:type ["string" "number"]
+                                        :description "Can be filename or ID"}
+                               :data {:type ["object" "array" "string"]
+                                      :description "Flexible data field"}}
+                  :required [:action :target]}
+          params (schema/edn->sch schema)
+          tool-spec (-> (ToolSpecification/builder)
+                        (.name "flexible_tool")
+                        (.description "A tool with mixed type parameters")
+                        (.parameters params)
+                        .build)]
+
+      (is (= "flexible_tool" (.name tool-spec)))
+      (is (= "A tool with mixed type parameters" (.description tool-spec)))
+      (is (instance? JsonObjectSchema (.parameters tool-spec)))
+
+      (let [properties (.properties (.parameters tool-spec))
+            action-schema (get properties "action")
+            target-schema (get properties "target")
+            data-schema (get properties "data")]
+
+        (is (instance? JsonEnumSchema action-schema))
+        (is (instance? JsonAnyOfSchema target-schema))
+        (is (instance? JsonAnyOfSchema data-schema))
+        (is (= "Can be filename or ID" (.description target-schema)))
+        (is (= "Flexible data field" (.description data-schema)))))))
 
 
 
