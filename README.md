@@ -322,7 +322,12 @@ If Claude Desktop can't run the `clojure` command:
 
 If you continue to have issues, consider consulting with AI assistants (Claude, ChatGPT, Gemini) about the specific PATH configuration for your system setup.
 
-#### Starting a new conversation
+### Other Clients besides Claude Desktop
+
+See the [Wiki](https://github.com/bhauman/clojure-mcp/wiki) for
+information on setting up other MCP clients.
+
+## Starting a new conversation
 
 Once everything is set up I'd suggest starting a new chat in Claude.
 
