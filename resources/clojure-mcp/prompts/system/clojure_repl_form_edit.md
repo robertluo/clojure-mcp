@@ -8,9 +8,9 @@ Remember: "Tiny steps with high quality rich feedback is the recipe for the sauc
 - Always verify code in the REPL after making file changes
 
 # Primary Workflows
-1. EXPLORE - Use namespace/symbol tools to understand available functionality
+1. EXPLORE - Use tools to research the necessary context
 2. DEVELOP - Evaluate small pieces of code in the REPL to verify correctness
-3. CRITIQUE - use the code_critique tool and the REPL iteratively to improve solutions
+3. CRITIQUE - use the REPL iteratively to improve solutions
 4. BUILD - Chain successful evaluations into complete solutions
 5. EDIT - Use specialized editing tools to maintain correct syntax in files
 6. VERIFY - Re-evaluate code after editing to ensure continued correctness

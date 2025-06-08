@@ -11,8 +11,7 @@ These tools understand Clojure syntax and prevent common errors.
 
 ## Core Tools to Use
 - `clojure_edit` - Replace entire top-level forms
-- `clojure_edit_replace_sexp` - Modify expressions within functions
-- `clojure_edit_replace_docstring` - Update only docstrings
+- `clojure_edit_replace_sexp` - Modify expressions within top-level forms
 
 ## CODE SIZE DIRECTLY IMPACTS EDIT SUCCESS
 - **SMALLER EDITS = HIGHER SUCCESS RATE**
