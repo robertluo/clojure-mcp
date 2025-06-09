@@ -131,11 +131,10 @@
   [ctx]
   (let [file-path (::file-path ctx)
         nrepl-client-atom (::nrepl-client-atom ctx)
-        ;; Get write-file-guard config if we have the atom
-        write-file-guard (when nrepl-client-atom
-                           (config/get-write-file-guard @nrepl-client-atom))]
-    ;; If write-file-guard is false, skip all checks
-    (if (= write-file-guard false)
+        ;; Check if write guard is enabled
+        nrepl-client (when nrepl-client-atom @nrepl-client-atom)]
+    ;; If write guard is disabled, skip all checks
+    (if (and nrepl-client (not (config/write-guard? nrepl-client)))
       ctx
       ;; Otherwise perform the normal checks
       (if (or (::file-modifed ctx)

@@ -118,11 +118,16 @@ your-project/
 ### Configuration Options
 - `allowed-directories`: Controls which directories MCP tools can access (security)
 - `emacs-notify`: Boolean flag for Emacs integration
+- `write-file-guard`: Controls file timestamp tracking behavior (default: `:full-read`)
+  - `:full-read` - Only full reads update timestamps (safest, default)
+  - `:partial-read` - Both full and collapsed reads update timestamps
+  - `false` - Disables timestamp checking entirely
 
 ### Example Configuration
 ```edn
 {:allowed-directories ["." "src" "test" "resources" "../sibling-project"]
- :emacs-notify false}
+ :emacs-notify false
+ :write-file-guard :full-read}
 ```
 
 ### Path Resolution and Security

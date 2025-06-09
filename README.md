@@ -658,6 +658,21 @@ emacs libraries.
 - Emacs server must be running (start with `M-x server-start` or add `(server-start)` to your init file)
 - The integration allows the MCP server to communicate with your Emacs editor for enhanced development workflows
 
+#### `write-file-guard`
+Controls the file timestamp tracking behavior (default: `:full-read`). This setting determines when file editing is allowed based on read operations.
+
+**Available values:**
+- `:full-read` (default) - Only full reads (`collapsed: false`) update timestamps. This is the safest option, ensuring the AI sees complete file content before editing.
+- `:partial-read` - Both full and collapsed reads update timestamps. Allows editing after collapsed reads, providing more convenience with slightly less safety.
+- `false` - Disables timestamp checking entirely. Files can be edited without any read requirement. Use with caution!
+
+**When to use each setting:**
+- `:full-read` - Best for team environments or when working with files that may be modified externally
+- `:partial-read` - Good for solo development when you want faster workflows but still want protection against external modifications
+- `false` - Only for rapid prototyping or when you're certain no external modifications will occur
+
+The timestamp tracking system prevents accidental overwrites when files are modified by external processes (other developers, editors, git operations, etc.).
+
 ### Example Configuration
 
 ```edn
@@ -668,7 +683,8 @@ emacs libraries.
                        "dev"
                        "/absolute/path/to/shared/code"
                        "../sibling-project"]
- :emacs-notify false}
+ :emacs-notify false
+ :write-file-guard :full-read}
 ```
 
 ### Configuration Details
@@ -698,7 +714,8 @@ emacs libraries.
                        "dev" 
                        "resources"
                        "docs"]
- :emacs-notify false}
+ :emacs-notify false
+ :write-file-guard :full-read}
 ```
 
 #### Multi-Project Setup
@@ -707,14 +724,16 @@ emacs libraries.
                        "../shared-utils"
                        "../common-config"
                        "/home/user/reference-code"]
- :emacs-notify false}
+ :emacs-notify false
+ :write-file-guard :partial-read}
 ```
 
 #### Restricted Mode (Extra Security)
 ```edn
 {:allowed-directories ["src" 
                        "test"]
- :emacs-notify false}
+ :emacs-notify false
+ :write-file-guard :full-read}
 ```
 
 **Note**: Configuration is loaded when the MCP server starts. Restart the server after making configuration changes.

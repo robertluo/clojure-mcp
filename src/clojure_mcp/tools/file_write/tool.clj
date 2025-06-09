@@ -63,9 +63,7 @@ Before using this tool:
 
 (defmethod tool-system/validate-inputs :file-write [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [file_path content]} inputs
-        nrepl-client @nrepl-client-atom
-        ;; Get write-file-guard config
-        write-file-guard (config/get-write-file-guard nrepl-client)]
+        nrepl-client @nrepl-client-atom]
     (when-not file_path
       (throw (ex-info "Missing required parameter: file_path" {:inputs inputs})))
 
@@ -77,10 +75,10 @@ Before using this tool:
           file (io/file validated-path)]
 
       ;; Check if file exists and has been modified since last read
-      ;; Skip check if write-file-guard is false
+      ;; Skip check if write guard is disabled
       (when (and (.exists file)
                  nrepl-client-atom
-                 (not= write-file-guard false)
+                 (config/write-guard? nrepl-client)
                  (file-timestamps/file-modified-since-read? nrepl-client-atom validated-path))
         (throw (ex-info
                 (str "File has been modified since last read: " validated-path

@@ -17,8 +17,14 @@
 
 (defn process-remote-config [{:keys [allowed-directories emacs-notify write-file-guard] :as config} user-dir]
   (let [ud (io/file user-dir)]
-    (assert (and (.isAbsolute ud)
-                 (.isDirectory ud)))
+    (assert (and (.isAbsolute ud) (.isDirectory ud)))
+    (when (some? write-file-guard)
+      (when-not (contains? #{:full-read :partial-read false} write-file-guard)
+        (log/warn "Invalid write-file-guard value:" write-file-guard
+                  "- using default :full-read")
+        (throw (ex-info (str "Invalid Config: write-file-guard value:  " write-file-guard
+                             "- must be one of (:full-read, :partial-read, false)")
+                        {:write-file-guard write-file-guard}))))
     (cond-> config
       user-dir (assoc :nrepl-user-dir (.getCanonicalPath ud))
       true
@@ -28,16 +34,7 @@
                   distinct
                   vec))
       (some? (:emacs-notify config))
-      (assoc :emacs-notify (boolean (:emacs-notify config)))
-      ;; Validate write-file-guard if present
-      (some? write-file-guard)
-      (do (when-not (contains? #{:full-read :partial-read false} write-file-guard)
-            (log/warn "Invalid write-file-guard value:" write-file-guard
-                      "- using default :full-read")
-            (throw (ex-info (str "Invalid Config: write-file-guard value:  " write-file-guard
-                                 "- must be one of (:full-read, :partial-read, false)")
-                            {:write-file-guard write-file-guard})))
-          config))))
+      (assoc :emacs-notify (boolean (:emacs-notify config))))))
 
 (defn load-remote-config [nrepl-client user-dir]
   (let [remote-cfg-str
@@ -68,7 +65,23 @@
   (get-config nrepl-client-map :nrepl-user-dir))
 
 (defn get-write-file-guard [nrepl-client-map]
-  (or (get-config nrepl-client-map :write-file-guard) :full-read))
+  (let [value (get-config nrepl-client-map :write-file-guard)]
+    ;; Validate the value and default to :full-read if invalid
+    (cond
+      ;; nil means not configured, use default
+      (nil? value) :full-read
+      ;; Valid values (including false)
+      (contains? #{:full-read :partial-read false} value) value
+      ;; Invalid values
+      :else (do
+              (log/warn "Invalid write-file-guard value:" value "- using default :full-read")
+              :full-read))))
+
+(defn write-guard?
+  "Returns true if write-file-guard is enabled (not false).
+   This means file timestamp checking is active."
+  [nrepl-client-map]
+  (not= false (get-write-file-guard nrepl-client-map)))
 
 (defn set-config! [nrepl-client-atom k v]
   (swap! nrepl-client-atom assoc-in [::config k] v))

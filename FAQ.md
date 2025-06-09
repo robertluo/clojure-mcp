@@ -4,6 +4,7 @@
 
 - [Why do I keep seeing messages like "File has been modified since last read"?](#why-do-i-keep-seeing-messages-like-file-has-been-modified-since-last-read)
 - [How do I verify that the file read tracking is working correctly?](#how-do-i-verify-that-the-file-read-tracking-is-working-correctly)
+- [How can I configure the file timestamp tracking behavior?](#how-can-i-configure-the-file-timestamp-tracking-behavior)
 - [Why are there collapsed reads?](#why-are-there-collapsed-reads)
 
 ## Why do I keep seeing messages like "File has been modified since last read"?
@@ -96,6 +97,36 @@ This test sequence verifies that:
 - External modifications are detected correctly
 
 If all steps produce the expected results, the file timestamp tracking system is working correctly.
+
+## How can I configure the file timestamp tracking behavior?
+
+**Q: Can I change how the file timestamp tracking works?**
+
+**A:** Yes! The `:write-file-guard` configuration option allows you to customize the timestamp tracking behavior. Add this to your `.clojure-mcp/config.edn` file:
+
+```edn
+{:write-file-guard :full-read}  ; Default behavior
+```
+
+Available options:
+- `:full-read` (default) - Only full reads (`collapsed: false`) update timestamps. This is the safest option that ensures the AI sees complete file content before editing.
+- `:partial-read` - Both full and collapsed reads update timestamps. This allows editing after collapsed reads but with less safety.
+- `false` - Disables timestamp checking entirely. Files can be edited without any read requirement. Use with caution!
+
+Example configurations:
+
+```edn
+;; Allow editing after collapsed reads
+{:write-file-guard :partial-read}
+
+;; Disable all timestamp checking
+{:write-file-guard false}
+```
+
+This configuration is useful when:
+- You're working alone and external modifications are unlikely (`:partial-read`)
+- You're doing rapid prototyping and want to skip safety checks (`false`)
+- You want maximum safety in a team environment (`:full-read` - default)
 
 ## Why are there collapsed reads?
 
