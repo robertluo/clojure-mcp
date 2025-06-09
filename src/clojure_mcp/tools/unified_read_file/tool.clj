@@ -10,6 +10,7 @@
    [clojure-mcp.utils.valid-paths :as valid-paths]
    [clojure-mcp.tools.unified-read-file.pattern-core :as pattern-core]
    [clojure-mcp.file-content :as file-content]
+   [clojure-mcp.config :as config]
    [clojure.tools.logging :as log]
    [clojure.java.io :as io]
    [clojure.string :as str]))
@@ -130,7 +131,10 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
 (defmethod tool-system/execute-tool :unified-read-file [{:keys [max-lines max-line-length nrepl-client-atom]} inputs]
   (let [{:keys [path collapsed name_pattern content_pattern include_comments line_offset limit]} inputs
         limit-val (or limit max-lines)
-        is-clojure-file (clojure-file? path)]
+        is-clojure-file (clojure-file? path)
+        ;; Get write-file-guard config if we have the atom
+        write-file-guard (when nrepl-client-atom
+                           (config/get-write-file-guard @nrepl-client-atom))]
 
     (cond
       (and is-clojure-file collapsed)
@@ -141,6 +145,9 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
                       content_pattern)
               matching-names (:matches result)
               collapsed-view (form-edit-core/generate-collapsed-file-view path matching-names)]
+          ;; Update timestamp for collapsed reads if write-file-guard is :partial-read
+          (when (and nrepl-client-atom (= write-file-guard :partial-read))
+            (file-timestamps/update-file-timestamp-to-current-mtime! nrepl-client-atom path))
           {:mode :clojure
            :content collapsed-view
            :path path

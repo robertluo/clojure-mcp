@@ -7,6 +7,7 @@
    [clojure-mcp.utils.emacs-integration :as emacs]
    [clojure-mcp.utils.diff :as diff-utils]
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
+   [clojure-mcp.config :as config]
    [rewrite-clj.zip :as z]
    [rewrite-clj.parser :as p]
    [clojure-mcp.linting :as linting]
@@ -124,18 +125,26 @@
 (defn check-file-modified
   "Checks if the file has been modified since last read.
    Returns error if modified without being read again.
+   Respects the write-file-guard configuration setting.
    
    Requires ::file-path and ::nrepl-client-atom in context."
   [ctx]
   (let [file-path (::file-path ctx)
-        nrepl-client-atom (::nrepl-client-atom ctx)]
-    (if (or (::file-modifed ctx)
-            (and nrepl-client-atom
-                 (file-timestamps/file-modified-since-read? nrepl-client-atom file-path)))
-      {::error true
-       ::message (str "File has been modified since last read: " file-path
-                      "\nPlease read the WHOLE file again with `collapse: false` before editing.")}
-      ctx)))
+        nrepl-client-atom (::nrepl-client-atom ctx)
+        ;; Get write-file-guard config if we have the atom
+        write-file-guard (when nrepl-client-atom
+                           (config/get-write-file-guard @nrepl-client-atom))]
+    ;; If write-file-guard is false, skip all checks
+    (if (= write-file-guard false)
+      ctx
+      ;; Otherwise perform the normal checks
+      (if (or (::file-modifed ctx)
+              (and nrepl-client-atom
+                   (file-timestamps/file-modified-since-read? nrepl-client-atom file-path)))
+        {::error true
+         ::message (str "File has been modified since last read: " file-path
+                        "\nPlease read the WHOLE file again with `collapse: false` before editing.")}
+        ctx))))
 
 (defn lint-code
   "Lints the new source code to be inserted.

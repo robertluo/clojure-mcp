@@ -6,7 +6,7 @@
    [clojure.tools.logging :as log]))
 
 (defn- relative-to [dir path]
-  (try 
+  (try
     (let [f (io/file path)]
       (if (.isAbsolute f)
         (.getCanonicalPath f)
@@ -15,7 +15,7 @@
       (log/warn "Bad file paths " (pr-str [dir path]))
       nil)))
 
-(defn process-remote-config [{:keys [allowed-directories emacs-notify] :as config} user-dir]
+(defn process-remote-config [{:keys [allowed-directories emacs-notify write-file-guard] :as config} user-dir]
   (let [ud (io/file user-dir)]
     (assert (and (.isAbsolute ud)
                  (.isDirectory ud)))
@@ -28,7 +28,16 @@
                   distinct
                   vec))
       (some? (:emacs-notify config))
-      (assoc :emacs-notify (boolean (:emacs-notify config))))))
+      (assoc :emacs-notify (boolean (:emacs-notify config)))
+      ;; Validate write-file-guard if present
+      (some? write-file-guard)
+      (do (when-not (contains? #{:full-read :partial-read false} write-file-guard)
+            (log/warn "Invalid write-file-guard value:" write-file-guard
+                      "- using default :full-read")
+            (throw (ex-info (str "Invalid Config: write-file-guard value:  " write-file-guard
+                                 "- must be one of (:full-read, :partial-read, false)")
+                            {:write-file-guard write-file-guard})))
+          config))))
 
 (defn load-remote-config [nrepl-client user-dir]
   (let [remote-cfg-str
@@ -57,6 +66,9 @@
 
 (defn get-nrepl-user-dir [nrepl-client-map]
   (get-config nrepl-client-map :nrepl-user-dir))
+
+(defn get-write-file-guard [nrepl-client-map]
+  (or (get-config nrepl-client-map :write-file-guard) :full-read))
 
 (defn set-config! [nrepl-client-atom k v]
   (swap! nrepl-client-atom assoc-in [::config k] v))

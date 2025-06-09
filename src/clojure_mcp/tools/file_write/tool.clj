@@ -5,6 +5,7 @@
    [clojure-mcp.tools.file-write.core :as core]
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [clojure-mcp.utils.valid-paths :as valid-paths]
+   [clojure-mcp.config :as config]
    [clojure.java.io :as io]))
 
 ;; Factory function to create the tool configuration
@@ -62,7 +63,9 @@ Before using this tool:
 
 (defmethod tool-system/validate-inputs :file-write [{:keys [nrepl-client-atom]} inputs]
   (let [{:keys [file_path content]} inputs
-        nrepl-client @nrepl-client-atom]
+        nrepl-client @nrepl-client-atom
+        ;; Get write-file-guard config
+        write-file-guard (config/get-write-file-guard nrepl-client)]
     (when-not file_path
       (throw (ex-info "Missing required parameter: file_path" {:inputs inputs})))
 
@@ -74,7 +77,10 @@ Before using this tool:
           file (io/file validated-path)]
 
       ;; Check if file exists and has been modified since last read
-      (when (and (.exists file) nrepl-client-atom
+      ;; Skip check if write-file-guard is false
+      (when (and (.exists file)
+                 nrepl-client-atom
+                 (not= write-file-guard false)
                  (file-timestamps/file-modified-since-read? nrepl-client-atom validated-path))
         (throw (ex-info
                 (str "File has been modified since last read: " validated-path
