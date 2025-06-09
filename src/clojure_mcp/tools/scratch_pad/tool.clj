@@ -23,6 +23,8 @@
 (defmethod tool-system/tool-description :scratch-pad [_]
   "A persistent scratch pad for storing structured data between tool calls. Accepts any JSON value (objects, arrays, strings, numbers, booleans, null) and stores them at nested paths using set_path, get_path, delete_path operations.
 
+THIS IS YOUR GO-TO TOOL FOR PLANNING.
+
 Your persistent workspace for planning, organizing thoughts, and maintaining state across tool invocations.
 
 This tool can be used to:
