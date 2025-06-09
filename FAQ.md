@@ -1,5 +1,10 @@
 # Clojure MCP FAQ
 
+## Table of Contents
+
+- [Why do I keep seeing messages like "File has been modified since last read"?](#why-do-i-keep-seeing-messages-like-file-has-been-modified-since-last-read)
+- [Why are there collapsed reads?](#why-are-there-collapsed-reads)
+
 ## Why do I keep seeing messages like "File has been modified since last read"?
 
 **Q: Why do I get this error when the AI tries to edit a file?**
