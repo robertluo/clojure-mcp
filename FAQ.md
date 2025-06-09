@@ -3,6 +3,7 @@
 ## Table of Contents
 
 - [Why do I keep seeing messages like "File has been modified since last read"?](#why-do-i-keep-seeing-messages-like-file-has-been-modified-since-last-read)
+- [How do I verify that the file read tracking is working correctly?](#how-do-i-verify-that-the-file-read-tracking-is-working-correctly)
 - [Why are there collapsed reads?](#why-are-there-collapsed-reads)
 
 ## Why do I keep seeing messages like "File has been modified since last read"?
@@ -43,6 +44,58 @@ When the AI uses `read_file` with `collapsed: true` (the default for Clojure fil
 Since collapsed reads don't show the complete file content, they don't update the file's "last read" timestamp. This is intentional - the system requires the AI to see the **entire current state** of a file before allowing edits.
 
 When you see this error message, it simply means the AI is being prompted to read the full file before making changes. This safety mechanism ensures that edits are always based on the current file state, preventing accidental loss of work and maintaining consistency across your development workflow.
+
+## How do I verify that the file read tracking is working correctly?
+
+**Q: How can I test that the timestamp tracking system is functioning as expected?**
+
+**A:** You can ask the AI to run this verification sequence:
+
+```
+Please verify that the file timestamp tracking system is working correctly by performing the following test sequence:
+
+1. First, create a new test file using file_write:
+   - Path: ./timestamp-tracking-test.clj
+   - Content: (ns test.timestamp-tracking)\n\n(defn hello []\n  (println "Hello, World!"))
+
+2. WITHOUT reading the file first, try to edit it using file_edit:
+   - Replace "Hello, World!" with "Hello, Universe!"
+   - This should FAIL with "File has been modified since last read" error
+
+3. Now do a COLLAPSED read of the file:
+   - Use read_file with collapsed: true
+   - Then try the same edit again
+   - This should still FAIL because collapsed reads don't update timestamps
+
+4. Do a FULL read of the file:
+   - Use read_file with collapsed: false
+   - Then try the same edit again
+   - This should SUCCEED
+
+5. Without reading again, make another edit:
+   - Replace "Universe" with "Clojure"
+   - This should SUCCEED because the previous edit updated the timestamp
+
+6. Simulate an external modification by using bash to touch the file:
+   - Run: touch ./timestamp-tracking-test.clj
+   - Wait 1 second (sleep 1)
+   - Then try to edit "Clojure" to "MCP"
+   - This should FAIL because the file was modified externally
+
+7. Clean up:
+   - Delete the test file
+
+Report the results of each step, indicating whether the expected behavior occurred.
+```
+
+This test sequence verifies that:
+- New files require reading before editing
+- Collapsed reads don't satisfy the timestamp requirement
+- Full reads do update timestamps properly
+- Successful edits automatically update timestamps
+- External modifications are detected correctly
+
+If all steps produce the expected results, the file timestamp tracking system is working correctly.
 
 ## Why are there collapsed reads?
 
