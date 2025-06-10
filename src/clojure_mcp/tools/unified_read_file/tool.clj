@@ -108,6 +108,11 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
     (when-not path
       (throw (ex-info "Missing required parameter: path" {:inputs inputs})))
 
+    (when-not (valid-paths/path-exists? path)
+      (throw
+       (ex-info (format "Invalid Path: file `%s` does not exist." path)
+               {:inputs inputs})))
+
     (when (and name_pattern (not= name_pattern ""))
       (try (re-pattern name_pattern)
            (catch Exception e

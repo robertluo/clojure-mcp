@@ -55,6 +55,9 @@
                         {:path normalized-path
                          :allowed-dirs allowed-directories}))))))
 
+(defn path-exists? [path]
+  (.exists (io/file path)))
+
 (defn validate-path-with-client
   "Validates a path using settings from the nrepl-client.
    
