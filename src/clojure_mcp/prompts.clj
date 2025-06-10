@@ -45,36 +45,6 @@
                                 :content
                                 (str "Root directory not provided So this will not be a prompt." "::" working-dir "::")}]})))})
 
-;; this is just scratch work for now
-
-#_(def clojure-system-repl-flex
-  {:name "clojure_repl_flex_system_prompt"
-   :description "Provides instructions and guidelines for Clojure development, including style and best practices."
-   :arguments [] ;; No arguments needed for this prompt
-   :prompt-fn (simple-content-prompt-fn
-               "System Prompt: Clojure REPL Flex"
-               (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_flex.md"))})
-
-#_(def clojure-system-repl
-  {:name "clojure_repl_system_prompt"
-   :description "Provides instructions and guidelines for Clojure development, including style and best practices."
-   :arguments [] ;; No arguments needed for this prompt
-   :prompt-fn (simple-content-prompt-fn
-               "System Prompt: Clojure REPL"
-               (str
-                (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_repl.md")
-                (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_clojure_edit_tool_inst.md")))})
-
-#_(def clojure-system-repl-pattern-edit
-  {:name "clojure_repl_system_prompt"
-   :description "Provides instructions and guidelines for Clojure development, including style and best practices."
-   :arguments [] ;; No arguments needed for this prompt
-   :prompt-fn (simple-content-prompt-fn
-               "System Prompt: Clojure REPL"
-               (str
-                (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_repl_pattern_edit.md")
-                (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_pattern_edit.md")))})
-
 (def clojure-system-repl-form-edit
   {:name "clojure_repl_system_prompt"
    :description "Provides instructions and guidelines for Clojure development, including style and best practices."
@@ -100,42 +70,6 @@
    :prompt-fn (simple-content-prompt-fn
                "Test-Driven-Development Modifier for Clojure"
                (load-prompt-from-resource "clojure-mcp/prompts/test_modifier.md"))})
-
-#_(defn sync-namespace-workflow-prompt [namesp]
-  (format "I'm currently working on a Clojure namespace `%s`  
-
-Can you:
-
-1. find it 
-2. `require` `:reload` it into the REPL environment 
-3. change into the `%s` with `in-ns` 
-4. and make an artifact for it
-
-If the file get's *edited* outside and must be read to see the changes, you should `require` :reload the file into the REPL enviromnent."
-          namesp
-          namesp))
-
-#_(def clj-sync-namespace
-  {:name "clj-sync-namespace"
-   :description "Generates a prompt instructing the assistant to synchronize the REPL with a specific namespace (require :reload, in-ns)."
-   :arguments [{:name "namespace"
-                :description "The fully qualified name of the Clojure namespace to sync."
-                :required? true}]
-   :prompt-fn (fn [_ request-args clj-result-k]
-                (let [namespace-arg (get request-args "namespace")]
-                  (clj-result-k
-                   {:description (str "Sync REPL with namespace: " namespace-arg)
-                    :messages [{:role :user
-                                :content (sync-namespace-workflow-prompt namespace-arg)}]})))})
-
-;; Function to get all prompts for registration with the MCP server
-#_(def clojure-edit-guide
-  {:name "clojure_edit_guide"
-   :description "Provides specialized guidance for using Clojure structure-aware editing tools instead of text editing."
-   :arguments [] ;; No arguments needed for this prompt
-   :prompt-fn (simple-content-prompt-fn
-               "Clojure Structure-Aware Editing Guide"
-               (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_edit.md"))})
 
 #_(def incremental-file-creation
   {:name "incremental_file_creation"
