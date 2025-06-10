@@ -47,7 +47,7 @@
 
 ;; this is just scratch work for now
 
-(def clojure-system-repl-flex
+#_(def clojure-system-repl-flex
   {:name "clojure_repl_flex_system_prompt"
    :description "Provides instructions and guidelines for Clojure development, including style and best practices."
    :arguments [] ;; No arguments needed for this prompt
@@ -55,7 +55,7 @@
                "System Prompt: Clojure REPL Flex"
                (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_flex.md"))})
 
-(def clojure-system-repl
+#_(def clojure-system-repl
   {:name "clojure_repl_system_prompt"
    :description "Provides instructions and guidelines for Clojure development, including style and best practices."
    :arguments [] ;; No arguments needed for this prompt
@@ -65,7 +65,7 @@
                 (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_repl.md")
                 (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_clojure_edit_tool_inst.md")))})
 
-(def clojure-system-repl-pattern-edit
+#_(def clojure-system-repl-pattern-edit
   {:name "clojure_repl_system_prompt"
    :description "Provides instructions and guidelines for Clojure development, including style and best practices."
    :arguments [] ;; No arguments needed for this prompt
@@ -101,7 +101,7 @@
                "Test-Driven-Development Modifier for Clojure"
                (load-prompt-from-resource "clojure-mcp/prompts/test_modifier.md"))})
 
-(defn sync-namespace-workflow-prompt [namesp]
+#_(defn sync-namespace-workflow-prompt [namesp]
   (format "I'm currently working on a Clojure namespace `%s`  
 
 Can you:
@@ -115,7 +115,7 @@ If the file get's *edited* outside and must be read to see the changes, you shou
           namesp
           namesp))
 
-(def clj-sync-namespace
+#_(def clj-sync-namespace
   {:name "clj-sync-namespace"
    :description "Generates a prompt instructing the assistant to synchronize the REPL with a specific namespace (require :reload, in-ns)."
    :arguments [{:name "namespace"
@@ -129,7 +129,7 @@ If the file get's *edited* outside and must be read to see the changes, you shou
                                 :content (sync-namespace-workflow-prompt namespace-arg)}]})))})
 
 ;; Function to get all prompts for registration with the MCP server
-(def clojure-edit-guide
+#_(def clojure-edit-guide
   {:name "clojure_edit_guide"
    :description "Provides specialized guidance for using Clojure structure-aware editing tools instead of text editing."
    :arguments [] ;; No arguments needed for this prompt
@@ -137,7 +137,7 @@ If the file get's *edited* outside and must be read to see the changes, you shou
                "Clojure Structure-Aware Editing Guide"
                (load-prompt-from-resource "clojure-mcp/prompts/system/clojure_edit.md"))})
 
-(def incremental-file-creation
+#_(def incremental-file-creation
   {:name "incremental_file_creation"
    :description "Guide for creating Clojure files incrementally to maximize success."
    :arguments [] ;; No arguments needed for this prompt
@@ -152,6 +152,22 @@ If the file get's *edited* outside and must be read to see the changes, you shou
    :prompt-fn (simple-content-prompt-fn
                "Use Scratch Pad"
                "Let's use the scratch_pad tool.\n\nThe scratch_pad tool is your persistent storage for data between tool calls. Use it to:\n\n1. **Track Tasks**: Create todo lists to manage complex workflows\n2. **Store Intermediate Results**: Save computation results for later use\n3. **Share Context**: Pass data between different agents or tool sequences\n4. **Build Complex Data**: Incrementally construct data structures\n\nExample todo workflow:\n```clojure\n;; Add tasks\nscratch_pad(op: set_path, path: [\"todos\"], \n  value: {0: {task: \"Analyze code\", done: false},\n          1: {task: \"Write tests\", done: false}})\n\n;; Check off completed\nscratch_pad(op: set_path, path: [\"todos\" 0 \"done\"], value: true)\n\n;; View progress\nscratch_pad(op: tree_view)\n```\n\nBest practices:\n- Use descriptive keys for organization\n- Store results you'll need later\n- Track progress on multi-step tasks\n- Clean up completed items when done")})
+
+(def plan-and-execute
+  {:name "plan-and-execute"
+   :description "Use the scratch pad tool to plan and execute an change"
+   :arguments []
+   :prompt-fn (simple-content-prompt-fn
+               "Plan and Execute"
+               "I'd like you to make a Plan using the scratch_pad tool. 
+
+1. Determine questions that need answers
+2. Research the answers to those questions using the tools available
+3. Create a list of Tasks
+4. Execute the Tasks updating them 
+5. Go back to Step 1 if more questions and research are needed to accomplish the goal
+
+Create and execute the plan to accomplish the following query")})
 
 (def chat-session-summary
   {:name "chat-session-summarize"
