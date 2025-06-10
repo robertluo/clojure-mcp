@@ -157,7 +157,7 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
           {:error true
            :message (.getMessage e)}))
 
-      (file-content/text-file? path)
+      (or is-clojure-file (file-content/text-file? path))
       (let [result (file-timestamps/read-file-with-timestamp
                     nrepl-client-atom path line_offset limit-val :max-line-length max-line-length)]
         (if (:error result)
