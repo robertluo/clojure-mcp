@@ -151,7 +151,15 @@ Viewing todos:
    :required ["op" "explanation"]})
 
 (defmethod tool-system/validate-inputs :scratch-pad [{:keys [nrepl-client-atom]} inputs]
-  (let [{:keys [op path value explanation depth]} inputs]
+  ;; convert set_path path nil -> delete_path path
+  ;; this can prevent nil values from being in the data?
+  (let [inputs (if (and
+                    (nil? (:value inputs))
+                    (= (:op inputs) "set_path")
+                    (:path inputs))
+                 (assoc inputs :op "delete_path")
+                 inputs)
+        {:keys [op path value explanation depth]} inputs]
 
     ;; Check required parameters
     (when-not op
