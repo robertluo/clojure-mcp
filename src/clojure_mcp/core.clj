@@ -58,7 +58,7 @@
     (string? result) (McpSchema$TextContent. result)
     (file-content/file-response? result)
     (file-content/file-response->file-content result)
-    :else nil))
+    :else (McpSchema$TextContent. " ")))
 
 (defn ^McpSchema$CallToolResult adapt-results [list-str error?]
   (McpSchema$CallToolResult. (vec (keep adapt-result list-str)) error?))
@@ -89,6 +89,7 @@
      (McpSchema$Tool. name description schema-json)
      (reify java.util.function.BiFunction
        (apply [this exchange arguments]
+         (log/debug (str "Args from MCP: " (pr-str arguments)))
          (mono-fn exchange arguments))))))
 
 (defn ^McpSchema$GetPromptResult adapt-prompt-result

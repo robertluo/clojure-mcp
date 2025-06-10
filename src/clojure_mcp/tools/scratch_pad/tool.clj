@@ -4,7 +4,7 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.scratch-pad.core :as core]
    [clojure.tools.logging :as log]
-   [clojure.walk]))
+   [clojure.walk :as walk]))
 
 (defn get-scratch-pad
   "Gets the current scratch pad data from the nrepl-client.
@@ -29,7 +29,7 @@ Your persistent workspace for planning, organizing thoughts, and maintaining sta
 
 This tool can be used to:
  * develop and track multi-step plans
- * maintain todo lists and task tracking
+ * maintain task lists and task tracking
  * store intermediate results between operations
  * keep notes about your current approach or strategy
  * maintain a list of files or resources to process
@@ -37,7 +37,7 @@ This tool can be used to:
  * share context between different tool calls
  * any other persistent storage needs during your work
 
-The scratch pad is for persistent storage and state management, not for formatting output. Display information directly in your chat responses. However, when the scratch pad contains user-relevant state (like todo lists or tracked progress), you should retrieve and display updates after modifications.
+The scratch pad is for persistent storage and state management, not for formatting output. Display information directly in your chat responses. However, when the scratch pad contains user-relevant state (like tasks lists or tracked progress), you should retrieve and display updates after modifications.
 
 Use the scratch pad when you need to:
 - Track progress across multiple tool calls
@@ -56,9 +56,9 @@ CORE OPERATIONS:
 - delete_path: Remove a value at a path, returns a confirmation message
 - inspect: Display the entire structure (or a specific path) with truncation at specified depth
 
-TRACKING PLANS WITH TODO LISTS:
+TRACKING PLANS WITH TASK LISTS:
 
-Recommended todo item structure:
+Recommended task structure:
 {
   task: \"Description of the task\",
   done: false,
@@ -70,10 +70,10 @@ Recommended todo item structure:
   ]
 }
 
-First add multiple todo items at once as an array:
+First add multiple tasks items at once as an array:
 - Entire array:
   op: set_path
-  path: [\"todos\"]
+  path: [\"tasks\"]
   value: [
     {task: \"Write tests\", done: false, priority: \"high\"},
     {task: \"Review PR\", done: false, priority: \"high\"},
@@ -82,57 +82,57 @@ First add multiple todo items at once as an array:
       {task: \"Update README\", done: false}
     ]}
   ]
-  explanation: Adding multiple todos at once
+  explanation: Adding multiple tasks at once
 
-Adding todo items:
+Adding tasks items:
 - First item:
   op: set_path
-  path: [\"todos\", 3]
+  path: [\"tasks\", 3]
   value: {task: \"Run tests\", done: false}
   explanation: Adding write tests task
 
 - Next item:
   op: set_path
-  path: [\"todos\", 4]
+  path: [\"tasks\", 4]
   value: {task: \"Notify user\", done: false, priority: \"high\"}
   explanation: Adding high priority task
 
 Checking off completed tasks:
 - Mark as done:
   op: set_path
-  path: [\"todos\", 0, \"done\"]
+  path: [\"tasks\", 0, \"done\"]
   value: true
   explanation: Completed writing tests
 
 - Mark subtask as done:
   op: set_path
-  path: [\"todos\", 2, \"subtasks\", 0, \"done\"]
+  path: [\"tasks\", 2, \"subtasks\", 0, \"done\"]
   value: true
   explanation: Completed API docs update
 
-Adding a new todo to the array:
+Adding a new task to the array:
 - Append to array:
   op: set_path
-  path: [\"todos\", 3]
+  path: [\"tasks\", 3]
   value: {task: \"Deploy to production\", done: false, priority: \"high\"}
   explanation: Adding deployment task
 
-Viewing todos:
-- All todos:
+Viewing tasks:
+- All tasks:
   op: get_path
-  path: [\"todos\"]
-  explanation: Get all todo items
+  path: [\"tasks\"]
+  explanation: Get all tasks
 
 - Specific task:
   op: get_path
-  path: [\"todos\", 0]
+  path: [\"tasks\", 0]
   explanation: Checking first task details
 
 - View with depth limit:
   op: inspect
-  path: [\"todos\"]
+  path: [\"tasks\"]
   depth: 2
-  explanation: View todos with limited nesting")
+  explanation: View tasks with limited nesting")
 
 (defmethod tool-system/tool-schema :scratch-pad [_]
   {:type "object"
@@ -277,31 +277,36 @@ Viewing todos:
    :description (tool-system/tool-description tool-config)
    :schema (tool-system/tool-schema tool-config)
    :tool-fn (fn [_ params callback]
-              (try
-                (let [converted-params (tool-system/convert-java-collections params)
-                      keywordized-params (-> converted-params
-                                             (dissoc "value")
-                                             tool-system/keywordize-keys-preserve-underscores)
-                      {:keys [result error]}
-                      (->> (get converted-params "value")
-                           (assoc keywordized-params :value)
-                           (tool-system/validate-inputs tool-config)
-                           (tool-system/execute-tool tool-config)
-                           (tool-system/format-results tool-config))]
-                  (callback result error))
-                (catch Exception e
-                  (log/error e)
-                  ;; On error, create a sequence of error messages
-                  (let [error-msg (or (ex-message e) "Unknown error")
-                        data (ex-data e)
-                        ;; Construct error messages sequence
-                        error-msgs (cond-> [error-msg]
-                                     ;; Add any error-details from ex-data if available
-                                     (and data (:error-details data))
-                                     (concat (if (sequential? (:error-details data))
-                                               (:error-details data)
-                                               [(:error-details data)])))]
-                    (callback error-msgs true)))))})
+              (if (nil? params)
+                (let [msg (str "Error: Received `null` arguments for scratch_pad call."
+                               "Possible intermittent streaming error.")]
+                  (log/error msg)
+                  (callback [msg] true))
+                (try
+                  (let [converted-params (tool-system/convert-java-collections params)
+                        keywordized-params (-> converted-params
+                                               (dissoc "value")
+                                               walk/keywordize-keys)
+                        {:keys [result error]}
+                        (->> (get converted-params "value")
+                             (assoc keywordized-params :value)
+                             (tool-system/validate-inputs tool-config)
+                             (tool-system/execute-tool tool-config)
+                             (tool-system/format-results tool-config))]
+                    (callback result error))
+                  (catch Exception e
+                    (log/error e (str "scratch_pad registration map error:" (or (ex-message e) "Unknown error")))
+                    ;; On error, create a sequence of error messages
+                    (let [error-msg (str (or (ex-message e) "Unknown error"))
+                          data (ex-data e)
+                          ;; Construct error messages sequence
+                          error-msgs (cond-> [error-msg]
+                                       ;; Add any error-details from ex-data if available
+                                       (and data (:error-details data))
+                                       (concat (if (sequential? (:error-details data))
+                                                 (:error-details data)
+                                                 [(:error-details data)])))]
+                      (callback error-msgs true))))))})
 
 (defn create-scratch-pad-tool [nrepl-client-atom]
   {:tool-type :scratch-pad
@@ -317,7 +322,6 @@ Viewing todos:
 
 (comment
   ;; Usage examples with JSON values:
-
   ;; Store a simple string
   {:op "set_path"
    :path ["user" "name"]
@@ -336,7 +340,7 @@ Viewing todos:
    :value ["clojure" "mcp" "tools"]
    :explanation "Setting project tags"}
 
-  ;; === TODO LIST WORKFLOW EXAMPLE WITH ARRAYS ===
+  ;; === TASK LIST WORKFLOW EXAMPLE WITH ARRAYS ===
 
   ;; 1. Initialize todos as empty array
   {:op "set_path"
