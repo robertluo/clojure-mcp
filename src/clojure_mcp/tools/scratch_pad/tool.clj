@@ -154,6 +154,7 @@ Viewing todos:
   ;; convert set_path path nil -> delete_path path
   ;; this can prevent nil values from being in the data?
   (let [inputs (if (and
+                    (contains? inputs :value)
                     (nil? (:value inputs))
                     (= (:op inputs) "set_path")
                     (:path inputs))
@@ -229,6 +230,7 @@ Viewing todos:
        :explanation explanation
        :error false})
     (catch Exception e
+      (log/error e (str "Error executing scratch pad operation: " (.getMessage e)))
       {:error true
        :message (str "Error executing scratch pad operation: " (.getMessage e))})))
 
@@ -237,10 +239,16 @@ Viewing todos:
   (if error
     {:result [message]
      :error true}
-    (cond
+    (try
+      (cond
       ;; set_path - return pprinted parent value
       (:stored-at result)
-      {:result [(with-out-str (clojure.pprint/pprint (:parent-value result)))]
+      {:result [(try
+                  (with-out-str (clojure.pprint/pprint (:parent-value result)))
+                  (catch Exception e
+                    (log/error e (str "couldn't pprint value "
+                                  (:parent-value result)))
+                    (pr-str (:parent-value result))))]
        :error false}
 
       ;; get_path - return pprinted value
@@ -256,7 +264,12 @@ Viewing todos:
       ;; inspect - return pprinted truncated view only
       (:tree result)
       {:result [(:tree result)]
-       :error false})))
+       :error false})
+      (catch Exception e
+        (let [msg (str "Error formatting scratch_pad tool call: " (.getMessage e))]
+          (log/error e msg)
+          {:error true
+           :message [msg]})))))
 
 ;; this is needed because of the special handling of edn in the default handler
 (defmethod tool-system/registration-map :scratch-pad [tool-config]
