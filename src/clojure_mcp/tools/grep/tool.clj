@@ -19,7 +19,7 @@
 
 ;; Implement the required multimethods for the grep tool
 (defmethod tool-system/tool-name :grep [_]
-  "fs_grep")
+  "grep")
 
 (defmethod tool-system/tool-description :grep [_]
   "Fast content search tool that works with any codebase size.

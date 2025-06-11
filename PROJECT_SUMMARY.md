@@ -205,7 +205,7 @@ glob_files:
   Input: {:pattern "**/*.clj"}
   Output: List of matching file paths
   
-fs_grep:
+grep:
   Input: {:pattern "defn my-func"}
   Output: List of files containing the pattern
 

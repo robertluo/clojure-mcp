@@ -8,7 +8,7 @@
 
 (deftest tool-name-test
   (testing "tool-name returns the correct name"
-    (is (= "fs_grep"
+    (is (= "grep"
            (tool-system/tool-name {:tool-type :grep})))))
 
 (deftest tool-description-test
@@ -142,7 +142,7 @@
   (testing "grep-tool returns a valid registration map"
     (let [nrepl-client-atom (atom {})
           reg-map (sut/grep-tool nrepl-client-atom)]
-      (is (= "fs_grep" (:name reg-map)))
+      (is (= "grep" (:name reg-map)))
       (is (string? (:description reg-map)))
       (is (map? (:schema reg-map)))
       (is (fn? (:tool-fn reg-map))))))

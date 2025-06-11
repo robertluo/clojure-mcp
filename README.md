@@ -545,7 +545,7 @@ The default tools included in `main.clj` are organized by category to support di
 |-----------|-------------|---------------|
 | `LS` | Returns a recursive tree view of files and directories | Exploring project structure |
 | `read_file` | Smart file reader with pattern-based exploration for Clojure files | Reading files with collapsed view, pattern matching |
-| `fs_grep` | Fast content search using regular expressions | Finding files containing specific patterns |
+| `grep` | Fast content search using regular expressions | Finding files containing specific patterns |
 | `glob_files` | Pattern-based file finding | Finding files by name patterns like `*.clj` |
 | `think` | Log thoughts for complex reasoning and brainstorming | Planning approaches, organizing thoughts |
 
