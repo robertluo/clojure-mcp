@@ -2,14 +2,8 @@
   (:require
    [clojure.edn :as edn]
    [clojure.pprint :as pprint]
-   [clojure-mcp.tools.scratch-pad.truncate :as truncate]))
-
-(defn dissoc-in-data [data path]
-  (if (empty? path)
-    data
-    (if (= 1 (count path))
-      (dissoc data (first path))
-      (update-in data (butlast path) dissoc (last path)))))
+   [clojure-mcp.tools.scratch-pad.truncate :as truncate]
+   [clojure-mcp.tools.scratch-pad.smart-path :as sp]))
 
 (defn inspect-data [data]
   (if (empty? data)
@@ -19,8 +13,8 @@
 (defn execute-set-path
   "Execute a set_path operation and return the result map."
   [current-data path value]
-  (let [new-data (assoc-in current-data path value)
-        stored-value (get-in new-data path)]
+  (let [new-data (sp/smart-assoc-in current-data path value)
+        stored-value (sp/smart-get-in new-data path)]
     {:data new-data
      :result {:stored-at path
               :value stored-value
@@ -29,7 +23,7 @@
 (defn execute-get-path
   "Execute a get_path operation and return the result map."
   [current-data path]
-  (let [value (get-in current-data path)]
+  (let [value (sp/smart-get-in current-data path)]
     {:result {:path path
               :value value
               :pretty-value (when (some? value)
@@ -39,7 +33,7 @@
 (defn execute-delete-path
   "Execute a delete_path operation and return the result map."
   [current-data path]
-  (let [new-data (dissoc-in-data current-data path)]
+  (let [new-data (sp/smart-dissoc-in current-data path)]
     {:data new-data
      :result {:removed-from path}}))
 
@@ -47,7 +41,7 @@
   "Execute an inspect operation and return the result map."
   [current-data depth path]
   (let [data-to-view (if (and path (not (empty? path)))
-                       (get-in current-data path)
+                       (sp/smart-get-in current-data path)
                        current-data)]
     (if (nil? data-to-view)
       {:result {:tree (str "No data found at path " path)}}

@@ -51,14 +51,16 @@ Don't use the scratch pad to:
 - Replace direct chat responses
 
 CORE OPERATIONS:
-- set_path: Store a value at a path, returns the parent container
+- set_path: Store a value (not null) at a path, returns the parent container
 - get_path: Retrieve a value from a path, returns the value or nil
-- delete_path: Remove a value at a path, returns a confirmation message
+- delete_path: Remove only the leaf value from a path, returns a confirmation message
 - inspect: Display the entire structure (or a specific path) with truncation at specified depth
+
+WARNING: null values can not be stored in the scratch pad, if you attempt to store a null value the set_path will fail.
 
 TRACKING PLANS WITH TASK LISTS:
 
-Recommended task structure:
+Recommended schema for a Task:
 {
   task: \"Description of the task\",
   done: false,
@@ -138,12 +140,12 @@ Viewing tasks:
   {:type "object"
    :properties {"op" {:type "string"
                       :enum ["set_path" "get_path" "delete_path" "inspect"]
-                      :description "The operation to perform either\n * set_path: set a value at a path\n * get_path: retrieve a value at a path\n * delete_path: remove the value AND the leaf key from the data structure\n * inspect: view the datastructure (or a specific path within it) up to a certain depth"}
+                      :description "The operation to perform either\n * set_path: set a value at a path\n * get_path: retrieve a value at a path\n * delete_path: remove the value at the path the data structure\n * inspect: view the datastructure (or a specific path within it) up to a certain depth"}
                 "path" {:type "array"
                         :items {:type ["string" "number"]}
                         :description "Path to the data location (array of string or number keys) this works for all operations including inspect"}
-                "value" {:description "Value to store (for set_path). Can be any JSON value: object, array, string, number, boolean, or null."
-                         :type ["object" "array" "string" "number" "boolean" "null"]}
+                "value" {:description "Value to store (for set_path). Can be aany JSON value EXCEPT null: object, array, string, number, boolean."
+                         :type ["object" "array" "string" "number" "boolean"]}
                 "explanation" {:type "string"
                                :description "Explanation of why this operation is being performed"}
                 "depth" {:type "number"
@@ -232,12 +234,12 @@ Viewing tasks:
     (catch Exception e
       (log/error e (str "Error executing scratch pad operation: " (.getMessage e)))
       {:error true
-       :message (str "Error executing scratch pad operation: " (.getMessage e))})))
+       :result (str "Error executing scratch pad operation: " (.getMessage e))})))
 
 ;; this is convoluted this can be stream lined as most of this is imply echoing back what was sent
 (defmethod tool-system/format-results :scratch-pad [_ {:keys [error message result explanation]}]
   (if error
-    {:result [message]
+    {:result [result]
      :error true}
     (try
       (cond
@@ -269,7 +271,7 @@ Viewing tasks:
         (let [msg (str "Error formatting scratch_pad tool call: " (.getMessage e))]
           (log/error e msg)
           {:error true
-           :message [msg]})))))
+           :result [msg]})))))
 
 ;; this is needed because of the special handling of edn in the default handler
 (defmethod tool-system/registration-map :scratch-pad [tool-config]
@@ -280,7 +282,7 @@ Viewing tasks:
               (if (nil? params)
                 (let [msg (str "Error: Received `null` arguments for scratch_pad call."
                                "Possible intermittent streaming error.")]
-                  (log/error msg)
+                  (log/debug msg)
                   (callback [msg] true))
                 (try
                   (let [converted-params (tool-system/convert-java-collections params)

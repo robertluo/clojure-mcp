@@ -350,7 +350,7 @@
       (let [result (tool-system/format-results
                     tool-config
                     {:error true
-                     :message "Error message"})]
+                     :result "Error message"})]
         (is (= true (:error result)))
         (is (= ["Error message"] (:result result)))))))
 
