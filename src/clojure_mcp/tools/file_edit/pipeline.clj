@@ -181,11 +181,11 @@
   (format-result result)
 
   ;; Test the pipeline with error (non-unique match)
-  (def error-result (file-edit-pipeline test-file "Line" "EDITED Line"))
+  (def error-result (file-edit-pipeline test-file "Line" "EDITED Line" {}))
   (format-result error-result)
 
   ;; Test the pipeline with error (empty old_string)
-  (def empty-string-result (file-edit-pipeline test-file "" "New content"))
+  (def empty-string-result (file-edit-pipeline test-file "" "New content" {}))
   (format-result empty-string-result)
 
   ;; Clean up

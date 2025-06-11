@@ -133,7 +133,7 @@
 
 (comment
   (def code1 "(defn hello [name] (str \"Hello\" name)))")
-  (paren-repair code1)
+  (repair-parens code1)
   (tokenize-code code1)
   (fix-parens (tokenize-code code1))
   (repair-parens code1)
@@ -156,7 +156,7 @@
   (tokenize-code code3)
   (fix-parens (tokenize-code code3))
   (repair-parens code3)
-  (par-rep code3)
+  (repair-parens code3)
   ;; => {:repaired? true, :form "(defn hello [name] (str \"Hello\" name)) (defn world [] (println \"World\"))", 
   ;;     :message "Removed 1 extra closing parentheses and added 1 missing closing parentheses"}
 

@@ -3,6 +3,7 @@
    This namespace contains the pure functionality without any MCP-specific code."
   (:require
    [clojure.java.io :as io]
+   [clojure.string :as string]
    [clojure-mcp.tools.form-edit.pipeline :as pipeline]
    [clojure-mcp.utils.diff :as diff-utils]
    [clojure-mcp.linting :as linting]
@@ -17,8 +18,8 @@
    Returns true if the file has a Clojure-related extension (.clj, .cljs, .cljc, .edn),
    false otherwise."
   [file-path]
-  (let [lower-path (clojure.string/lower-case file-path)]
-    (some #(clojure.string/ends-with? lower-path %) [".clj" ".cljs" ".cljc" ".edn"])))
+  (let [lower-path (string/lower-case file-path)]
+    (some #(string/ends-with? lower-path %) [".clj" ".cljs" ".cljc" ".edn"])))
 
 (defn write-clojure-file
   "Write content to a Clojure file, with linting, formatting, and diffing.

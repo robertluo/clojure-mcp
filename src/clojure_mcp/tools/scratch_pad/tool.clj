@@ -4,7 +4,8 @@
    [clojure-mcp.tool-system :as tool-system]
    [clojure-mcp.tools.scratch-pad.core :as core]
    [clojure.tools.logging :as log]
-   [clojure.walk :as walk]))
+   [clojure.walk :as walk]
+   [clojure.pprint :as pprint]))
 
 (defn get-scratch-pad
   "Gets the current scratch pad data from the nrepl-client.
@@ -244,29 +245,29 @@ Viewing tasks:
     (try
       (cond
       ;; set_path - return pprinted parent value
-      (:stored-at result)
-      {:result [(try
-                  (with-out-str (clojure.pprint/pprint (:parent-value result)))
-                  (catch Exception e
-                    (log/error e (str "couldn't pprint value "
-                                  (:parent-value result)))
-                    (pr-str (:parent-value result))))]
-       :error false}
+        (:stored-at result)
+        {:result [(try
+                    (with-out-str (clojure.pprint/pprint (:parent-value result)))
+                    (catch Exception e
+                      (log/error e (str "couldn't pprint value "
+                                        (:parent-value result)))
+                      (pr-str (:parent-value result))))]
+         :error false}
 
       ;; get_path - return pprinted value
-      (contains? result :value)
-      {:result [(or (:pretty-value result) "nil")]
-       :error false}
+        (contains? result :value)
+        {:result [(or (:pretty-value result) "nil")]
+         :error false}
 
       ;; delete_path - return removed message only
-      (:removed-from result)
-      {:result [(str "Removed value at path " (:removed-from result))]
-       :error false}
+        (:removed-from result)
+        {:result [(str "Removed value at path " (:removed-from result))]
+         :error false}
 
       ;; inspect - return pprinted truncated view only
-      (:tree result)
-      {:result [(:tree result)]
-       :error false})
+        (:tree result)
+        {:result [(:tree result)]
+         :error false})
       (catch Exception e
         (let [msg (str "Error formatting scratch_pad tool call: " (.getMessage e))]
           (log/error e msg)

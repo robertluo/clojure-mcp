@@ -4,7 +4,9 @@
    [clojure.main]
    [nrepl.core :as nrepl]
    [nrepl.misc :as nrepl.misc]
-   [clojure.tools.logging :as log])
+   [nrepl.transport]
+   [clojure.tools.logging :as log]
+   [clojure.edn])
   (:import
    [java.util.concurrent LinkedBlockingQueue TimeUnit]))
 
@@ -74,7 +76,7 @@
    service id
    (->> callback
         (error (fn [_] (remove-callback! service id)))
-        (done  (fn [_] (remove-callback! service id)))
+        (done (fn [_] (remove-callback! service id)))
         (session-id session id)))
   (tap> msg)
   (nrepl.transport/send (:conn @state) msg))
@@ -135,9 +137,9 @@
     (send-msg! service
                message
                (->> k
-                 (on-key :ns #(current-ns service session %))
-                 (done finish)
-                 (error finish)))
+                    (on-key :ns #(current-ns service session %))
+                    (done finish)
+                    (error finish)))
     prom))
 
 (defn eval-code-help [service code-str k]
@@ -169,13 +171,13 @@
                                             (update :arglists clojure.edn/read-string))))))
     (deref prom 400 nil)))
 
-(defn completions [{:keys [::state] :as service } prefix]
-    (let [prom (promise)]
-      (send-msg! service
-                 (new-tool-message service {:op "completions" :prefix prefix})
-                 (->> identity
-                      (done #(deliver prom (get % :completions)))))
-      (deref prom 400 nil)))
+(defn completions [{:keys [::state] :as service} prefix]
+  (let [prom (promise)]
+    (send-msg! service
+               (new-tool-message service {:op "completions" :prefix prefix})
+               (->> identity
+                    (done #(deliver prom (get % :completions)))))
+    (deref prom 400 nil)))
 
 (defn tool-eval-code [service code-str]
   (let [prom (promise)]
@@ -234,8 +236,7 @@
                   (try
                     (create options)
                     (catch Exception e
-                      (log/error e "Reconnect failed")
-                      ))
+                      (log/error e "Reconnect failed")))
                   (swap! retries dec)
                   (recur))
               (stop-polling options))
@@ -277,7 +278,5 @@
   (start-polling serv)
   (stop-polling serv)
 
-  (tool-eval-code serv "(+ 1 2)")
-
-  )
+  (tool-eval-code serv "(+ 1 2)"))
 

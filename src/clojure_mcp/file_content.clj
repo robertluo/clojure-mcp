@@ -39,11 +39,11 @@
   (mime-type* (str->nio-path file-path)))
 
 (defn serialized-file [file-path]
-  (let [path  (str->nio-path file-path)
+  (let [path (str->nio-path file-path)
         bytes (Files/readAllBytes path)
-        b64   (.encodeToString (Base64/getEncoder) bytes)
-        mime  (mime-type* path) ;; e.g. application/pdf
-        uri   (str "file://" (.toAbsolutePath path))]
+        b64 (.encodeToString (Base64/getEncoder) bytes)
+        mime (mime-type* path) ;; e.g. application/pdf
+        uri (str "file://" (.toAbsolutePath path))]
     {:file-path file-path
      :nio-path path
      :uri uri
@@ -85,9 +85,10 @@
        (::file-response map)))
 
 (comment
-  (-> (->file-response "./dev/sponsors.pdf")
+  (-> "./dev/sponsors.pdf"
+      ->file-response
       file-response->file-content)
-  
+
   (should-be-file-response? "./dev/logback.xml")
-  (file-content "./dev/sponsors.pdf")
+  
   (text-media-type? (mime-type (str->nio-path "hello.md"))))

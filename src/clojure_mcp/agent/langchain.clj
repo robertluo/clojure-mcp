@@ -3,7 +3,8 @@
    [clojure.data.json :as json]
    [clojure-mcp.agent.langchain.schema :as schema]
    [clojure.tools.logging :as log]
-   [clojure.string :as string])
+   [clojure.string :as string]
+   [clojure.pprint])
   (:import
    ;; LangChain4j Core and Service classes
    [dev.langchain4j.service AiServices MemoryId]

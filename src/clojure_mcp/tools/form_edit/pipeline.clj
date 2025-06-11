@@ -771,7 +771,8 @@
                          "(* y y)"
                          "(+ x (* y y))"
                          false
-                         false)
+                         false
+                         {})
 
   (def replace-result
     (edit-form-pipeline "tmp/edit_file_created.clj"
@@ -785,12 +786,14 @@
     (docstring-edit-pipeline "/path/to/file.clj"
                              "example-fn"
                              "defn"
-                             "Updated docstring"))
+                             "Updated docstring"
+                             {}))
 
   (def comment-result
     (comment-block-edit-pipeline "/path/to/file.clj"
                                  "test comment"
-                                 ";; Updated comment"))
+                                 ";; Updated comment"
+                                 {}))
 
   (def outline-result
     (file-outline-pipeline "/path/to/file.clj" [])))

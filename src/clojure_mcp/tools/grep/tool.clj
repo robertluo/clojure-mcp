@@ -5,7 +5,8 @@
    [clojure-mcp.tools.grep.core :as core]
    [clojure-mcp.utils.valid-paths :as valid-paths]
    [clojure-mcp.config :as config] ; Added config require
-   [clojure.data.json :as json]))
+   [clojure.data.json :as json]
+   [clojure.string :as string]))
 
 ;; Factory function to create the tool configuration
 (defn create-grep-tool
@@ -81,7 +82,7 @@
 
                    :else
                    (let [base-message (str "Found " numFiles " file" (when-not (= numFiles 1) "s") "\n"
-                                           (clojure.string/join "\n" filenames))]
+                                           (string/join "\n" filenames))]
                      (if truncated
                        (str base-message "\n(Results are truncated. Consider using a more specific path or pattern.)")
                        base-message)))]

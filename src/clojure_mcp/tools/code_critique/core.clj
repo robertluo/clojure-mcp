@@ -132,16 +132,18 @@ This function is using state, probably better to use `iterate`
   ;; === Examples of using the code critique functionality directly ===
 
   ;; Critique a simple function
-  (critique-code "(defn add [x y] (+ x y))")
+  (critique-code {:nrepl-client-atom nil :model nil} {:code "(defn add [x y] (+ x y))"})
 
   ;; Critique a more complex function
-  (critique-code "
+  (critique-code
+   {:nrepl-client-atom nil :model nil}
+   {:code "
   (defn process-data [data]
     (let [cleaned (remove nil? data)
           processed (map #(* % 2) cleaned)
           result (reduce + processed)]
       result))
-  ")
+  "})
 
   ;; Test empty input
-  (critique-code ""))
+  (critique-code {:nrepl-client-atom nil :model nil} {:code ""}))

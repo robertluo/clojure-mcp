@@ -129,33 +129,3 @@
   [mcp-server logger-name exception message]
   (log/error exception message)
   (error mcp-server logger-name (str message ": " (.getMessage exception))))
-
-(comment
-  ;; Example usage
-  (def mcp-server (get-in @nrepl-client-atom [::mcp-server]))
-
-  ;; Direct MCP-only logging functions
-  (debug mcp-server "test-logger" "This is a debug message")
-  (info mcp-server "test-logger" "This is an info message")
-  (notice mcp-server "test-logger" "This is a notice message")
-  (warning mcp-server "test-logger" "This is a warning message")
-  (error mcp-server "test-logger" "This is an error message")
-  (critical mcp-server "test-logger" "This is a critical message")
-  (alert mcp-server "test-logger" "This is an alert message")
-  (emergency mcp-server "test-logger" "This is an emergency message")
-
-  ;; Using both logging systems (logs to Clojure and MCP)
-  (debug-both mcp-server "test-logger" "Debug info")
-  (info-both mcp-server "test-logger" "Information message")
-  (notice-both mcp-server "test-logger" "Notice message")
-  (warning-both mcp-server "test-logger" "Warning condition")
-  (error-both mcp-server "test-logger" "Error condition")
-  (critical-both mcp-server "test-logger" "Critical error")
-  (alert-both mcp-server "test-logger" "Alert condition")
-  (emergency-both mcp-server "test-logger" "Emergency situation")
-  (error-ex-both mcp-server "test-logger"
-                 (Exception. "Something went wrong")
-                 "Failed to complete operation")
-
-  ;; Low-level API
-  (send-log-message mcp-server :info "test-logger" "Custom message"))

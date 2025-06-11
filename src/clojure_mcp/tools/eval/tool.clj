@@ -82,6 +82,7 @@ Examples:
 
 (comment
   ;; === Examples of using the eval tool ===
+  (require 'clojure-mcp.nrepl)
 
   ;; Setup for REPL-based testing
   (def client-atom (atom (clojure-mcp.nrepl/create {:port 7888})))

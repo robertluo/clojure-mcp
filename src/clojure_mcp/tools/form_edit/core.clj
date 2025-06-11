@@ -846,9 +846,9 @@
            total-count 1]
       (if (>= semantic-seen match-count)
         total-count
-        (if-let [next-loc (z/right loc)]  ; z/right skips whitespace
+        (if-let [next-loc (z/right loc)] ; z/right skips whitespace
           (let [semantic? (and (z/sexpr-able? next-loc)
-                              (semantic-nodes? (z/node next-loc)))]
+                               (semantic-nodes? (z/node next-loc)))]
             (recur next-loc
                    (if semantic? (inc semantic-seen) semantic-seen)
                    (inc total-count)))
@@ -936,9 +936,10 @@
 (comment
 
   (let [source "(defn test-fn [x] (+ x 1) (+ x 2))"
-        zloc
-        result
-        updated (z/root-string (:zloc result))])
+        zloc (z/of-string source)
+        result (find-and-edit-multi-sexp zloc "(+ x 1) (+ x 2)" "(inc x)" {:operation :replace})
+        updated (z/root-string (:zloc result))]
+    updated)
 
   (-> (find-and-edit-multi-sexp
        (z/of-string "(defn test-fn [x] (+ x 1) (+ x 2))")
@@ -955,7 +956,6 @@
          (z/of-string "(defn test-fn [x] (+ x 1) (+ x 2))")
          (str-forms->sexps "(+ x 1) (+ x 2)"))
         (z/insert-left new-node)
-        (remove-n-sexps-new 2)
         ;;(z/insert-left (p/parse-string "(:edit-marker)"))
         ;;z/prev
         ;;(par/slurp-forward)
@@ -963,7 +963,7 @@
         ;;z/up
         ;;z/remove
         #_(z/subedit->
-              (z/replace (p/parse-string "x")))
+           (z/replace (p/parse-string "x")))
         ;; z/remove
         #_(replace-multi
            (str-forms->sexps "(+ x 1) (+ x 2)"))
