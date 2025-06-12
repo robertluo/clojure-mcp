@@ -66,13 +66,14 @@
     {:result [(:error result)]
      :error true}
     ;; Format the results as a plain text list of filenames
-    (let [{:keys [filenames truncated]} result
+    (let [{:keys [filenames truncated numFiles]} result
           output (cond
                    (empty? filenames) "No files found"
 
                    :else (str (string/join "\n" filenames)
                               (when truncated
-                                "\n(Results are truncated. Consider using a more specific path or pattern.)")))]
+                                (str "\n(Showing " (count filenames) " of " numFiles
+                                     " total files. Use max_results parameter to see more.)"))))]
       {:result [output]
        :error false})))
 

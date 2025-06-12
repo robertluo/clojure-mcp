@@ -85,7 +85,7 @@
       (is (false? (:error formatted-truncated)))
       (is (= 1 (count (:result formatted-truncated))))
       (is (string? (first (:result formatted-truncated))))
-      (is (str/includes? (first (:result formatted-truncated)) "Results are truncated"))
+      (is (str/includes? (first (:result formatted-truncated)) "Showing"))
 
       ;; Check empty result format
       (is (false? (:error formatted-empty)))
@@ -120,5 +120,5 @@
               output (first (:result result))]
           (is (string? output))
           (is (pos? (count output)))
-          (is (str/includes? output "(Results are truncated"))
+          (is (str/includes? output "Showing"))
           (is (false? (:error result))))))))

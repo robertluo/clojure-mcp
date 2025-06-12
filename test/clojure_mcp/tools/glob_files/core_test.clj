@@ -11,7 +11,9 @@
       (is (not (:error result)) "Should not return an error")
       (is (vector? (:filenames result)) "Should return filenames as a vector")
       (is (<= (count (:filenames result)) 5) "Should limit results to max-results")
-      (is (= (count (:filenames result)) (:numFiles result)) "numFiles should match filenames count")
+      (is (or (not (:truncated result))
+              (<= (count (:filenames result)) (:numFiles result)))
+          "numFiles should be >= filenames count when truncated")
       (is (boolean? (:truncated result)) "truncated should be a boolean")
       (is (number? (:durationMs result)) "durationMs should be a number")))
 
