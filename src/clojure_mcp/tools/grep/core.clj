@@ -4,7 +4,73 @@
   (:require
    [clojure.string :as str]
    [clojure.java.shell :as shell]
-   [clojure.java.io :as io]))
+   [clojure.java.io :as io]
+   [clojure.tools.logging :as log]))
+
+ ;; Cache tool availability to avoid repeated shell calls
+(def ^:private tool-availability (atom {}))
+
+(defn- check-tool-available?
+  "Check if a command-line tool is available and cache the result.
+   Tests actual tool execution rather than just PATH existence for better reliability."
+  [tool-name]
+  (if-let [cached (@tool-availability tool-name)]
+    cached
+    (let [result (try
+                   (let [test-flag (case tool-name
+                                     "rg" "--version"
+                                     "grep" "--version"
+                                     "--help")
+                         result (shell/sh tool-name test-flag)]
+                     (zero? (:exit result)))
+                   (catch Exception _ false))]
+      (swap! tool-availability assoc tool-name result)
+      result)))
+
+(defn grep-with-rg
+  "Uses ripgrep (rg) command to search file contents.
+   Ripgrep is typically faster than grep for large codebases.
+   
+   Arguments:
+   - path: Directory to search in
+   - pattern: Regular expression pattern to search for
+   - include: Optional file pattern to include
+   - max-results: Maximum number of results to return
+   
+   Returns a map with search results or error information."
+  [path pattern include max-results]
+  (log/debug "Using ripgrep (rg) for search - pattern:" pattern "path:" path "include:" include)
+  (let [start-time (System/currentTimeMillis)
+        ;; Build rg command args
+        cmd-args (as-> ["rg" "--files-with-matches" "--no-heading"] args
+                   (if include
+                     (concat args ["--glob" include])
+                     args)
+                   (concat args [pattern path]))
+        result (apply shell/sh cmd-args)
+        exit-code (:exit result)]
+    (if (or (zero? exit-code) (= exit-code 1)) ;; 1 means no matches, which is not an error
+      (let [end-time (System/currentTimeMillis)
+            duration (- end-time start-time)
+            matching-files (when (seq (:out result))
+                             (str/split-lines (:out result)))
+            file-count (count matching-files)
+            file-times (when matching-files
+                         (map (fn [file-path]
+                                {:path file-path
+                                 :mtime (.lastModified (io/file file-path))})
+                              matching-files))
+            ;; Sort by modification time (newest first) and limit results
+            sorted-limited-files (as-> file-times $
+                                   (sort-by :mtime > $)
+                                   (take max-results $)
+                                   (mapv :path $))]
+        {:filenames sorted-limited-files
+         :numFiles file-count
+         :durationMs duration
+         :truncated (> file-count max-results)})
+      {:error (str "rg error: " (:err result))
+       :durationMs (- (System/currentTimeMillis) start-time)})))
 
 (defn grep-with-command
   "Uses the system grep command to search file contents.
@@ -19,6 +85,7 @@
    
    Returns a map with search results or error information."
   [path pattern include max-results]
+  (log/debug "Using system grep for search - pattern:" pattern "path:" path "include:" include)
   (let [start-time (System/currentTimeMillis)
         ;; Parse the include pattern to handle multiple extensions
         include-patterns (if (and include (.contains include "{"))
@@ -83,6 +150,7 @@
    - :durationMs - Time taken for the search in milliseconds
    - :truncated - Boolean indicating if results were truncated"
   [path pattern include max-results]
+  (log/debug "Using Java implementation for search - pattern:" pattern "path:" path "include:" include)
   (let [start-time (System/currentTimeMillis)
         dir-file (io/file path)
         all-matches (atom [])
@@ -152,13 +220,21 @@
         dir-file (io/file path)]
     (if (and (.exists dir-file) (.isDirectory dir-file))
       (try
-        ;; Check if grep is available
-        (let [grep-result (shell/sh "which" "grep")
-              grep-available? (zero? (:exit grep-result))]
-          (if grep-available?
-            ;; Use system grep for performance
-            (grep-with-command path pattern include max-results)
-            ;; Fallback to Java implementation if grep is not available
+        ;; Check tool availability and prefer rg > grep > java
+        (cond
+          (check-tool-available? "rg")
+          (do
+            (log/info "Selected tool: ripgrep (rg) for pattern search")
+            (grep-with-rg path pattern include max-results))
+
+          (check-tool-available? "grep")
+          (do
+            (log/info "Selected tool: system grep for pattern search")
+            (grep-with-command path pattern include max-results))
+
+          :else
+          (do
+            (log/info "Selected tool: Java implementation for pattern search")
             (grep-with-java path pattern include max-results)))
         (catch Exception e
           {:error (.getMessage e)
