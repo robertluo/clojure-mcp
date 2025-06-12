@@ -2,11 +2,30 @@
 
 ## [v0.1.4-alpha] - 2025-06-11
 
+### The scratch_pad Tool: Persistent AI Workspace
+
+After a bunch of refinements the scratch_pad tool has matured into a
+very interesting tool - a freeform **JSON data structure** shared
+across all chat sessions in chat client.
+
+#### What It Does
+
+- **Persistent memory**: Data survives across conversations
+- **Flexible storage**: Any JSON data (objects, arrays, strings, numbers)
+- **Path operations**: Use `set_path`/`get_path`/`delete_path` for precise data manipulation
+- **AI workspace**: Serves as both thinking tool and progress tracker
+
+#### Structured Planning
+
+For complex features, use the new `plan-and-execute` prompt which leverages scratch_pad to:
+- Research problems thoroughly
+- Break down tasks into manageable subtasks  
+- Track progress with structured todo lists
+- Maintain context throughout development
+
 ### Added
 - **Ripgrep (rg) support** in grep tool with intelligent fallback hierarchy (rg > grep > Java)
 - **Smart path operations** in scratch_pad tool for automatic string-to-number conversion and data structure initialization
-- Tool availability caching to avoid repeated shell command checks
-- Cross-platform tool detection using `--version` instead of `which`
 
 ### Changed
 - **Tool rename**: `fs_grep` → `grep` for better consistency
