@@ -673,6 +673,17 @@ emacs libraries.
 - Emacs server must be running (start with `M-x server-start` or add `(server-start)` to your init file)
 - The integration allows the MCP server to communicate with your Emacs editor for enhanced development workflows
 
+#### `cljfmt`
+Boolean flag to enable/disable cljfmt formatting in editing pipelines (default: `true`). When disabled, file edits preserve the original formatting without applying cljfmt.
+
+**Available values:**
+- `true` (default) - Applies cljfmt formatting to all edited files
+- `false` - Disables formatting, preserving exact whitespace and formatting
+
+**When to use each setting:**
+- `true` - Best for maintaining consistent code style across your project
+- `false` - Useful when working with files that have specific formatting requirements or when you want to preserve manual formatting
+
 #### `write-file-guard`
 Controls the file timestamp tracking behavior (default: `:full-read`). This setting determines when file editing is allowed based on read operations.
 
@@ -699,7 +710,8 @@ The timestamp tracking system prevents accidental overwrites when files are modi
                        "/absolute/path/to/shared/code"
                        "../sibling-project"]
  :emacs-notify false
- :write-file-guard :full-read}
+ :write-file-guard :full-read
+ :cljfmt true}
 ```
 
 ### Configuration Details
@@ -730,7 +742,8 @@ The timestamp tracking system prevents accidental overwrites when files are modi
                        "resources"
                        "docs"]
  :emacs-notify false
- :write-file-guard :full-read}
+ :write-file-guard :full-read
+ :cljfmt true}
 ```
 
 #### Multi-Project Setup
@@ -740,7 +753,8 @@ The timestamp tracking system prevents accidental overwrites when files are modi
                        "../common-config"
                        "/home/user/reference-code"]
  :emacs-notify false
- :write-file-guard :partial-read}
+ :write-file-guard :partial-read
+ :cljfmt true}
 ```
 
 #### Restricted Mode (Extra Security)
@@ -748,7 +762,8 @@ The timestamp tracking system prevents accidental overwrites when files are modi
 {:allowed-directories ["src" 
                        "test"]
  :emacs-notify false
- :write-file-guard :full-read}
+ :write-file-guard :full-read
+ :cljfmt false}  ; Preserve original formatting
 ```
 
 **Note**: Configuration is loaded when the MCP server starts. Restart the server after making configuration changes.

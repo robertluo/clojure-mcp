@@ -15,7 +15,7 @@
       (log/warn "Bad file paths " (pr-str [dir path]))
       nil)))
 
-(defn process-remote-config [{:keys [allowed-directories emacs-notify write-file-guard] :as config} user-dir]
+(defn process-remote-config [{:keys [allowed-directories emacs-notify write-file-guard cljfmt] :as config} user-dir]
   (let [ud (io/file user-dir)]
     (assert (and (.isAbsolute ud) (.isDirectory ud)))
     (when (some? write-file-guard)
@@ -34,7 +34,9 @@
                   distinct
                   vec))
       (some? (:emacs-notify config))
-      (assoc :emacs-notify (boolean (:emacs-notify config))))))
+      (assoc :emacs-notify (boolean (:emacs-notify config)))
+      (some? (:cljfmt config))
+      (assoc :cljfmt (boolean (:cljfmt config))))))
 
 (defn load-remote-config [nrepl-client user-dir]
   (let [remote-cfg-str
@@ -63,6 +65,12 @@
 
 (defn get-nrepl-user-dir [nrepl-client-map]
   (get-config nrepl-client-map :nrepl-user-dir))
+
+(defn get-cljfmt [nrepl-client-map]
+  (let [value (get-config nrepl-client-map :cljfmt)]
+    (if (nil? value)
+      true ; Default to true when not specified
+      value)))
 
 (defn get-write-file-guard [nrepl-client-map]
   (let [value (get-config nrepl-client-map :write-file-guard)]

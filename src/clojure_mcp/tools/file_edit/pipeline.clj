@@ -9,6 +9,7 @@
    [clojure-mcp.tools.file-write.core :as file-write-core]
    [clojure-mcp.tools.read-file.file-timestamps :as file-timestamps]
    [clojure-mcp.utils.emacs-integration :as emacs]
+   [clojure-mcp.config :as config]
    [clojure-mcp.linting :as linting]
    [clojure.spec.alpha :as s]
    [clojure.string :as str]
@@ -63,9 +64,12 @@
   [ctx]
   (let [file-path (::form-pipeline/file-path ctx)
         output-source (::form-pipeline/output-source ctx)
-        nrepl-client-map @(::form-pipeline/nrepl-client-atom ctx)
+        nrepl-client-map (some-> ctx ::form-pipeline/nrepl-client-atom deref)
+        cljfmt-enabled (config/get-cljfmt nrepl-client-map)
         formatting-options (form-edit-core/project-formatting-options nrepl-client-map)]
-    (if (and (file-write-core/is-clojure-file? file-path) output-source)
+    (if (and (file-write-core/is-clojure-file? file-path)
+             output-source
+             cljfmt-enabled)
       (try
         (let [formatted-source (form-edit-core/format-source-string
                                 output-source

@@ -420,20 +420,24 @@
    Requires ::output-source in the context.
    Updates ::output-source with the formatted code (or unchanged if formatting fails)."
   [ctx]
-  (try
-    (let [source (::output-source ctx)
-          nrepl-client-map @(::nrepl-client-atom ctx)
-          formatting-options (core/project-formatting-options nrepl-client-map)
-          formatted (core/format-source-string source formatting-options)]
-      (assoc ctx ::output-source formatted))
-    (catch Exception e
-      ;; Instead of failing, use the original source if available
-      (if (::output-source ctx)
-        ;; Return original source when formatting fails
-        ctx
-        ;; Only propagate error if we don't have valid source
-        {::error true
-         ::message (str "Failed to format source: " (.getMessage e))}))))
+  (let [nrepl-client-map (some-> ctx ::nrepl-client-atom deref)
+        cljfmt-enabled (config/get-cljfmt nrepl-client-map)]
+    (if cljfmt-enabled
+      (try
+        (let [source (::output-source ctx)
+              formatting-options (core/project-formatting-options nrepl-client-map)
+              formatted (core/format-source-string source formatting-options)]
+          (assoc ctx ::output-source formatted))
+        (catch Exception e
+          ;; Instead of failing, use the original source if available
+          (if (::output-source ctx)
+            ;; Return original source when formatting fails
+            ctx
+            ;; Only propagate error if we don't have valid source
+            {::error true
+             ::message (str "Failed to format source: " (.getMessage e))})))
+      ;; If cljfmt is disabled, return ctx unchanged
+      ctx)))
 
 (defn determine-file-type
   "Determine if the file operation is a create or update.

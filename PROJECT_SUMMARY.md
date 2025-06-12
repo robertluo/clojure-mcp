@@ -122,12 +122,16 @@ your-project/
   - `:full-read` - Only full reads update timestamps (safest, default)
   - `:partial-read` - Both full and collapsed reads update timestamps
   - `false` - Disables timestamp checking entirely
+- `cljfmt`: Boolean flag to enable/disable cljfmt formatting in editing pipelines (default: `true`)
+  - `true` - Applies cljfmt formatting to edited files (default behavior)
+  - `false` - Disables formatting, preserving exact whitespace and formatting
 
 ### Example Configuration
 ```edn
 {:allowed-directories ["." "src" "test" "resources" "../sibling-project"]
  :emacs-notify false
- :write-file-guard :full-read}
+ :write-file-guard :full-read
+ :cljfmt true}
 ```
 
 ### Path Resolution and Security
