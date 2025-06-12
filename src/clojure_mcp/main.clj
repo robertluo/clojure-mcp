@@ -79,7 +79,7 @@
    #_prompts/scratch-pad-guide
    prompts/chat-session-summary
    prompts/resume-chat-session
-   #_prompts/plan-and-execute
+   prompts/plan-and-execute
    ;; Example parameterized prompt - code review - see function below
    #_(code-review-prompt-example)])
 
