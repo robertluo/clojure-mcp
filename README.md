@@ -42,6 +42,21 @@ tools create a new and unique LLM development experience that you
 probably should try at least once to understand how transformational
 it is.
 
+## The Good News
+
+There is a story that Clojure developers may have come to believe. The
+story that LLMs are overwhelmingly trained on more mainstream
+languages and as a result those languages have the upper hand when it
+comes to LLM assisted coding. I'm here to tell you that this is just
+not true.
+
+LLMs can definitely write Clojure. However, our the secret weapon is
+the REPL and the fast focused feedback loop that it offers.
+
+IMHO Clojure is an overwhemingly excellent langauge for LLM assisted
+development.  All it needed was bit of a bridge... and this is what
+I've tried to create with ClojureMCP.
+
 ## 🚀 Overview
 
 This project implements an MCP server that connects AI models to a
