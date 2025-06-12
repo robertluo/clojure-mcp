@@ -314,9 +314,10 @@
     (when-let [client @nrepl-client-atom]
       (log/info "Stopping nREPL polling")
       (nrepl/stop-polling client)
-      (log/info "Closing MCP server gracefully")
-      (.closeGracefully (:mcp-server client))
-      (log/info "Servers shut down successfully"))
+      (when-let [mcp-server (:mcp-server client)]
+        (log/info "Closing MCP server gracefully")
+        (.closeGracefully mcp-server)
+        (log/info "Servers shut down successfully")))
     (catch Exception e
       (log/error e "Error during server shutdown")
       (throw e))))
