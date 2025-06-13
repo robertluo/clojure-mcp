@@ -272,7 +272,7 @@ If you see output other than JSON-RPC messages, it's likely due to `clojure-mcp`
 
 This is often the most challenging part—ensuring the application's launch environment has the correct PATH and environment variables.
 
-Create or edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Create or edit `~/Library/Application\ Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
