@@ -36,7 +36,7 @@
 (s/def ::docstring string?)
 (s/def ::comment-substring string?)
 (s/def ::new-content string?)
-(s/def ::expand-symbols (s/coll-of string?))
+
 (s/def ::diff string?)
 (s/def ::type string?)
 
@@ -383,22 +383,6 @@
               updated-zloc (z/of-string updated-source {:track-position? true})]
           (assoc ctx ::zloc updated-zloc))))))
 
-(defn create-file-outline
-  "Creates a collapsed view of the file.
-   Requires ::file-path in the context.
-   Adds ::output-source to the context with the collapsed view."
-  [ctx]
-  (try
-    (let [expand-symbols (or (::expand-symbols ctx) [])
-          outline (core/generate-collapsed-file-view (::file-path ctx) expand-symbols)]
-      (if (str/starts-with? outline "Error")
-        {::error true
-         ::message outline}
-        (assoc ctx ::output-source outline)))
-    (catch Exception e
-      {::error true
-       ::message (str "Error generating file outline: " (.getMessage e))})))
-
 (defn zloc->output-source
   "Converts a zipper to a string output source.
    Requires ::zloc in the context.
@@ -679,23 +663,6 @@
      save-file
      update-file-timestamp
      highlight-form)))
-
-(defn file-outline-pipeline
-  "Pipeline for generating a collapsed view of a file.
-   
-   Arguments:
-   - file-path: Path to the file
-   - expand-symbols: Optional sequence of symbol names to show expanded
-   - config: Optional tool configuration map with notification preferences
-   
-   Returns:
-   - A context map with the result of the operation"
-  [file-path expand-symbols & [config]]
-  (thread-ctx
-   {::file-path file-path
-    ::expand-symbols expand-symbols
-    ::config config}
-   create-file-outline))
 
 (defn edit-locations->offsets [ctx]
   (try
