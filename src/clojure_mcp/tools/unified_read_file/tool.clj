@@ -46,15 +46,15 @@
    
 For Clojure files (.clj, .cljc, .cljs):
 
-This tool defaults to a expandable Collased view to quickly grab the information you need from a Clojure file.
+This tool defaults to an expandable collapsed view to quickly grab the information you need from a Clojure file.
 If called without `name_pattern` or `content_pattern` it will return the file content where 
-will see only function signatures. This gives you a quick overview of the file.
+you will see only function signatures. This gives you a quick overview of the file.
 
-When you want to see more this tool has a grep functionality where you
+When you want to see more, this tool has a grep functionality where you
 can give patterns to match the names for top level definitions
 `name_pattern` or match the bodies of top level definitions `content_pattern`.
 
-The functions that match these patterns will the only functions expanded in collapsed view.
+The functions that match these patterns will be the only functions expanded in collapsed view.
 
 For defmethod forms:
 - The name includes both the method name and the dispatch value (e.g., \"area :rectangle\")
@@ -62,7 +62,7 @@ For defmethod forms:
 - For qualified/namespaced multimethod names, include the namespace (e.g., \"tool-system/validate-inputs :clojure-eval\")
 
 For all other file types:
-- Collapsed view will be not be applied and the will return the raw contents of the file
+- Collapsed view will not be applied and will return the raw contents of the file
 
 Parameters:
 - path: Path to the file (required)
@@ -124,8 +124,8 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
 
       (when-not (valid-paths/path-exists? validated-path)
         (throw
-          (ex-info (format "Invalid Path: file `%s` does not exist." path)
-            {:inputs inputs})))
+         (ex-info (format "Invalid Path: file `%s` does not exist." path)
+                  {:inputs inputs})))
 
       {:path validated-path
        :collapsed (if (nil? collapsed) true collapsed)
@@ -145,17 +145,15 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
     (cond
       (and is-clojure-file collapsed)
       (try
-        (let [result (pattern-core/generate-pattern-based-file-view
+        (let [result (pattern-core/generate-collapsed-view
                       path
                       name_pattern
-                      content_pattern)
-              matching-names (:matches result)
-              collapsed-view (form-edit-core/generate-collapsed-file-view path matching-names)]
+                      content_pattern)]
           ;; Update timestamp for collapsed reads if write-file-guard is :partial-read
           (when (and nrepl-client-atom (= write-file-guard :partial-read))
             (file-timestamps/update-file-timestamp-to-current-mtime! nrepl-client-atom path))
           {:mode :clojure
-           :content collapsed-view
+           :content (:view result)
            :path path
            :pattern-info (:pattern-info result)
            :error false})
@@ -190,7 +188,7 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
 (defn format-clojure-view
   "Formats Clojure file view with markdown and usage advice."
   [content path pattern-info]
-  (let [{:keys [name-pattern content-pattern match-count]} pattern-info
+  (let [{:keys [name-pattern content-pattern match-count total-forms expanded-forms collapsed-forms]} pattern-info
         pattern-text (cond
                        (and name-pattern content-pattern)
                        (str "name_pattern: \"" name-pattern "\" and content_pattern: \"" content-pattern "\"")
@@ -200,10 +198,12 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
                        (str "content_pattern: \"" content-pattern "\"")
                        :else
                        "no patterns")
+        form-stats (when (and total-forms expanded-forms collapsed-forms)
+                     (str " (" expanded-forms " expanded, " collapsed-forms " collapsed)"))
         preamble (str "# THIS IS A COLLAPSED VIEW " path "\n"
                       "Set `collapsed: false` to view the entire file\n"
                       (when (or name-pattern content-pattern)
-                        (str "Matching " pattern-text " (" match-count " matches)\n"))
+                        (str "Matching " pattern-text form-stats "\n"))
                       "*** `" path "`\n")
 
         usage-tips (str "\n\n## `read_file` Tool Usage Tips\n\n"
@@ -211,6 +211,8 @@ By default, reads up to " max-lines " lines, truncating lines longer than " max-
                         "- Use `content_pattern` to find code containing specific text (e.g., \"try|catch\")\n"
                         "- For defmethod forms: Include the dispatch value (e.g., \"area :rectangle\" or \"dispatch-with-vector \\[:feet :inches\\]\")\n"
                         "- For namespaced methods: Include namespace (e.g., \"tool-system/validate-inputs :clojure-eval\")\n"
+                        "- For spec forms: Pattern match on keywords (e.g., \"::user\" or \":domain/user\")\n"
+                        "- Reader conditionals display with platform syntax: #?(:clj ...)\n"
                         "- Set `collapsed: false` to view the entire file\n")]
 
     [(str preamble "```clojure\n" content "\n```" usage-tips)]))
